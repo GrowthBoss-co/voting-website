@@ -28,6 +28,10 @@ body {
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
 }
 
+.welcome-card {
+  text-align: center;
+}
+
 h1 {
   color: #333;
   margin-bottom: 10px;
