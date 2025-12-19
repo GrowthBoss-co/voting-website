@@ -20,6 +20,13 @@ document.getElementById('pollForm').addEventListener('submit', async (e) => {
     return;
   }
 
+  // Validate file type
+  const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/quicktime', 'video/webm'];
+  if (!validTypes.includes(mediaFile.type)) {
+    alert(`File type "${mediaFile.type}" is not supported. Please use: JPG, PNG, GIF, WEBP, MP4, MOV, or WEBM.`);
+    return;
+  }
+
   // Check file size (warn if over 50MB, block if over 100MB)
   const fileSizeMB = mediaFile.size / (1024 * 1024);
   if (fileSizeMB > 100) {
@@ -57,11 +64,26 @@ document.getElementById('pollForm').addEventListener('submit', async (e) => {
         });
 
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to add poll');
+          let errorMessage = 'Failed to add poll';
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+          } catch (e) {
+            const textResponse = await response.text();
+            console.error('Server error response:', textResponse);
+            errorMessage = `Server error (${response.status}): ${textResponse.substring(0, 100)}`;
+          }
+          throw new Error(errorMessage);
         }
 
-        const data = await response.json();
+        let data;
+        try {
+          data = await response.json();
+        } catch (e) {
+          const textResponse = await response.text();
+          console.error('Invalid JSON response:', textResponse);
+          throw new Error('Server returned invalid response. The file may be too large or in an unsupported format.');
+        }
 
         if (!data.poll) {
           throw new Error('Invalid response from server');
