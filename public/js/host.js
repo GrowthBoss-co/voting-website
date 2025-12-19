@@ -127,15 +127,45 @@ async function startPoll(pollIndex) {
     const mediaContainer = document.getElementById('currentPollMedia');
     if (currentPoll.mediaType === 'video') {
       mediaContainer.innerHTML = `
-        <video controls autoplay style="max-width: 100%; max-height: 700px;">
+        <video controls autoplay style="max-width: 100%; max-height: 700px;" id="pollVideo">
           <source src="${currentPoll.mediaUrl}" type="video/mp4">
           Your browser does not support the video tag.
         </video>
+        <div id="videoError" style="display: none; color: #e53e3e; margin-top: 10px; padding: 15px; background: #fed7d7; border-radius: 8px;">
+          <strong>⚠️ Video failed to load</strong><br>
+          This may be due to CORS restrictions or authentication requirements.<br>
+          Try using: Google Drive, Imgur, Streamable, or direct server URLs.
+        </div>
       `;
+
+      // Add error handler for video loading
+      setTimeout(() => {
+        const video = document.getElementById('pollVideo');
+        if (video) {
+          video.addEventListener('error', () => {
+            document.getElementById('videoError').style.display = 'block';
+          });
+        }
+      }, 100);
     } else if (currentPoll.mediaType === 'image') {
       mediaContainer.innerHTML = `
-        <img src="${currentPoll.mediaUrl}" alt="${currentPoll.title}" style="max-width: 100%; max-height: 700px;">
+        <img src="${currentPoll.mediaUrl}" alt="${currentPoll.title}" style="max-width: 100%; max-height: 700px;" id="pollImage">
+        <div id="imageError" style="display: none; color: #e53e3e; margin-top: 10px; padding: 15px; background: #fed7d7; border-radius: 8px;">
+          <strong>⚠️ Image failed to load</strong><br>
+          This URL may have CORS restrictions or require authentication.<br>
+          Try using: Imgur, Google Drive (public), or direct server URLs.
+        </div>
       `;
+
+      // Add error handler for image loading
+      setTimeout(() => {
+        const img = document.getElementById('pollImage');
+        if (img) {
+          img.addEventListener('error', () => {
+            document.getElementById('imageError').style.display = 'block';
+          });
+        }
+      }, 100);
     }
 
     document.getElementById('totalVotes').textContent = '0';

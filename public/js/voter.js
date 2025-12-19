@@ -35,15 +35,45 @@ function displayPoll(poll, hasVoted = false, voterRating = null) {
   const mediaContainer = document.getElementById('pollMedia');
   if (currentPoll.mediaType === 'video') {
     mediaContainer.innerHTML = `
-      <video controls autoplay style="max-width: 100%; max-height: 700px;">
+      <video controls autoplay style="max-width: 100%; max-height: 700px;" id="pollVideo">
         <source src="${currentPoll.mediaUrl}" type="video/mp4">
         Your browser does not support the video tag.
       </video>
+      <div id="videoError" style="display: none; color: #e53e3e; margin-top: 10px; padding: 15px; background: #fed7d7; border-radius: 8px;">
+        <strong>⚠️ Video failed to load</strong><br>
+        The video URL may have CORS restrictions or require authentication.<br>
+        Please contact the host.
+      </div>
     `;
+
+    // Add error handler for video loading
+    setTimeout(() => {
+      const video = document.getElementById('pollVideo');
+      if (video) {
+        video.addEventListener('error', () => {
+          document.getElementById('videoError').style.display = 'block';
+        });
+      }
+    }, 100);
   } else if (currentPoll.mediaType === 'image') {
     mediaContainer.innerHTML = `
-      <img src="${currentPoll.mediaUrl}" alt="${currentPoll.title}" style="max-width: 100%; max-height: 700px;">
+      <img src="${currentPoll.mediaUrl}" alt="${currentPoll.title}" style="max-width: 100%; max-height: 700px;" id="pollImage">
+      <div id="imageError" style="display: none; color: #e53e3e; margin-top: 10px; padding: 15px; background: #fed7d7; border-radius: 8px;">
+        <strong>⚠️ Image failed to load</strong><br>
+        The image URL may have CORS restrictions or require authentication.<br>
+        Please contact the host.
+      </div>
     `;
+
+    // Add error handler for image loading
+    setTimeout(() => {
+      const img = document.getElementById('pollImage');
+      if (img) {
+        img.addEventListener('error', () => {
+          document.getElementById('imageError').style.display = 'block';
+        });
+      }
+    }, 100);
   }
 
   if (hasVoted && voterRating !== null) {

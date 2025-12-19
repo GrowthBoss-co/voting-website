@@ -33,7 +33,9 @@
             <label for="mediaUrl">Media URL (Image or Video):</label>
             <input type="url" id="mediaUrl" required placeholder="https://example.com/image.jpg or video.mp4">
             <small style="color: #666; display: block; margin-top: 5px;">
-              Paste a direct link to an image (.jpg, .png, .gif, .webp) or video (.mp4, .webm, .mov)
+              Paste a direct link to an image (.jpg, .png, .gif, .webp) or video (.mp4, .webm, .mov)<br>
+              <strong>⚠️ Note:</strong> ClickUp, Slack, and some other private CDN URLs won't work due to authentication/CORS.<br>
+              Use: Google Drive (public), Imgur, Streamable, or your own server.
             </small>
           </div>
           <button type="submit" class="btn btn-primary">Add Poll</button>
