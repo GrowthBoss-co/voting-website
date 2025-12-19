@@ -63,25 +63,26 @@ document.getElementById('pollForm').addEventListener('submit', async (e) => {
           })
         });
 
+        // Read response as text first to avoid "body already consumed" error
+        const responseText = await response.text();
+
         if (!response.ok) {
           let errorMessage = 'Failed to add poll';
           try {
-            const errorData = await response.json();
+            const errorData = JSON.parse(responseText);
             errorMessage = errorData.error || errorMessage;
           } catch (e) {
-            const textResponse = await response.text();
-            console.error('Server error response:', textResponse);
-            errorMessage = `Server error (${response.status}): ${textResponse.substring(0, 100)}`;
+            console.error('Server error response:', responseText);
+            errorMessage = `Server error (${response.status}): ${responseText.substring(0, 100)}`;
           }
           throw new Error(errorMessage);
         }
 
         let data;
         try {
-          data = await response.json();
+          data = JSON.parse(responseText);
         } catch (e) {
-          const textResponse = await response.text();
-          console.error('Invalid JSON response:', textResponse);
+          console.error('Invalid JSON response:', responseText);
           throw new Error('Server returned invalid response. The file may be too large or in an unsupported format.');
         }
 
