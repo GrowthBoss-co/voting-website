@@ -28,8 +28,42 @@ document.getElementById('pollForm').addEventListener('submit', async (e) => {
     return;
   }
 
+  // Convert Google Drive URLs to direct download format
+  let processedUrl = mediaUrl;
+  if (mediaUrl.includes('drive.google.com')) {
+    // Extract file ID from various Google Drive URL formats
+    let fileId = null;
+
+    // Format 1: https://drive.google.com/file/d/FILE_ID/view
+    const match1 = mediaUrl.match(/\/file\/d\/([^\/]+)/);
+    if (match1) {
+      fileId = match1[1];
+    }
+
+    // Format 2: https://drive.google.com/open?id=FILE_ID
+    const match2 = mediaUrl.match(/[?&]id=([^&]+)/);
+    if (match2) {
+      fileId = match2[1];
+    }
+
+    // Format 3: https://drive.google.com/uc?id=FILE_ID
+    const match3 = mediaUrl.match(/\/uc\?.*id=([^&]+)/);
+    if (match3) {
+      fileId = match3[1];
+    }
+
+    if (fileId) {
+      // Convert to direct download URL
+      processedUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+      console.log('Converted Google Drive URL:', processedUrl);
+    } else {
+      alert('Could not extract Google Drive file ID. Please make sure the file is set to "Anyone with the link can view"');
+      return;
+    }
+  }
+
   // Detect media type from URL
-  const urlLower = mediaUrl.toLowerCase();
+  const urlLower = processedUrl.toLowerCase();
   let mediaType = 'image';
 
   // Check for video extensions
@@ -54,7 +88,7 @@ document.getElementById('pollForm').addEventListener('submit', async (e) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         title,
-        mediaUrl,
+        mediaUrl: processedUrl,
         mediaType
       })
     });
