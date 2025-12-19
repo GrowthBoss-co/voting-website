@@ -54,38 +54,49 @@
       muteBtn.textContent = '🔇';
     }
 
-    // Restore playback position
-    if (savedTime > 0) {
-      audio.currentTime = savedTime;
-    }
+    // Restore playback position when audio is loaded
+    audio.addEventListener('loadedmetadata', () => {
+      if (savedTime > 0) {
+        audio.currentTime = savedTime;
+      }
+    });
 
-    // Auto-play with user interaction fallback
+    // Force load the audio
+    audio.load();
+
+    // Auto-play immediately
     const startPlayback = () => {
-      audio.play()
-        .then(() => {
-          playPauseBtn.textContent = '⏸️';
-          localStorage.setItem('musicPlaying', 'true');
-        })
-        .catch(err => {
-          console.log('Auto-play prevented, waiting for user interaction:', err);
-          playPauseBtn.textContent = '▶️';
-        });
+      const playAttempt = audio.play();
+
+      if (playAttempt !== undefined) {
+        playAttempt
+          .then(() => {
+            console.log('Audio playing successfully');
+            playPauseBtn.textContent = '⏸️';
+            localStorage.setItem('musicPlaying', 'true');
+          })
+          .catch(err => {
+            console.log('Auto-play prevented:', err);
+            playPauseBtn.textContent = '▶️';
+          });
+      }
     };
 
-    // Try to start playback
-    startPlayback();
+    // Try to start playback immediately
+    setTimeout(startPlayback, 100);
 
     // Fallback: Start on any user interaction if autoplay fails
     const handleFirstInteraction = () => {
       if (audio.paused) {
+        console.log('Starting playback on user interaction');
         audio.play().catch(err => console.log('Play failed:', err));
       }
       document.removeEventListener('click', handleFirstInteraction);
       document.removeEventListener('keydown', handleFirstInteraction);
     };
 
-    document.addEventListener('click', handleFirstInteraction);
-    document.addEventListener('keydown', handleFirstInteraction);
+    document.addEventListener('click', handleFirstInteraction, { once: true });
+    document.addEventListener('keydown', handleFirstInteraction, { once: true });
 
     // Play/Pause functionality
     playPauseBtn.addEventListener('click', (e) => {
