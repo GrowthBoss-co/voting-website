@@ -4,6 +4,7 @@ const axios = require('axios');
 const cloudinary = require('cloudinary').v2;
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 
@@ -28,23 +29,48 @@ cloudinary.config({
 
 // Serve HTML pages
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'views', 'index.html'));
+  try {
+    res.sendFile(path.join(__dirname, '..', 'views', 'index.html'));
+  } catch (error) {
+    console.error('Error serving index.html:', error);
+    res.status(500).send('Error loading page');
+  }
 });
 
 app.get('/host-login', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'views', 'host-login.html'));
+  try {
+    res.sendFile(path.join(__dirname, '..', 'views', 'host-login.html'));
+  } catch (error) {
+    console.error('Error serving host-login.html:', error);
+    res.status(500).send('Error loading page');
+  }
 });
 
 app.get('/join-session', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'views', 'join-session.html'));
+  try {
+    res.sendFile(path.join(__dirname, '..', 'views', 'join-session.html'));
+  } catch (error) {
+    console.error('Error serving join-session.html:', error);
+    res.status(500).send('Error loading page');
+  }
 });
 
 app.get('/host/:sessionId', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'views', 'host.html'));
+  try {
+    res.sendFile(path.join(__dirname, '..', 'views', 'host.html'));
+  } catch (error) {
+    console.error('Error serving host.html:', error);
+    res.status(500).send('Error loading page');
+  }
 });
 
 app.get('/vote/:sessionId', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'views', 'voter.html'));
+  try {
+    res.sendFile(path.join(__dirname, '..', 'views', 'voter.html'));
+  } catch (error) {
+    console.error('Error serving voter.html:', error);
+    res.status(500).send('Error loading page');
+  }
 });
 
 // Helper functions for Redis storage
