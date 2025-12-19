@@ -35,14 +35,14 @@ function displayPoll(poll, hasVoted = false, voterRating = null) {
   const mediaContainer = document.getElementById('pollMedia');
   if (currentPoll.mediaType === 'video') {
     mediaContainer.innerHTML = `
-      <video controls autoplay style="max-width: 100%; max-height: 500px;">
+      <video controls autoplay style="max-width: 100%; max-height: 700px;">
         <source src="${currentPoll.mediaUrl}" type="video/mp4">
         Your browser does not support the video tag.
       </video>
     `;
   } else if (currentPoll.mediaType === 'image') {
     mediaContainer.innerHTML = `
-      <img src="${currentPoll.mediaUrl}" alt="${currentPoll.title}" style="max-width: 100%; max-height: 500px;">
+      <img src="${currentPoll.mediaUrl}" alt="${currentPoll.title}" style="max-width: 100%; max-height: 700px;">
     `;
   }
 

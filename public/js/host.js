@@ -3,46 +3,10 @@ const sessionId = window.location.pathname.split('/')[2];
 let polls = [];
 let currentPollIndex = -1;
 let currentPoll = null;
-const hostEmail = 'host@growthboss.com';
-let hostVoterId = null;
 let pollingInterval = null;
 let completedPolls = []; // Store results of completed polls
 
 document.getElementById('sessionId').textContent = sessionId;
-
-async function initializeHost() {
-  try {
-    const response = await fetch('/api/session/verify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId, email: hostEmail })
-    });
-
-    const data = await response.json();
-    if (data.success) {
-      hostVoterId = data.voterId;
-    }
-  } catch (error) {
-    console.error('Error initializing host:', error);
-  }
-}
-
-initializeHost();
-
-const hostRatingSlider = document.getElementById('hostRatingSlider');
-const hostRatingInput = document.getElementById('hostRatingInput');
-
-hostRatingSlider.addEventListener('input', (e) => {
-  hostRatingInput.value = e.target.value;
-});
-
-hostRatingInput.addEventListener('input', (e) => {
-  let value = parseInt(e.target.value);
-  if (value < 0) value = 0;
-  if (value > 10) value = 10;
-  hostRatingInput.value = value;
-  hostRatingSlider.value = value;
-});
 
 document.getElementById('pollForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -132,23 +96,16 @@ async function startPoll(pollIndex) {
     const mediaContainer = document.getElementById('currentPollMedia');
     if (currentPoll.mediaType === 'video') {
       mediaContainer.innerHTML = `
-        <video controls autoplay style="max-width: 100%; max-height: 500px;">
+        <video controls autoplay style="max-width: 100%; max-height: 700px;">
           <source src="${currentPoll.mediaUrl}" type="video/mp4">
           Your browser does not support the video tag.
         </video>
       `;
     } else if (currentPoll.mediaType === 'image') {
       mediaContainer.innerHTML = `
-        <img src="${currentPoll.mediaUrl}" alt="${currentPoll.title}" style="max-width: 100%; max-height: 500px;">
+        <img src="${currentPoll.mediaUrl}" alt="${currentPoll.title}" style="max-width: 100%; max-height: 700px;">
       `;
     }
-
-    hostRatingSlider.value = 5;
-    hostRatingInput.value = 5;
-    hostRatingSlider.disabled = false;
-    hostRatingInput.disabled = false;
-    document.getElementById('hostSubmitBtn').disabled = false;
-    document.getElementById('hostVoteMessage').classList.add('hidden');
 
     document.getElementById('totalVotes').textContent = '0';
     document.getElementById('averageRating').textContent = '-';
@@ -208,46 +165,6 @@ async function updateResults() {
     console.error('Error fetching results:', error);
   }
 }
-
-document.getElementById('hostSubmitBtn').addEventListener('click', async () => {
-  if (!currentPoll || !hostVoterId) {
-    alert('Unable to submit vote');
-    return;
-  }
-
-  const rating = parseInt(hostRatingInput.value);
-
-  try {
-    const response = await fetch(`/api/session/${sessionId}/vote`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        pollId: currentPoll.id,
-        voterId: hostVoterId,
-        rating: rating
-      })
-    });
-
-    if (!response.ok) throw new Error('Failed to submit vote');
-
-    const messageDiv = document.getElementById('hostVoteMessage');
-    messageDiv.textContent = 'Your vote submitted successfully!';
-    messageDiv.className = 'submit-message success';
-    messageDiv.classList.remove('hidden');
-
-    hostRatingSlider.disabled = true;
-    hostRatingInput.disabled = true;
-    document.getElementById('hostSubmitBtn').disabled = true;
-
-    updateResults();
-
-  } catch (error) {
-    const messageDiv = document.getElementById('hostVoteMessage');
-    messageDiv.textContent = 'Error submitting vote: ' + error.message;
-    messageDiv.className = 'submit-message error';
-    messageDiv.classList.remove('hidden');
-  }
-});
 
 async function saveCompletedPoll() {
   if (!currentPoll) return;
