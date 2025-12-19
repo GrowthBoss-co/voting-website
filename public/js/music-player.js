@@ -3,12 +3,12 @@
   // Create music player HTML
   const playerHTML = `
     <div class="music-player" id="musicPlayer">
-      <audio id="bgMusic" loop>
+      <audio id="bgMusic" loop autoplay>
         <source src="/audio/background-music.mp3" type="audio/mpeg">
       </audio>
       <div class="music-controls">
         <button class="music-btn" id="playPauseBtn" title="Play/Pause">
-          ▶️
+          ⏸️
         </button>
         <button class="music-btn" id="muteBtn" title="Mute/Unmute">
           🔊
@@ -41,8 +41,7 @@
     // Load saved settings from localStorage
     const savedVolume = localStorage.getItem('musicVolume') || 50;
     const wasMuted = localStorage.getItem('musicMuted') === 'true';
-    // Default to playing if not set
-    const wasPlaying = localStorage.getItem('musicPlaying') !== 'false';
+    const savedTime = parseFloat(localStorage.getItem('musicTime') || 0);
 
     // Set initial volume
     audio.volume = savedVolume / 100;
@@ -55,8 +54,42 @@
       muteBtn.textContent = '🔇';
     }
 
+    // Restore playback position
+    if (savedTime > 0) {
+      audio.currentTime = savedTime;
+    }
+
+    // Auto-play with user interaction fallback
+    const startPlayback = () => {
+      audio.play()
+        .then(() => {
+          playPauseBtn.textContent = '⏸️';
+          localStorage.setItem('musicPlaying', 'true');
+        })
+        .catch(err => {
+          console.log('Auto-play prevented, waiting for user interaction:', err);
+          playPauseBtn.textContent = '▶️';
+        });
+    };
+
+    // Try to start playback
+    startPlayback();
+
+    // Fallback: Start on any user interaction if autoplay fails
+    const handleFirstInteraction = () => {
+      if (audio.paused) {
+        audio.play().catch(err => console.log('Play failed:', err));
+      }
+      document.removeEventListener('click', handleFirstInteraction);
+      document.removeEventListener('keydown', handleFirstInteraction);
+    };
+
+    document.addEventListener('click', handleFirstInteraction);
+    document.addEventListener('keydown', handleFirstInteraction);
+
     // Play/Pause functionality
-    playPauseBtn.addEventListener('click', () => {
+    playPauseBtn.addEventListener('click', (e) => {
+      e.stopPropagation(); // Prevent triggering the first interaction handler
       if (audio.paused) {
         audio.play().catch(err => console.log('Audio play failed:', err));
         playPauseBtn.textContent = '⏸️';
@@ -90,24 +123,18 @@
       }
     });
 
-    // Auto-play if it was playing before or on first visit (with user interaction required)
-    if (wasPlaying) {
-      // Try to play, but browsers may block auto-play
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            playPauseBtn.textContent = '⏸️';
-            localStorage.setItem('musicPlaying', 'true');
-          })
-          .catch(err => {
-            // Auto-play was prevented, show play button
-            console.log('Auto-play prevented:', err);
-            playPauseBtn.textContent = '▶️';
-            localStorage.setItem('musicPlaying', 'false');
-          });
+    // Save playback position periodically
+    setInterval(() => {
+      if (!audio.paused) {
+        localStorage.setItem('musicTime', audio.currentTime);
       }
-    }
+    }, 1000);
+
+    // Save position before page unload
+    window.addEventListener('beforeunload', () => {
+      localStorage.setItem('musicTime', audio.currentTime);
+      localStorage.setItem('musicPlaying', !audio.paused);
+    });
 
     // Handle audio errors
     audio.addEventListener('error', (e) => {
