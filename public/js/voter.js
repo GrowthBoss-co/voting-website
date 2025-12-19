@@ -33,59 +33,30 @@ function displayPoll(poll, hasVoted = false, voterRating = null) {
   document.getElementById('pollTitle').textContent = currentPoll.title;
 
   const mediaContainer = document.getElementById('pollMedia');
-  if (currentPoll.mediaType === 'video') {
-    // Check if it's a Google Drive URL
-    const isGoogleDrive = currentPoll.mediaUrl.includes('drive.google.com');
 
-    // Detect video type from URL
-    const url = currentPoll.mediaUrl.toLowerCase();
-    let videoType = 'video/mp4';
-    if (url.includes('.webm')) videoType = 'video/webm';
-    else if (url.includes('.mov')) videoType = 'video/quicktime';
-    else if (url.includes('.avi')) videoType = 'video/x-msvideo';
+  // Display as a clickable link instead of embedding
+  const mediaTypeLabel = currentPoll.mediaType === 'video' ? 'Video' : 'Image';
+  const displayUrl = currentPoll.mediaUrl.length > 60
+    ? currentPoll.mediaUrl.substring(0, 60) + '...'
+    : currentPoll.mediaUrl;
 
-    mediaContainer.innerHTML = `
-      <video controls autoplay style="max-width: 100%; max-height: 700px;" id="pollVideo" ${!isGoogleDrive ? 'crossorigin="anonymous"' : ''}>
-        <source src="${currentPoll.mediaUrl}" type="${videoType}">
-        Your browser does not support the video tag.
-      </video>
-      <div id="videoError" style="display: none; color: #e53e3e; margin-top: 10px; padding: 15px; background: #fed7d7; border-radius: 8px;">
-        <strong>⚠️ Video failed to load</strong><br>
-        The video URL may have CORS restrictions or require authentication.<br>
-        Please contact the host.
+  mediaContainer.innerHTML = `
+    <div style="text-align: center; padding: 40px; background: #f7fafc; border-radius: 12px; border: 2px dashed #cbd5e0;">
+      <div style="font-size: 48px; margin-bottom: 20px;">
+        ${currentPoll.mediaType === 'video' ? '🎥' : '🖼️'}
       </div>
-    `;
-
-    // Add error handler for video loading
-    setTimeout(() => {
-      const video = document.getElementById('pollVideo');
-      if (video) {
-        video.addEventListener('error', (e) => {
-          console.error('Video load error:', e);
-          document.getElementById('videoError').style.display = 'block';
-        });
-      }
-    }, 100);
-  } else if (currentPoll.mediaType === 'image') {
-    mediaContainer.innerHTML = `
-      <img src="${currentPoll.mediaUrl}" alt="${currentPoll.title}" style="max-width: 100%; max-height: 700px;" id="pollImage">
-      <div id="imageError" style="display: none; color: #e53e3e; margin-top: 10px; padding: 15px; background: #fed7d7; border-radius: 8px;">
-        <strong>⚠️ Image failed to load</strong><br>
-        The image URL may have CORS restrictions or require authentication.<br>
-        Please contact the host.
+      <h3 style="margin-bottom: 15px; color: #2d3748;">Click to view ${mediaTypeLabel.toLowerCase()}</h3>
+      <a href="${currentPoll.mediaUrl}" target="_blank" rel="noopener noreferrer"
+         style="display: inline-block; padding: 15px 30px; background: #4299e1; color: white;
+                text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px;
+                transition: background 0.2s;">
+        Open ${mediaTypeLabel} in New Tab
+      </a>
+      <div style="margin-top: 20px; font-size: 12px; color: #718096; word-break: break-all;">
+        URL: ${displayUrl}
       </div>
-    `;
-
-    // Add error handler for image loading
-    setTimeout(() => {
-      const img = document.getElementById('pollImage');
-      if (img) {
-        img.addEventListener('error', () => {
-          document.getElementById('imageError').style.display = 'block';
-        });
-      }
-    }, 100);
-  }
+    </div>
+  `;
 
   if (hasVoted && voterRating !== null) {
     ratingSlider.value = voterRating;

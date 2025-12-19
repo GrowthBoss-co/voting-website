@@ -163,71 +163,30 @@ async function startPoll(pollIndex) {
     document.getElementById('currentPollTitle').textContent = currentPoll.title;
 
     const mediaContainer = document.getElementById('currentPollMedia');
-    if (currentPoll.mediaType === 'video') {
-      // Check if it's a Google Drive URL
-      const isGoogleDrive = currentPoll.mediaUrl.includes('drive.google.com');
 
-      // Detect video type from URL
-      const url = currentPoll.mediaUrl.toLowerCase();
-      let videoType = 'video/mp4';
-      if (url.includes('.webm')) videoType = 'video/webm';
-      else if (url.includes('.mov')) videoType = 'video/quicktime';
-      else if (url.includes('.avi')) videoType = 'video/x-msvideo';
+    // Display as a clickable link instead of embedding
+    const mediaTypeLabel = currentPoll.mediaType === 'video' ? 'Video' : 'Image';
+    const displayUrl = currentPoll.mediaUrl.length > 60
+      ? currentPoll.mediaUrl.substring(0, 60) + '...'
+      : currentPoll.mediaUrl;
 
-      mediaContainer.innerHTML = `
-        <video controls autoplay style="max-width: 100%; max-height: 700px;" id="pollVideo" ${!isGoogleDrive ? 'crossorigin="anonymous"' : ''}>
-          <source src="${currentPoll.mediaUrl}" type="${videoType}">
-          Your browser does not support the video tag.
-        </video>
-        <div id="videoError" style="display: none; color: #e53e3e; margin-top: 10px; padding: 15px; background: #fed7d7; border-radius: 8px;">
-          <strong>⚠️ Video failed to load</strong><br>
-          URL: <code style="font-size: 11px; word-break: break-all;">${currentPoll.mediaUrl}</code><br><br>
-          Possible issues: CORS restrictions, authentication required, or unsupported format.<br>
-          <strong>Tips:</strong><br>
-          ${isGoogleDrive ?
-            '• Make sure the Google Drive file is set to "Anyone with the link can view"<br>• Try downloading and re-hosting on Imgur or Streamable' :
-            '• For Imgur: Right-click video → "Copy video address" (must end in .mp4 or .webm)<br>• For Google Drive: Make sure file is public<br>• Try a different hosting service like Streamable'}
+    mediaContainer.innerHTML = `
+      <div style="text-align: center; padding: 40px; background: #f7fafc; border-radius: 12px; border: 2px dashed #cbd5e0;">
+        <div style="font-size: 48px; margin-bottom: 20px;">
+          ${currentPoll.mediaType === 'video' ? '🎥' : '🖼️'}
         </div>
-      `;
-
-      // Add error handler for video loading
-      setTimeout(() => {
-        const video = document.getElementById('pollVideo');
-        if (video) {
-          video.addEventListener('error', (e) => {
-            console.error('Video load error:', e);
-            console.error('Video URL:', currentPoll.mediaUrl);
-            console.error('Video type:', videoType);
-            console.error('Is Google Drive:', isGoogleDrive);
-            document.getElementById('videoError').style.display = 'block';
-          });
-
-          // Also check if video can load
-          video.addEventListener('loadeddata', () => {
-            console.log('Video loaded successfully:', currentPoll.mediaUrl);
-          });
-        }
-      }, 100);
-    } else if (currentPoll.mediaType === 'image') {
-      mediaContainer.innerHTML = `
-        <img src="${currentPoll.mediaUrl}" alt="${currentPoll.title}" style="max-width: 100%; max-height: 700px;" id="pollImage">
-        <div id="imageError" style="display: none; color: #e53e3e; margin-top: 10px; padding: 15px; background: #fed7d7; border-radius: 8px;">
-          <strong>⚠️ Image failed to load</strong><br>
-          This URL may have CORS restrictions or require authentication.<br>
-          Try using: Imgur, Google Drive (public), or direct server URLs.
+        <h3 style="margin-bottom: 15px; color: #2d3748;">Click to view ${mediaTypeLabel.toLowerCase()}</h3>
+        <a href="${currentPoll.mediaUrl}" target="_blank" rel="noopener noreferrer"
+           style="display: inline-block; padding: 15px 30px; background: #4299e1; color: white;
+                  text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px;
+                  transition: background 0.2s;">
+          Open ${mediaTypeLabel} in New Tab
+        </a>
+        <div style="margin-top: 20px; font-size: 12px; color: #718096; word-break: break-all;">
+          URL: ${displayUrl}
         </div>
-      `;
-
-      // Add error handler for image loading
-      setTimeout(() => {
-        const img = document.getElementById('pollImage');
-        if (img) {
-          img.addEventListener('error', () => {
-            document.getElementById('imageError').style.display = 'block';
-          });
-        }
-      }, 100);
-    }
+      </div>
+    `;
 
     document.getElementById('totalVotes').textContent = '0';
     document.getElementById('averageRating').textContent = '-';
