@@ -65,50 +65,37 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Serve HTML pages
-app.get('/', (req, res) => {
+// Helper function to serve HTML files
+function serveHTML(filePath, res) {
   try {
-    res.sendFile(path.join(__dirname, '..', 'views', 'index.html'));
+    const html = fs.readFileSync(filePath, 'utf-8');
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
   } catch (error) {
-    console.error('Error serving index.html:', error);
+    console.error(`Error serving ${filePath}:`, error);
     res.status(500).send('Error loading page');
   }
+}
+
+// Serve HTML pages
+app.get('/', (req, res) => {
+  serveHTML(path.join(__dirname, '..', 'views', 'index.html'), res);
 });
 
 app.get('/host-login', (req, res) => {
-  try {
-    res.sendFile(path.join(__dirname, '..', 'views', 'host-login.html'));
-  } catch (error) {
-    console.error('Error serving host-login.html:', error);
-    res.status(500).send('Error loading page');
-  }
+  serveHTML(path.join(__dirname, '..', 'views', 'host-login.html'), res);
 });
 
 app.get('/join-session', (req, res) => {
-  try {
-    res.sendFile(path.join(__dirname, '..', 'views', 'join-session.html'));
-  } catch (error) {
-    console.error('Error serving join-session.html:', error);
-    res.status(500).send('Error loading page');
-  }
+  serveHTML(path.join(__dirname, '..', 'views', 'join-session.html'), res);
 });
 
 app.get('/host/:sessionId', (req, res) => {
-  try {
-    res.sendFile(path.join(__dirname, '..', 'views', 'host.html'));
-  } catch (error) {
-    console.error('Error serving host.html:', error);
-    res.status(500).send('Error loading page');
-  }
+  serveHTML(path.join(__dirname, '..', 'views', 'host.html'), res);
 });
 
 app.get('/vote/:sessionId', (req, res) => {
-  try {
-    res.sendFile(path.join(__dirname, '..', 'views', 'voter.html'));
-  } catch (error) {
-    console.error('Error serving voter.html:', error);
-    res.status(500).send('Error loading page');
-  }
+  serveHTML(path.join(__dirname, '..', 'views', 'voter.html'), res);
 });
 
 // Helper functions for Redis storage
