@@ -12,116 +12,75 @@ document.getElementById('pollForm').addEventListener('submit', async (e) => {
   e.preventDefault();
 
   const title = document.getElementById('pollTitle').value;
-  const mediaFile = document.getElementById('mediaFile').files[0];
+  const mediaUrl = document.getElementById('mediaUrl').value.trim();
   const submitBtn = e.target.querySelector('button[type="submit"]');
 
-  if (!mediaFile) {
-    alert('Please select a video or image file');
+  if (!mediaUrl) {
+    alert('Please enter a media URL');
     return;
   }
 
-  // Validate file type
-  const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/quicktime', 'video/webm'];
-  if (!validTypes.includes(mediaFile.type)) {
-    alert(`File type "${mediaFile.type}" is not supported. Please use: JPG, PNG, GIF, WEBP, MP4, MOV, or WEBM.`);
+  // Validate URL format
+  try {
+    new URL(mediaUrl);
+  } catch (e) {
+    alert('Please enter a valid URL (e.g., https://example.com/image.jpg)');
     return;
   }
 
-  // Check file size - Vercel free tier has 4.5MB payload limit
-  // Base64 encoding adds ~33% overhead, so limit files to 3MB
-  const fileSizeMB = mediaFile.size / (1024 * 1024);
-  if (fileSizeMB > 3) {
-    alert(`File is too large (${fileSizeMB.toFixed(1)}MB). Vercel has a 4.5MB payload limit.\n\n` +
-          'Please reduce file size:\n' +
-          '• GIFs: Convert to MP4 at ezgif.com/gif-to-mp4 (70-90% smaller)\n' +
-          '• Images: Compress at tinypng.com or ezgif.com/optimize\n' +
-          '• Videos: Compress at freeconvert.com/video-compressor');
-    return;
+  // Detect media type from URL
+  const urlLower = mediaUrl.toLowerCase();
+  let mediaType = 'image';
+
+  // Check for video extensions
+  if (urlLower.match(/\.(mp4|webm|mov|avi|mkv)(\?|$)/)) {
+    mediaType = 'video';
   }
-  if (fileSizeMB > 2) {
-    const proceed = confirm(`This file is ${fileSizeMB.toFixed(1)}MB. Upload may take 30-60 seconds. Continue?`);
-    if (!proceed) return;
+  // Check for image extensions
+  else if (!urlLower.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|$)/)) {
+    // If no recognized extension, ask user
+    const isVideo = confirm('Could not detect media type from URL.\n\nClick OK if this is a VIDEO, or Cancel if it\'s an IMAGE.');
+    mediaType = isVideo ? 'video' : 'image';
   }
 
   // Show loading state
   const originalBtnText = submitBtn.textContent;
   submitBtn.disabled = true;
-  submitBtn.textContent = 'Uploading...';
+  submitBtn.textContent = 'Adding poll...';
 
   try {
-    const reader = new FileReader();
-    reader.onload = async function(event) {
-      try {
-        const base64Data = event.target.result.split(',')[1];
+    const response = await fetch(`/api/session/${sessionId}/poll`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title,
+        mediaUrl,
+        mediaType
+      })
+    });
 
-        // Update button to show upload progress
-        submitBtn.textContent = mediaFile.type.startsWith('video/') ? 'Uploading video (this may take 30-60 seconds)...' : 'Uploading image...';
+    const data = await response.json();
 
-        const response = await fetch(`/api/session/${sessionId}/poll`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title,
-            mediaData: base64Data,
-            mediaType: mediaFile.type,
-            fileName: mediaFile.name
-          })
-        });
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to add poll');
+    }
 
-        // Read response as text first to avoid "body already consumed" error
-        const responseText = await response.text();
+    if (!data.poll) {
+      throw new Error('Invalid response from server');
+    }
 
-        if (!response.ok) {
-          let errorMessage = 'Failed to add poll';
-          try {
-            const errorData = JSON.parse(responseText);
-            errorMessage = errorData.error || errorMessage;
-          } catch (e) {
-            console.error('Server error response:', responseText);
-            errorMessage = `Server error (${response.status}): ${responseText.substring(0, 100)}`;
-          }
-          throw new Error(errorMessage);
-        }
+    polls.push(data.poll);
+    updatePollsList();
+    document.getElementById('pollForm').reset();
+    document.getElementById('startVotingBtn').disabled = false;
 
-        let data;
-        try {
-          data = JSON.parse(responseText);
-        } catch (e) {
-          console.error('Invalid JSON response:', responseText);
-          throw new Error('Server returned invalid response. The file may be too large or in an unsupported format.');
-        }
-
-        if (!data.poll) {
-          throw new Error('Invalid response from server');
-        }
-
-        polls.push(data.poll);
-        updatePollsList();
-        document.getElementById('pollForm').reset();
-        document.getElementById('startVotingBtn').disabled = false;
-
-        // Show success feedback
-        submitBtn.textContent = 'Poll Added!';
-        setTimeout(() => {
-          submitBtn.textContent = originalBtnText;
-          submitBtn.disabled = false;
-        }, 2000);
-
-      } catch (error) {
-        console.error('Error adding poll:', error);
-        alert('Error adding poll: ' + error.message);
-        submitBtn.textContent = originalBtnText;
-        submitBtn.disabled = false;
-      }
-    };
-
-    reader.onerror = function() {
-      alert('Error reading file');
+    // Show success feedback
+    submitBtn.textContent = 'Poll Added!';
+    setTimeout(() => {
       submitBtn.textContent = originalBtnText;
       submitBtn.disabled = false;
-    };
+    }, 2000);
 
-    reader.readAsDataURL(mediaFile);
   } catch (error) {
     console.error('Error adding poll:', error);
     alert('Error adding poll: ' + error.message);

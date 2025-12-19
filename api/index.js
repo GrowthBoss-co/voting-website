@@ -1,24 +1,18 @@
 const express = require('express');
 const { Redis } = require('@upstash/redis');
-const axios = require('axios');
-const cloudinary = require('cloudinary').v2;
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const fs = require('fs');
 
 const app = express();
 
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Validate environment variables
 const requiredEnvVars = [
   'UPSTASH_REDIS_REST_URL',
-  'UPSTASH_REDIS_REST_TOKEN',
-  'IMGBB_API_KEY',
-  'CLOUDINARY_CLOUD_NAME',
-  'CLOUDINARY_API_KEY',
-  'CLOUDINARY_API_SECRET'
+  'UPSTASH_REDIS_REST_TOKEN'
 ];
 
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
@@ -38,19 +32,7 @@ try {
   console.error('Failed to initialize Redis:', error);
 }
 
-// ImgBB API Key for images (get from https://api.imgbb.com/)
-const IMGBB_API_KEY = process.env.IMGBB_API_KEY;
-
-// Cloudinary for videos (get from https://cloudinary.com/)
-try {
-  cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
-  });
-} catch (error) {
-  console.error('Failed to configure Cloudinary:', error);
-}
+// No external media storage needed - using direct URLs
 
 // Health check endpoint for debugging
 app.get('/api/health', (req, res) => {
@@ -58,9 +40,7 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     timestamp: new Date().toISOString(),
     env: {
-      hasRedis: !!redis,
-      hasImgBB: !!IMGBB_API_KEY,
-      hasCloudinary: !!(process.env.CLOUDINARY_CLOUD_NAME)
+      hasRedis: !!redis
     }
   });
 });
@@ -166,71 +146,33 @@ app.post('/api/session/verify', async (req, res) => {
   res.json({ success: true, voterId });
 });
 
-// Create poll with hybrid upload (ImgBB for images, Cloudinary for videos)
+// Create poll with direct URL (no upload needed)
 app.post('/api/session/:sessionId/poll', async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const { title, mediaData, mediaType, fileName } = req.body;
+    const { title, mediaUrl, mediaType } = req.body;
     const session = await getSession(sessionId);
 
     if (!session) {
       return res.status(404).json({ error: 'Session not found' });
     }
 
-    let mediaUrl = null;
-    if (mediaData && mediaType) {
-      const isVideo = mediaType.startsWith('video');
+    if (!mediaUrl) {
+      return res.status(400).json({ error: 'Media URL is required' });
+    }
 
-      if (isVideo) {
-        console.log(`Uploading video to Cloudinary: ${fileName}`);
-        // Upload videos to Cloudinary with compression
-        const uploadResult = await cloudinary.uploader.upload(
-          `data:${mediaType};base64,${mediaData}`,
-          {
-            resource_type: 'video',
-            folder: 'polling-app',
-            public_id: `${sessionId}_${Date.now()}`,
-            // Automatic compression and optimization
-            quality: 'auto:good',
-            fetch_format: 'auto',
-            transformation: [
-              { width: 1280, height: 720, crop: 'limit' }, // Max 720p
-              { quality: 'auto:good' },
-              { fetch_format: 'auto' }
-            ],
-            timeout: 60000 // 60 second timeout
-          }
-        );
-        mediaUrl = uploadResult.secure_url;
-        console.log(`Video uploaded successfully: ${mediaUrl}`);
-      } else {
-        console.log(`Uploading image to ImgBB: ${fileName}`);
-        // Upload images to ImgBB (unlimited)
-        const formData = new URLSearchParams();
-        formData.append('key', IMGBB_API_KEY);
-        formData.append('image', mediaData);
-        formData.append('name', `${sessionId}_${Date.now()}`);
-
-        const uploadResult = await axios.post(
-          'https://api.imgbb.com/1/upload',
-          formData,
-          {
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            timeout: 30000 // 30 second timeout
-          }
-        );
-        mediaUrl = uploadResult.data.data.url;
-        console.log(`Image uploaded successfully: ${mediaUrl}`);
-      }
+    // Validate URL format
+    try {
+      new URL(mediaUrl);
+    } catch (e) {
+      return res.status(400).json({ error: 'Invalid URL format' });
     }
 
     const poll = {
       id: uuidv4(),
       title,
       mediaUrl,
-      mediaType: mediaType ? mediaType.split('/')[0] : null
+      mediaType: mediaType || 'image' // 'image' or 'video'
     };
 
     session.polls.push(poll);

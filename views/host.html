@@ -30,8 +30,11 @@
             <input type="text" id="pollTitle" required placeholder="e.g., Rate this design concept">
           </div>
           <div class="form-group">
-            <label for="mediaFile">Upload Video/Image:</label>
-            <input type="file" id="mediaFile" accept="image/*,video/*" required>
+            <label for="mediaUrl">Media URL (Image or Video):</label>
+            <input type="url" id="mediaUrl" required placeholder="https://example.com/image.jpg or video.mp4">
+            <small style="color: #666; display: block; margin-top: 5px;">
+              Paste a direct link to an image (.jpg, .png, .gif, .webp) or video (.mp4, .webm, .mov)
+            </small>
           </div>
           <button type="submit" class="btn btn-primary">Add Poll</button>
         </form>

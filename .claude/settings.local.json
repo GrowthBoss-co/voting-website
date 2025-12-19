@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nUpdate file size limit to 3MB for Vercel deployment\n\nReduced max file size from 100MB to 3MB to prevent 413 Payload Too Large errors. Vercel''s free tier has a 4.5MB request payload limit, and base64 encoding adds ~33% overhead. Updated error messages to guide users to compression tools for GIFs, images, and videos.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n)\")"
     ]
   }
 }
