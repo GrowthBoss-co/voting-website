@@ -6,6 +6,7 @@ let currentPoll = null;
 const hostEmail = 'host@growthboss.com';
 let hostVoterId = null;
 let pollingInterval = null;
+let completedPolls = []; // Store results of completed polls
 
 document.getElementById('sessionId').textContent = sessionId;
 
@@ -159,15 +160,16 @@ async function startPoll(pollIndex) {
     const nextBtn = document.getElementById('nextPollBtn');
     if (pollIndex >= polls.length - 1) {
       nextBtn.textContent = 'Finish Session';
-      nextBtn.onclick = () => {
+      nextBtn.onclick = async () => {
         stopPolling();
-        alert('Session completed! Thank you.');
-        window.location.href = '/';
+        await saveCompletedPoll();
+        showSessionResults();
       };
     } else {
       nextBtn.textContent = 'Next Poll';
-      nextBtn.onclick = () => {
+      nextBtn.onclick = async () => {
         stopPolling();
+        await saveCompletedPoll();
         startPoll(pollIndex + 1);
       };
     }
@@ -199,13 +201,9 @@ async function updateResults() {
     document.getElementById('totalVotes').textContent = data.totalVotes;
     document.getElementById('averageRating').textContent = data.average;
 
+    // Hide individual ratings during live voting
     const ratingsList = document.getElementById('ratingsList');
-    ratingsList.innerHTML = '<h4 style="margin-bottom: 10px;">Individual Ratings:</h4>' +
-      (data.votesWithEmails || []).map((vote) => `
-        <div class="rating-item">
-          <strong>${vote.email}</strong>: ${vote.rating}/10
-        </div>
-      `).join('');
+    ratingsList.innerHTML = '';
   } catch (error) {
     console.error('Error fetching results:', error);
   }
@@ -250,6 +248,79 @@ document.getElementById('hostSubmitBtn').addEventListener('click', async () => {
     messageDiv.classList.remove('hidden');
   }
 });
+
+async function saveCompletedPoll() {
+  if (!currentPoll) return;
+
+  try {
+    const response = await fetch(`/api/session/${sessionId}/results/${currentPoll.id}`);
+    const data = await response.json();
+
+    completedPolls.push({
+      title: currentPoll.title,
+      pollId: currentPoll.id,
+      totalVotes: data.totalVotes,
+      average: data.average,
+      votesWithEmails: data.votesWithEmails || []
+    });
+  } catch (error) {
+    console.error('Error saving completed poll:', error);
+  }
+}
+
+function showSessionResults() {
+  document.getElementById('votingSection').classList.add('hidden');
+
+  const container = document.querySelector('.host-dashboard');
+
+  const resultsSection = document.createElement('div');
+  resultsSection.className = 'session-results';
+  resultsSection.innerHTML = `
+    <h2>Session Complete - Final Results</h2>
+    <p>All polls have been completed. Click on each poll to see detailed results.</p>
+    <div id="completedPollsContainer"></div>
+    <button onclick="window.location.href='/'" class="btn btn-primary" style="margin-top: 20px;">Back to Home</button>
+  `;
+
+  container.appendChild(resultsSection);
+
+  const completedContainer = document.getElementById('completedPollsContainer');
+  completedContainer.innerHTML = completedPolls.map((poll, index) => `
+    <div class="completed-poll-card">
+      <div class="completed-poll-header" onclick="togglePollDetails(${index})">
+        <h3>Poll ${index + 1}: ${poll.title}</h3>
+        <div class="poll-summary">
+          <span>Total Votes: ${poll.totalVotes}</span>
+          <span>Average: ${poll.average}/10</span>
+          <span class="dropdown-arrow" id="arrow-${index}">▼</span>
+        </div>
+      </div>
+      <div class="completed-poll-details hidden" id="details-${index}">
+        ${poll.votesWithEmails.length > 0 ? `
+          <h4>Individual Votes:</h4>
+          ${poll.votesWithEmails.map(vote => `
+            <div class="vote-detail">
+              <strong>${vote.email}</strong>: ${vote.rating}/10
+            </div>
+          `).join('')}
+        ` : '<p>No votes recorded for this poll.</p>'}
+      </div>
+    </div>
+  `).join('');
+}
+
+function togglePollDetails(index) {
+  const details = document.getElementById(`details-${index}`);
+  const arrow = document.getElementById(`arrow-${index}`);
+
+  if (details.classList.contains('hidden')) {
+    details.classList.remove('hidden');
+    arrow.textContent = '▲';
+  } else {
+    details.classList.add('hidden');
+    arrow.textContent = '▼';
+  }
+}
 
 function copySessionId() {
   navigator.clipboard.writeText(sessionId).then(() => {
