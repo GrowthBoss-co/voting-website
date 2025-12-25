@@ -292,6 +292,90 @@ app.post('/api/session/:sessionId/poll', async (req, res) => {
   }
 });
 
+// Update poll
+app.put('/api/session/:sessionId/poll/:pollIndex', async (req, res) => {
+  try {
+    const { sessionId, pollIndex } = req.params;
+    const { title, mediaItems, timer } = req.body;
+    const session = await getSession(sessionId);
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const index = parseInt(pollIndex);
+    if (index < 0 || index >= session.polls.length) {
+      return res.status(400).json({ error: 'Invalid poll index' });
+    }
+
+    if (!mediaItems || mediaItems.length === 0) {
+      return res.status(400).json({ error: 'At least one media item is required' });
+    }
+
+    // Validate all media URLs
+    for (const item of mediaItems) {
+      try {
+        new URL(item.url);
+      } catch (e) {
+        return res.status(400).json({ error: `Invalid URL format: ${item.url}` });
+      }
+    }
+
+    // Keep the existing poll ID
+    const existingPollId = session.polls[index].id;
+
+    const updatedPoll = {
+      id: existingPollId,
+      title,
+      mediaItems,
+      timer: timer || 60,
+      startTime: null
+    };
+
+    session.polls[index] = updatedPoll;
+    await saveSession(sessionId, session);
+
+    res.json({ poll: updatedPoll });
+  } catch (error) {
+    console.error('Error updating poll:', error);
+    const errorMessage = error.message || 'Failed to update poll';
+    res.status(500).json({ error: errorMessage });
+  }
+});
+
+// Delete poll
+app.delete('/api/session/:sessionId/poll/:pollIndex', async (req, res) => {
+  try {
+    const { sessionId, pollIndex } = req.params;
+    const session = await getSession(sessionId);
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const index = parseInt(pollIndex);
+    if (index < 0 || index >= session.polls.length) {
+      return res.status(400).json({ error: 'Invalid poll index' });
+    }
+
+    // Remove the poll
+    session.polls.splice(index, 1);
+
+    // If current poll index is affected, reset it
+    if (session.currentPollIndex >= session.polls.length) {
+      session.currentPollIndex = -1;
+    }
+
+    await saveSession(sessionId, session);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting poll:', error);
+    const errorMessage = error.message || 'Failed to delete poll';
+    res.status(500).json({ error: errorMessage });
+  }
+});
+
 // Get session info
 app.get('/api/session/:sessionId', async (req, res) => {
   const { sessionId } = req.params;

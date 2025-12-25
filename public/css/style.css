@@ -98,6 +98,26 @@ h3 {
   font-size: 14px;
 }
 
+.btn-secondary {
+  background: #718096;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background: #4a5568;
+  transform: translateY(-2px);
+}
+
+.btn-danger {
+  background: #e53e3e;
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #c53030;
+  transform: translateY(-2px);
+}
+
 .btn-large {
   padding: 16px 32px;
   font-size: 18px;
@@ -265,6 +285,10 @@ h3 {
   padding: 15px;
   border-radius: 6px;
   border-left: 4px solid #667eea;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
 }
 
 .poll-item strong {

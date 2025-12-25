@@ -25,6 +25,7 @@
       <div class="setup-section" id="setupSection">
         <h2>Setup Your Polls</h2>
         <form id="pollForm" class="poll-form">
+          <input type="hidden" id="editingPollIndex" value="">
           <div class="form-group">
             <label for="pollTitle">Poll Question/Title:</label>
             <input type="text" id="pollTitle" required placeholder="e.g., Rate this design concept">
@@ -49,7 +50,10 @@
               <strong style="color: #667eea;">ℹ️ Navigation:</strong> Voters will see arrows to browse through items
             </small>
           </div>
-          <button type="submit" class="btn btn-primary">Add Poll</button>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <button type="submit" class="btn btn-primary" id="submitPollBtn">Add Poll</button>
+            <button type="button" class="btn btn-secondary hidden" id="cancelEditBtn" onclick="cancelEdit()">Cancel</button>
+          </div>
         </form>
 
         <div class="polls-list" id="pollsList">

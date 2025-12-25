@@ -50,6 +50,7 @@ document.getElementById('pollForm').addEventListener('submit', async (e) => {
   const timer = parseInt(document.getElementById('pollTimer').value) || 60;
   const mediaUrlsText = document.getElementById('mediaUrls').value.trim();
   const submitBtn = e.target.querySelector('button[type="submit"]');
+  const editingIndex = document.getElementById('editingPollIndex').value;
 
   if (!mediaUrlsText) {
     alert('Please enter at least one media URL');
@@ -115,49 +116,85 @@ document.getElementById('pollForm').addEventListener('submit', async (e) => {
   // Show loading state
   const originalBtnText = submitBtn.textContent;
   submitBtn.disabled = true;
-  submitBtn.textContent = 'Adding poll...';
+  const isEditing = editingIndex !== '';
+
+  submitBtn.textContent = isEditing ? 'Updating poll...' : 'Adding poll...';
 
   try {
-    const response = await fetch(`/api/session/${sessionId}/poll`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title,
-        mediaItems,
-        timer
-      })
-    });
+    if (isEditing) {
+      // Update existing poll
+      const pollIndex = parseInt(editingIndex);
+      const response = await fetch(`/api/session/${sessionId}/poll/${pollIndex}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          mediaItems,
+          timer
+        })
+      });
 
-    const data = await response.json();
+      const data = await response.json();
 
-    if (!response.ok) {
-      throw new Error(data.error || 'Failed to add poll');
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update poll');
+      }
+
+      polls[pollIndex] = data.poll;
+      updatePollsList();
+
+      // Reset form and exit edit mode
+      cancelEdit();
+
+      submitBtn.textContent = 'Poll Updated!';
+      setTimeout(() => {
+        submitBtn.textContent = originalBtnText;
+        submitBtn.disabled = false;
+      }, 2000);
+
+    } else {
+      // Add new poll
+      const response = await fetch(`/api/session/${sessionId}/poll`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          mediaItems,
+          timer
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to add poll');
+      }
+
+      if (!data.poll) {
+        throw new Error('Invalid response from server');
+      }
+
+      polls.push(data.poll);
+      updatePollsList();
+
+      // Reset form
+      document.getElementById('pollForm').reset();
+      document.getElementById('pollTimer').value = 60;
+      document.getElementById('mediaUrls').value = '';
+
+      document.getElementById('startVotingBtn').disabled = false;
+
+      // Show success feedback
+      submitBtn.textContent = 'Poll Added!';
+      setTimeout(() => {
+        submitBtn.textContent = originalBtnText;
+        submitBtn.disabled = false;
+      }, 2000);
     }
-
-    if (!data.poll) {
-      throw new Error('Invalid response from server');
-    }
-
-    polls.push(data.poll);
-    updatePollsList();
-
-    // Reset form
-    document.getElementById('pollForm').reset();
-    document.getElementById('pollTimer').value = 60;
-    document.getElementById('mediaUrls').value = '';
-
-    document.getElementById('startVotingBtn').disabled = false;
-
-    // Show success feedback
-    submitBtn.textContent = 'Poll Added!';
-    setTimeout(() => {
-      submitBtn.textContent = originalBtnText;
-      submitBtn.disabled = false;
-    }, 2000);
 
   } catch (error) {
-    console.error('Error adding poll:', error);
-    alert('Error adding poll: ' + error.message);
+    console.error('Error saving poll:', error);
+    alert('Error saving poll: ' + error.message);
     submitBtn.textContent = originalBtnText;
     submitBtn.disabled = false;
   }
@@ -167,8 +204,14 @@ function updatePollsList() {
   const container = document.getElementById('pollsContainer');
   container.innerHTML = polls.map((poll, index) => `
     <div class="poll-item">
-      <strong>Poll ${index + 1}:</strong> ${poll.title}
-      <span style="margin-left: 10px; color: #666;">(${poll.mediaItems.length} media item${poll.mediaItems.length > 1 ? 's' : ''}, ${poll.timer}s timer)</span>
+      <div style="flex: 1;">
+        <strong>Poll ${index + 1}:</strong> ${poll.title}
+        <span style="margin-left: 10px; color: #666;">(${poll.mediaItems.length} media item${poll.mediaItems.length > 1 ? 's' : ''}, ${poll.timer}s timer)</span>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button onclick="editPoll(${index})" class="btn btn-small btn-secondary">Edit</button>
+        <button onclick="deletePoll(${index})" class="btn btn-small btn-danger">Delete</button>
+      </div>
     </div>
   `).join('');
 }
@@ -461,4 +504,71 @@ function hostCarouselNext() {
 function hostCarouselGoto(index) {
   window.hostCarouselIndex = index;
   renderHostCarouselItem(index);
+}
+
+// Edit poll function
+function editPoll(index) {
+  const poll = polls[index];
+
+  // Fill form with poll data
+  document.getElementById('pollTitle').value = poll.title;
+  document.getElementById('pollTimer').value = poll.timer;
+
+  // Convert mediaItems back to URLs (one per line)
+  const urls = poll.mediaItems.map(item => {
+    // Convert embed URLs back to watch URLs for better UX
+    if (item.type === 'video' && item.url.includes('youtube.com/embed/')) {
+      const videoId = item.url.split('/embed/')[1].split('?')[0];
+      return `https://www.youtube.com/watch?v=${videoId}`;
+    }
+    return item.url;
+  }).join('\n');
+
+  document.getElementById('mediaUrls').value = urls;
+
+  // Set editing mode
+  document.getElementById('editingPollIndex').value = index;
+  document.getElementById('submitPollBtn').textContent = 'Update Poll';
+  document.getElementById('cancelEditBtn').classList.remove('hidden');
+
+  // Scroll to form
+  document.getElementById('pollForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Delete poll function
+async function deletePoll(index) {
+  if (!confirm(`Are you sure you want to delete Poll ${index + 1}?`)) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/session/${sessionId}/poll/${index}`, {
+      method: 'DELETE'
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to delete poll');
+    }
+
+    polls.splice(index, 1);
+    updatePollsList();
+
+    if (polls.length === 0) {
+      document.getElementById('startVotingBtn').disabled = true;
+    }
+
+  } catch (error) {
+    console.error('Error deleting poll:', error);
+    alert('Error deleting poll: ' + error.message);
+  }
+}
+
+// Cancel edit function
+function cancelEdit() {
+  document.getElementById('editingPollIndex').value = '';
+  document.getElementById('submitPollBtn').textContent = 'Add Poll';
+  document.getElementById('cancelEditBtn').classList.add('hidden');
+  document.getElementById('pollForm').reset();
+  document.getElementById('pollTimer').value = 60;
+  document.getElementById('mediaUrls').value = '';
 }
