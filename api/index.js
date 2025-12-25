@@ -376,6 +376,41 @@ app.delete('/api/session/:sessionId/poll/:pollIndex', async (req, res) => {
   }
 });
 
+// Reorder polls
+app.put('/api/session/:sessionId/reorder-polls', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { polls: reorderedPolls } = req.body;
+    const session = await getSession(sessionId);
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    if (!reorderedPolls || !Array.isArray(reorderedPolls)) {
+      return res.status(400).json({ error: 'Invalid polls array' });
+    }
+
+    // Validate that all poll IDs match
+    const existingIds = session.polls.map(p => p.id).sort();
+    const newIds = reorderedPolls.map(p => p.id).sort();
+
+    if (JSON.stringify(existingIds) !== JSON.stringify(newIds)) {
+      return res.status(400).json({ error: 'Poll IDs do not match' });
+    }
+
+    // Update the polls order
+    session.polls = reorderedPolls;
+    await saveSession(sessionId, session);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error reordering polls:', error);
+    const errorMessage = error.message || 'Failed to reorder polls';
+    res.status(500).json({ error: errorMessage });
+  }
+});
+
 // Get session info
 app.get('/api/session/:sessionId', async (req, res) => {
   const { sessionId } = req.params;

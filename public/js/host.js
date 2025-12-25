@@ -203,7 +203,17 @@ document.getElementById('pollForm').addEventListener('submit', async (e) => {
 function updatePollsList() {
   const container = document.getElementById('pollsContainer');
   container.innerHTML = polls.map((poll, index) => `
-    <div class="poll-item">
+    <div class="poll-item" draggable="true" data-index="${index}">
+      <div class="drag-handle" title="Drag to reorder">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" style="color: #718096;">
+          <circle cx="7" cy="5" r="1.5"/>
+          <circle cx="13" cy="5" r="1.5"/>
+          <circle cx="7" cy="10" r="1.5"/>
+          <circle cx="13" cy="10" r="1.5"/>
+          <circle cx="7" cy="15" r="1.5"/>
+          <circle cx="13" cy="15" r="1.5"/>
+        </svg>
+      </div>
       <div style="flex: 1;">
         <strong>Poll ${index + 1}:</strong> ${poll.title}
         <span style="margin-left: 10px; color: #666;">(${poll.mediaItems.length} media item${poll.mediaItems.length > 1 ? 's' : ''}, ${poll.timer}s timer)</span>
@@ -214,6 +224,17 @@ function updatePollsList() {
       </div>
     </div>
   `).join('');
+
+  // Add drag and drop event listeners
+  const pollItems = container.querySelectorAll('.poll-item');
+  pollItems.forEach(item => {
+    item.addEventListener('dragstart', handleDragStart);
+    item.addEventListener('dragover', handleDragOver);
+    item.addEventListener('drop', handleDrop);
+    item.addEventListener('dragenter', handleDragEnter);
+    item.addEventListener('dragleave', handleDragLeave);
+    item.addEventListener('dragend', handleDragEnd);
+  });
 }
 
 document.getElementById('startVotingBtn').addEventListener('click', async () => {
@@ -571,4 +592,80 @@ function cancelEdit() {
   document.getElementById('pollForm').reset();
   document.getElementById('pollTimer').value = 60;
   document.getElementById('mediaUrls').value = '';
+}
+
+// Drag and drop functions for reordering polls
+let draggedIndex = null;
+
+function handleDragStart(e) {
+  draggedIndex = parseInt(e.currentTarget.dataset.index);
+  e.currentTarget.style.opacity = '0.4';
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/html', e.currentTarget.innerHTML);
+}
+
+function handleDragOver(e) {
+  if (e.preventDefault) {
+    e.preventDefault();
+  }
+  e.dataTransfer.dropEffect = 'move';
+  return false;
+}
+
+function handleDragEnter(e) {
+  e.currentTarget.classList.add('drag-over');
+}
+
+function handleDragLeave(e) {
+  e.currentTarget.classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+  if (e.stopPropagation) {
+    e.stopPropagation();
+  }
+
+  const dropIndex = parseInt(e.currentTarget.dataset.index);
+
+  if (draggedIndex !== dropIndex) {
+    // Reorder the polls array
+    const draggedPoll = polls[draggedIndex];
+    polls.splice(draggedIndex, 1);
+    polls.splice(dropIndex, 0, draggedPoll);
+
+    // Update the backend
+    savePollOrder();
+
+    // Update the UI
+    updatePollsList();
+  }
+
+  return false;
+}
+
+function handleDragEnd(e) {
+  e.currentTarget.style.opacity = '1';
+
+  // Remove drag-over class from all items
+  const pollItems = document.querySelectorAll('.poll-item');
+  pollItems.forEach(item => {
+    item.classList.remove('drag-over');
+  });
+}
+
+async function savePollOrder() {
+  try {
+    const response = await fetch(`/api/session/${sessionId}/reorder-polls`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ polls })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to save poll order');
+    }
+  } catch (error) {
+    console.error('Error saving poll order:', error);
+    alert('Error saving poll order: ' + error.message);
+  }
 }

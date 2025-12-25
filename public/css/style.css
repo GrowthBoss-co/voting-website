@@ -289,6 +289,35 @@ h3 {
   justify-content: space-between;
   align-items: center;
   gap: 15px;
+  cursor: move;
+  transition: all 0.3s ease;
+}
+
+.poll-item:hover {
+  background: #edf2f7;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.poll-item.drag-over {
+  border-top: 3px solid #667eea;
+  background: #e6fffa;
+}
+
+.drag-handle {
+  display: flex;
+  align-items: center;
+  cursor: grab;
+  padding: 5px;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.drag-handle:hover {
+  background: #e2e8f0;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
 }
 
 .poll-item strong {
