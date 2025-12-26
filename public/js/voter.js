@@ -33,11 +33,20 @@ function displayPoll(poll, hasVoted = false, voterRating = null) {
 
   document.getElementById('pollTitle').textContent = currentPoll.title;
 
-  // Start timer
+  // Reset and start timer
   if (currentPoll.timer && currentPoll.startTime) {
     const elapsed = Math.floor((Date.now() - currentPoll.startTime) / 1000);
     const timeLeft = Math.max(0, currentPoll.timer - elapsed);
     startTimer(timeLeft);
+  } else {
+    // Reset timer display for polls without timer
+    const timerText = document.getElementById('timerText');
+    const timerDisplay = document.getElementById('timerDisplay');
+    if (timerText && timerDisplay) {
+      timerText.innerHTML = 'Time remaining: <strong id="timerValue">60</strong>s';
+      timerDisplay.style.background = '#48bb78';
+      timerDisplay.style.color = 'white';
+    }
   }
 
   // Render carousel for media items
@@ -214,7 +223,8 @@ function startTimer(duration) {
 
   if (!timerValue || !timerDisplay) return;
 
-  timerValue.textContent = timeLeft;
+  // Reset timer display to initial state
+  timerText.innerHTML = 'Time remaining: <strong id="timerValue">' + timeLeft + '</strong>s';
   timerDisplay.style.background = '#48bb78';
   timerDisplay.style.color = 'white';
 
@@ -223,7 +233,10 @@ function startTimer(duration) {
 
   timerInterval = setInterval(() => {
     timeLeft--;
-    timerValue.textContent = timeLeft;
+    const currentTimerValue = document.getElementById('timerValue');
+    if (currentTimerValue) {
+      currentTimerValue.textContent = timeLeft;
+    }
 
     // Change color as time runs out
     if (timeLeft <= 10) {
@@ -235,7 +248,9 @@ function startTimer(duration) {
     if (timeLeft <= 0) {
       clearInterval(timerInterval);
       timerDisplay.style.background = '#718096';
-      timerValue.textContent = '0';
+      if (currentTimerValue) {
+        currentTimerValue.textContent = '0';
+      }
       timerText.innerHTML = '⏱️ <strong>Voting Closed</strong> - Time expired';
 
       // Disable voting when timer expires
