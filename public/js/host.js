@@ -6,7 +6,7 @@ let polls = [];
 let currentPollIndex = -1;
 let currentPoll = null;
 let pollingInterval = null;
-let completedPolls = []; // Store results of completed polls
+const completedPolls = []; // Store results of completed polls
 
 document.getElementById('sessionId').textContent = sessionId;
 
@@ -35,7 +35,7 @@ if (mode === 'edit' || mode === 'present') {
 // Update button text based on mode
 if (mode === 'edit') {
   document.getElementById('startVotingBtn').textContent = 'Save & Exit';
-  document.getElementById('startVotingBtn').onclick = function() {
+  document.getElementById('startVotingBtn').onclick = function () {
     alert('Session saved! You can present it anytime from the saved sessions page.');
     window.location.href = '/session-select';
   };
@@ -43,7 +43,7 @@ if (mode === 'edit') {
   document.getElementById('startVotingBtn').textContent = 'Start Presenting';
 }
 
-document.getElementById('pollForm').addEventListener('submit', async (e) => {
+document.getElementById('pollForm').addEventListener('submit', async e => {
   e.preventDefault();
 
   const title = document.getElementById('pollTitle').value;
@@ -58,7 +58,10 @@ document.getElementById('pollForm').addEventListener('submit', async (e) => {
   }
 
   // Split by lines and filter empty lines
-  const urls = mediaUrlsText.split('\n').map(url => url.trim()).filter(url => url.length > 0);
+  const urls = mediaUrlsText
+    .split('\n')
+    .map(url => url.trim())
+    .filter(url => url.length > 0);
 
   if (urls.length === 0) {
     alert('Please enter at least one valid media URL');
@@ -151,7 +154,6 @@ document.getElementById('pollForm').addEventListener('submit', async (e) => {
         submitBtn.textContent = originalBtnText;
         submitBtn.disabled = false;
       }, 2000);
-
     } else {
       // Add new poll
       const response = await fetch(`/api/session/${sessionId}/poll`, {
@@ -191,7 +193,6 @@ document.getElementById('pollForm').addEventListener('submit', async (e) => {
         submitBtn.disabled = false;
       }, 2000);
     }
-
   } catch (error) {
     console.error('Error saving poll:', error);
     alert('Error saving poll: ' + error.message);
@@ -202,7 +203,9 @@ document.getElementById('pollForm').addEventListener('submit', async (e) => {
 
 function updatePollsList() {
   const container = document.getElementById('pollsContainer');
-  container.innerHTML = polls.map((poll, index) => `
+  container.innerHTML = polls
+    .map(
+      (poll, index) => `
     <div class="poll-item" draggable="true" data-index="${index}">
       <div class="drag-handle" title="Drag to reorder">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" style="color: #718096;">
@@ -223,7 +226,9 @@ function updatePollsList() {
         <button onclick="deletePoll(${index})" class="btn btn-small btn-danger">Delete</button>
       </div>
     </div>
-  `).join('');
+  `
+    )
+    .join('');
 
   // Add drag and drop event listeners
   const pollItems = container.querySelectorAll('.poll-item');
@@ -302,7 +307,8 @@ async function startPoll(pollIndex) {
     document.getElementById('totalVotes').textContent = '0';
     document.getElementById('averageRating').textContent = '-';
     document.getElementById('ratingsList').innerHTML = '';
-    document.getElementById('pollProgress').textContent = `Poll ${pollIndex + 1} of ${polls.length}`;
+    document.getElementById('pollProgress').textContent =
+      `Poll ${pollIndex + 1} of ${polls.length}`;
 
     // Start timer countdown
     startTimer(currentPoll.timer);
@@ -438,7 +444,9 @@ function showSessionResults() {
   container.appendChild(resultsSection);
 
   const completedContainer = document.getElementById('completedPollsContainer');
-  completedContainer.innerHTML = completedPolls.map((poll, index) => `
+  completedContainer.innerHTML = completedPolls
+    .map(
+      (poll, index) => `
     <div class="completed-poll-card">
       <div class="completed-poll-header" onclick="togglePollDetails(${index})">
         <h3>Poll ${index + 1}: ${poll.title}</h3>
@@ -449,17 +457,27 @@ function showSessionResults() {
         </div>
       </div>
       <div class="completed-poll-details hidden" id="details-${index}">
-        ${poll.votesWithEmails.length > 0 ? `
+        ${
+          poll.votesWithEmails.length > 0
+            ? `
           <h4>Individual Votes:</h4>
-          ${poll.votesWithEmails.map(vote => `
+          ${poll.votesWithEmails
+            .map(
+              vote => `
             <div class="vote-detail">
               <strong>${vote.email}</strong>: ${vote.rating}/10
             </div>
-          `).join('')}
-        ` : '<p>No votes recorded for this poll.</p>'}
+          `
+            )
+            .join('')}
+        `
+            : '<p>No votes recorded for this poll.</p>'
+        }
       </div>
     </div>
-  `).join('');
+  `
+    )
+    .join('');
 }
 
 function togglePollDetails(index) {
@@ -507,13 +525,18 @@ function renderHostCarouselItem(index) {
 
   // Update indicators
   const indicators = document.getElementById('hostCarouselIndicators');
-  indicators.innerHTML = window.hostCarouselItems.map((_, i) =>
-    `<span class="carousel-dot ${i === index ? 'active' : ''}" onclick="hostCarouselGoto(${i})"></span>`
-  ).join('');
+  indicators.innerHTML = window.hostCarouselItems
+    .map(
+      (_, i) =>
+        `<span class="carousel-dot ${i === index ? 'active' : ''}" onclick="hostCarouselGoto(${i})"></span>`
+    )
+    .join('');
 }
 
 function hostCarouselPrev() {
-  window.hostCarouselIndex = (window.hostCarouselIndex - 1 + window.hostCarouselItems.length) % window.hostCarouselItems.length;
+  window.hostCarouselIndex =
+    (window.hostCarouselIndex - 1 + window.hostCarouselItems.length) %
+    window.hostCarouselItems.length;
   renderHostCarouselItem(window.hostCarouselIndex);
 }
 
@@ -536,14 +559,16 @@ function editPoll(index) {
   document.getElementById('pollTimer').value = poll.timer;
 
   // Convert mediaItems back to URLs (one per line)
-  const urls = poll.mediaItems.map(item => {
-    // Convert embed URLs back to watch URLs for better UX
-    if (item.type === 'video' && item.url.includes('youtube.com/embed/')) {
-      const videoId = item.url.split('/embed/')[1].split('?')[0];
-      return `https://www.youtube.com/watch?v=${videoId}`;
-    }
-    return item.url;
-  }).join('\n');
+  const urls = poll.mediaItems
+    .map(item => {
+      // Convert embed URLs back to watch URLs for better UX
+      if (item.type === 'video' && item.url.includes('youtube.com/embed/')) {
+        const videoId = item.url.split('/embed/')[1].split('?')[0];
+        return `https://www.youtube.com/watch?v=${videoId}`;
+      }
+      return item.url;
+    })
+    .join('\n');
 
   document.getElementById('mediaUrls').value = urls;
 
@@ -577,7 +602,6 @@ async function deletePoll(index) {
     if (polls.length === 0) {
       document.getElementById('startVotingBtn').disabled = true;
     }
-
   } catch (error) {
     console.error('Error deleting poll:', error);
     alert('Error deleting poll: ' + error.message);

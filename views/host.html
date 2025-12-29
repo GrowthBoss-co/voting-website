@@ -1,102 +1,130 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Host Dashboard</title>
-  <link rel="stylesheet" href="/css/style.css">
-</head>
-<body>
-  <div class="container">
-    <div class="host-dashboard">
-      <div class="header">
-        <h1>Host Dashboard</h1>
-        <div class="session-info">
-          <div class="session-id-box">
-            <label>Session ID:</label>
-            <div class="id-display">
-              <strong id="sessionId"></strong>
-              <button onclick="copySessionId()" class="btn btn-small">Copy ID</button>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Host Dashboard</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="host-dashboard">
+        <div class="header">
+          <h1>Host Dashboard</h1>
+          <div class="session-info">
+            <div class="session-id-box">
+              <label>Session ID:</label>
+              <div class="id-display">
+                <strong id="sessionId"></strong>
+                <button onclick="copySessionId()" class="btn btn-small">Copy ID</button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="setup-section" id="setupSection">
-        <h2>Setup Your Polls</h2>
-        <form id="pollForm" class="poll-form">
-          <input type="hidden" id="editingPollIndex" value="">
-          <div class="form-group">
-            <label for="pollTitle">Poll Question/Title:</label>
-            <input type="text" id="pollTitle" required placeholder="e.g., Rate this design concept">
+        <div class="setup-section" id="setupSection">
+          <h2>Setup Your Polls</h2>
+          <form id="pollForm" class="poll-form">
+            <input type="hidden" id="editingPollIndex" value="" />
+            <div class="form-group">
+              <label for="pollTitle">Poll Question/Title:</label>
+              <input
+                type="text"
+                id="pollTitle"
+                required
+                placeholder="e.g., Rate this design concept"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="pollTimer">Timer (seconds):</label>
+              <input type="number" id="pollTimer" min="10" max="600" value="60" placeholder="60" />
+              <small style="color: #666; display: block; margin-top: 5px">
+                How long voters have to rate this poll (10-600 seconds, default: 60)
+              </small>
+            </div>
+
+            <div class="form-group">
+              <label>Media URLs (one per line):</label>
+              <textarea
+                id="mediaUrls"
+                rows="5"
+                placeholder="https://i.imgur.com/example1.jpg&#10;https://youtube.com/watch?v=xxxxx&#10;https://i.imgur.com/example2.png"
+                style="
+                  width: 100%;
+                  padding: 10px;
+                  border: 1px solid #ddd;
+                  border-radius: 6px;
+                  font-size: 14px;
+                  font-family: monospace;
+                "
+              ></textarea>
+              <small style="color: #666; display: block; margin-top: 5px">
+                <strong>📹 For Videos:</strong> Use YouTube URLs (e.g.,
+                https://youtube.com/watch?v=xxxxx or https://youtu.be/xxxxx)<br />
+                <strong>🖼️ For Images:</strong> Use Imgur direct image URLs (e.g.,
+                https://i.imgur.com/xxxxx.jpg)<br />
+                <br />
+                <strong style="color: #48bb78">✓ Multiple items:</strong> Enter one URL per line for
+                carousel navigation<br />
+                <strong style="color: #667eea">ℹ️ Navigation:</strong> Voters will see arrows to
+                browse through items
+              </small>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center">
+              <button type="submit" class="btn btn-primary" id="submitPollBtn">Add Poll</button>
+              <button
+                type="button"
+                class="btn btn-secondary hidden"
+                id="cancelEditBtn"
+                onclick="cancelEdit()"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+
+          <div class="polls-list" id="pollsList">
+            <h3>Created Polls:</h3>
+            <div id="pollsContainer"></div>
           </div>
 
-          <div class="form-group">
-            <label for="pollTimer">Timer (seconds):</label>
-            <input type="number" id="pollTimer" min="10" max="600" value="60" placeholder="60">
-            <small style="color: #666; display: block; margin-top: 5px;">
-              How long voters have to rate this poll (10-600 seconds, default: 60)
-            </small>
-          </div>
-
-          <div class="form-group">
-            <label>Media URLs (one per line):</label>
-            <textarea id="mediaUrls" rows="5" placeholder="https://i.imgur.com/example1.jpg&#10;https://youtube.com/watch?v=xxxxx&#10;https://i.imgur.com/example2.png" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; font-family: monospace;"></textarea>
-            <small style="color: #666; display: block; margin-top: 5px;">
-              <strong>📹 For Videos:</strong> Use YouTube URLs (e.g., https://youtube.com/watch?v=xxxxx or https://youtu.be/xxxxx)<br>
-              <strong>🖼️ For Images:</strong> Use Imgur direct image URLs (e.g., https://i.imgur.com/xxxxx.jpg)<br>
-              <br>
-              <strong style="color: #48bb78;">✓ Multiple items:</strong> Enter one URL per line for carousel navigation<br>
-              <strong style="color: #667eea;">ℹ️ Navigation:</strong> Voters will see arrows to browse through items
-            </small>
-          </div>
-          <div style="display: flex; gap: 10px; align-items: center;">
-            <button type="submit" class="btn btn-primary" id="submitPollBtn">Add Poll</button>
-            <button type="button" class="btn btn-secondary hidden" id="cancelEditBtn" onclick="cancelEdit()">Cancel</button>
-          </div>
-        </form>
-
-        <div class="polls-list" id="pollsList">
-          <h3>Created Polls:</h3>
-          <div id="pollsContainer"></div>
+          <button id="startVotingBtn" class="btn btn-success" disabled>Start Voting Session</button>
         </div>
 
-        <button id="startVotingBtn" class="btn btn-success" disabled>Start Voting Session</button>
-      </div>
-
-      <div class="voting-section hidden" id="votingSection">
-        <div class="current-poll">
-          <div class="timer-display" id="timerDisplay">
-            <span id="timerText">Time remaining: <strong id="timerValue">60</strong>s</span>
-          </div>
-          <h2 id="currentPollTitle"></h2>
-          <div id="currentPollMedia" class="media-container"></div>
-
-          <div class="results-panel">
-            <h3>Live Results</h3>
-            <div class="stats">
-              <div class="stat-box">
-                <span class="stat-label">Total Votes:</span>
-                <span class="stat-value" id="totalVotes">0</span>
-              </div>
-              <div class="stat-box">
-                <span class="stat-label">Average Rating:</span>
-                <span class="stat-value" id="averageRating">-</span>
-              </div>
+        <div class="voting-section hidden" id="votingSection">
+          <div class="current-poll">
+            <div class="timer-display" id="timerDisplay">
+              <span id="timerText">Time remaining: <strong id="timerValue">60</strong>s</span>
             </div>
-            <div id="ratingsList" class="ratings-list"></div>
-          </div>
+            <h2 id="currentPollTitle"></h2>
+            <div id="currentPollMedia" class="media-container"></div>
 
-          <div class="poll-controls">
-            <button id="nextPollBtn" class="btn btn-primary">Next Poll</button>
-            <span id="pollProgress"></span>
+            <div class="results-panel">
+              <h3>Live Results</h3>
+              <div class="stats">
+                <div class="stat-box">
+                  <span class="stat-label">Total Votes:</span>
+                  <span class="stat-value" id="totalVotes">0</span>
+                </div>
+                <div class="stat-box">
+                  <span class="stat-label">Average Rating:</span>
+                  <span class="stat-value" id="averageRating">-</span>
+                </div>
+              </div>
+              <div id="ratingsList" class="ratings-list"></div>
+            </div>
+
+            <div class="poll-controls">
+              <button id="nextPollBtn" class="btn btn-primary">Next Poll</button>
+              <span id="pollProgress"></span>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <script src="/js/music-player.js"></script>
-  <script src="/js/host.js"></script>
-</body>
+    <script src="/js/music-player.js"></script>
+    <script src="/js/host.js"></script>
+  </body>
 </html>

@@ -22,16 +22,19 @@ A real-time polling application that allows teams to rate videos and images. Per
 1. Open a terminal in the project directory
 
 2. Install dependencies:
+
 ```bash
 npm install
 ```
 
 3. Start the server:
+
 ```bash
 npm start
 ```
 
 4. Open your browser and navigate to:
+
 ```
 http://localhost:3000
 ```

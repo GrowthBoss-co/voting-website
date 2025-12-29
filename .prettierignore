@@ -1,0 +1,6 @@
+node_modules/
+public/uploads/
+*.min.js
+*.min.css
+package-lock.json
+.vercel

@@ -1,137 +1,143 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Select Session Type</title>
-  <link rel="stylesheet" href="/css/style.css">
-</head>
-<body>
-  <div class="container">
-    <div class="welcome-card">
-      <h1>Welcome, Host!</h1>
-      <p>Choose how you'd like to proceed:</p>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Select Session Type</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="welcome-card">
+        <h1>Welcome, Host!</h1>
+        <p>Choose how you'd like to proceed:</p>
 
-      <div style="display: flex; gap: 20px; margin-top: 30px; flex-wrap: wrap;">
-        <div class="session-option-card" onclick="createLiveSession()">
-          <div style="font-size: 48px; margin-bottom: 15px;">🎬</div>
-          <h3>Start Live Session</h3>
-          <p>Create and present polls immediately</p>
-          <button class="btn btn-primary" style="margin-top: 15px;">Start Now</button>
+        <div style="display: flex; gap: 20px; margin-top: 30px; flex-wrap: wrap">
+          <div class="session-option-card" onclick="createLiveSession()">
+            <div style="font-size: 48px; margin-bottom: 15px">🎬</div>
+            <h3>Start Live Session</h3>
+            <p>Create and present polls immediately</p>
+            <button class="btn btn-primary" style="margin-top: 15px">Start Now</button>
+          </div>
+
+          <div class="session-option-card" onclick="showSavedSessions()">
+            <div style="font-size: 48px; margin-bottom: 15px">💾</div>
+            <h3>Saved Sessions</h3>
+            <p>Create, edit, or present saved poll sessions</p>
+            <button class="btn btn-success" style="margin-top: 15px">Manage Saved</button>
+          </div>
         </div>
 
-        <div class="session-option-card" onclick="showSavedSessions()">
-          <div style="font-size: 48px; margin-bottom: 15px;">💾</div>
-          <h3>Saved Sessions</h3>
-          <p>Create, edit, or present saved poll sessions</p>
-          <button class="btn btn-success" style="margin-top: 15px;">Manage Saved</button>
-        </div>
+        <button onclick="logout()" class="btn btn-secondary" style="margin-top: 30px">
+          Logout
+        </button>
       </div>
 
-      <button onclick="logout()" class="btn btn-secondary" style="margin-top: 30px;">Logout</button>
-    </div>
+      <!-- Saved Sessions List Modal -->
+      <div id="savedSessionsModal" class="modal hidden">
+        <div class="modal-content">
+          <h2>Saved Poll Sessions</h2>
 
-    <!-- Saved Sessions List Modal -->
-    <div id="savedSessionsModal" class="modal hidden">
-      <div class="modal-content">
-        <h2>Saved Poll Sessions</h2>
+          <div style="margin: 20px 0">
+            <button onclick="createNewSavedSession()" class="btn btn-primary">
+              + Create New Saved Session
+            </button>
+          </div>
 
-        <div style="margin: 20px 0;">
-          <button onclick="createNewSavedSession()" class="btn btn-primary">+ Create New Saved Session</button>
+          <div id="sessionsList"></div>
+
+          <button onclick="closeModal()" class="btn btn-secondary" style="margin-top: 20px">
+            Close
+          </button>
         </div>
-
-        <div id="sessionsList"></div>
-
-        <button onclick="closeModal()" class="btn btn-secondary" style="margin-top: 20px;">Close</button>
       </div>
     </div>
-  </div>
 
-  <style>
-    .session-option-card {
-      flex: 1;
-      min-width: 280px;
-      padding: 30px;
-      background: #f7fafc;
-      border: 2px solid #e2e8f0;
-      border-radius: 12px;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.3s;
-    }
+    <style>
+      .session-option-card {
+        flex: 1;
+        min-width: 280px;
+        padding: 30px;
+        background: #f7fafc;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s;
+      }
 
-    .session-option-card:hover {
-      background: #edf2f7;
-      border-color: #4299e1;
-      transform: translateY(-5px);
-      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-    }
+      .session-option-card:hover {
+        background: #edf2f7;
+        border-color: #4299e1;
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      }
 
-    .session-option-card h3 {
-      margin: 10px 0;
-      color: #2d3748;
-    }
+      .session-option-card h3 {
+        margin: 10px 0;
+        color: #2d3748;
+      }
 
-    .session-option-card p {
-      color: #718096;
-      font-size: 14px;
-    }
+      .session-option-card p {
+        color: #718096;
+        font-size: 14px;
+      }
 
-    .modal {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-    }
+      .modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+      }
 
-    .modal.hidden {
-      display: none;
-    }
+      .modal.hidden {
+        display: none;
+      }
 
-    .modal-content {
-      background: white;
-      padding: 30px;
-      border-radius: 12px;
-      max-width: 600px;
-      width: 90%;
-      max-height: 80vh;
-      overflow-y: auto;
-    }
+      .modal-content {
+        background: white;
+        padding: 30px;
+        border-radius: 12px;
+        max-width: 600px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+      }
 
-    .session-item {
-      padding: 15px;
-      background: #f7fafc;
-      border-radius: 8px;
-      margin: 10px 0;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
+      .session-item {
+        padding: 15px;
+        background: #f7fafc;
+        border-radius: 8px;
+        margin: 10px 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
 
-    .session-item h4 {
-      margin: 0 0 5px 0;
-      color: #2d3748;
-    }
+      .session-item h4 {
+        margin: 0 0 5px 0;
+        color: #2d3748;
+      }
 
-    .session-item p {
-      margin: 0;
-      color: #718096;
-      font-size: 14px;
-    }
+      .session-item p {
+        margin: 0;
+        color: #718096;
+        font-size: 14px;
+      }
 
-    .session-actions {
-      display: flex;
-      gap: 10px;
-    }
-  </style>
+      .session-actions {
+        display: flex;
+        gap: 10px;
+      }
+    </style>
 
-  <script src="/js/music-player.js"></script>
-  <script src="/js/session-select.js"></script>
-</body>
+    <script src="/js/music-player.js"></script>
+    <script src="/js/session-select.js"></script>
+  </body>
 </html>

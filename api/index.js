@@ -10,10 +10,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Validate environment variables
-const requiredEnvVars = [
-  'UPSTASH_REDIS_REST_URL',
-  'UPSTASH_REDIS_REST_TOKEN'
-];
+const requiredEnvVars = ['UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN'];
 
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
 if (missingEnvVars.length > 0) {
@@ -26,7 +23,7 @@ let redis;
 try {
   redis = new Redis({
     url: process.env.UPSTASH_REDIS_REST_URL,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN
   });
 } catch (error) {
   console.error('Failed to initialize Redis:', error);
@@ -119,7 +116,7 @@ async function saveSession(sessionId, session) {
 app.post('/api/host/login', async (req, res) => {
   const { username, password } = req.body;
 
-  if (username === 'GrowthBossHosting' && password === 'y&%)U#2+${QF/wG7') {
+  if (username === process.env.HOST_USERNAME && password === process.env.HOST_PASSWORD) {
     // Generate a simple auth token (in production, use JWT)
     const token = uuidv4();
     await redis.set(`host:token:${token}`, 'authorized', { ex: 86400 }); // 24 hour token
@@ -168,7 +165,7 @@ app.post('/api/host/create-session', checkHostAuth, async (req, res) => {
 
     // If not live, also save to saved sessions list
     if (!isLive) {
-      const savedSessions = await redis.get('host:saved-sessions') || [];
+      const savedSessions = (await redis.get('host:saved-sessions')) || [];
       savedSessions.push({
         id: sessionId,
         name: sessionData.name,
@@ -187,19 +184,21 @@ app.post('/api/host/create-session', checkHostAuth, async (req, res) => {
 // Get saved sessions
 app.get('/api/host/saved-sessions', checkHostAuth, async (req, res) => {
   try {
-    const savedSessionsList = await redis.get('host:saved-sessions') || [];
+    const savedSessionsList = (await redis.get('host:saved-sessions')) || [];
 
     // Fetch full session data for each
     const sessions = await Promise.all(
-      savedSessionsList.map(async (item) => {
+      savedSessionsList.map(async item => {
         const session = await getSession(item.id);
-        return session ? {
-          id: session.id,
-          name: session.name,
-          polls: session.polls,
-          created: session.created,
-          status: session.status
-        } : null;
+        return session
+          ? {
+              id: session.id,
+              name: session.name,
+              polls: session.polls,
+              created: session.created,
+              status: session.status
+            }
+          : null;
       })
     );
 
@@ -219,7 +218,7 @@ app.delete('/api/host/session/:sessionId', checkHostAuth, async (req, res) => {
     const { sessionId } = req.params;
 
     // Remove from saved sessions list
-    const savedSessions = await redis.get('host:saved-sessions') || [];
+    const savedSessions = (await redis.get('host:saved-sessions')) || [];
     const filtered = savedSessions.filter(s => s.id !== sessionId);
     await redis.set('host:saved-sessions', filtered);
 
@@ -533,9 +532,8 @@ app.get('/api/session/:sessionId/results/:pollId', async (req, res) => {
   }
 
   const ratings = Array.from(pollVotes.values());
-  const average = ratings.length > 0
-    ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(2)
-    : 0;
+  const average =
+    ratings.length > 0 ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(2) : 0;
 
   const votesWithEmails = Array.from(pollVotes.entries()).map(([vId, rating]) => ({
     email: session.voters.get(vId) || 'Unknown',

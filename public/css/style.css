@@ -5,9 +5,11 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   background: linear-gradient(135deg, #e91e8c 0%, #764ba2 100%);
-  background-image: url('/images/background-pattern.png'), linear-gradient(135deg, #e91e8c 0%, #764ba2 100%);
+  background-image:
+    url('/images/background-pattern.png'), linear-gradient(135deg, #e91e8c 0%, #764ba2 100%);
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center;
@@ -25,7 +27,9 @@ body {
   width: 100%;
 }
 
-.welcome-card, .host-dashboard, .voter-view {
+.welcome-card,
+.host-dashboard,
+.voter-view {
   background: white;
   border-radius: 12px;
   padding: 40px;
@@ -261,8 +265,8 @@ h3 {
   font-weight: 600;
 }
 
-.form-group input[type="text"],
-.form-group input[type="file"] {
+.form-group input[type='text'],
+.form-group input[type='file'] {
   width: 100%;
   padding: 10px;
   border: 1px solid #ddd;
@@ -421,8 +425,12 @@ h3 {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .rating-section {
@@ -857,7 +865,9 @@ h3 {
 }
 
 @media (max-width: 768px) {
-  .welcome-card, .host-dashboard, .voter-view {
+  .welcome-card,
+  .host-dashboard,
+  .voter-view {
     padding: 20px;
   }
 

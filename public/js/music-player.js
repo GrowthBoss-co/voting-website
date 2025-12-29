@@ -1,5 +1,5 @@
 // Background Music Player
-(function() {
+(function () {
   // Create music player HTML
   const playerHTML = `
     <div class="music-player" id="musicPlayer">
@@ -99,7 +99,7 @@
     document.addEventListener('keydown', handleFirstInteraction, { once: true });
 
     // Play/Pause functionality
-    playPauseBtn.addEventListener('click', (e) => {
+    playPauseBtn.addEventListener('click', e => {
       e.stopPropagation(); // Prevent triggering the first interaction handler
       if (audio.paused) {
         audio.play().catch(err => console.log('Audio play failed:', err));
@@ -120,7 +120,7 @@
     });
 
     // Volume control
-    volumeSlider.addEventListener('input', (e) => {
+    volumeSlider.addEventListener('input', e => {
       const volume = e.target.value;
       audio.volume = volume / 100;
       volumeDisplay.textContent = volume + '%';
@@ -148,7 +148,7 @@
     });
 
     // Handle audio errors
-    audio.addEventListener('error', (e) => {
+    audio.addEventListener('error', e => {
       console.error('Audio error:', e);
       playPauseBtn.textContent = '❌';
       playPauseBtn.disabled = true;

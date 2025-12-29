@@ -1,6 +1,7 @@
 # Content Production Team Polling Website - Complete Development Documentation
 
 ## Table of Contents
+
 1. [Application Overview](#application-overview)
 2. [File Structure](#file-structure)
 3. [Server Architecture](#server-architecture)
@@ -23,6 +24,7 @@
 This is a **real-time polling/voting application** designed for team content reviews. It allows a host to create voting sessions where team members can rate videos and images on a 0-10 scale.
 
 ### Key Features
+
 - **Host Dashboard**: Create polls with YouTube videos or images
 - **Voter Interface**: Rate content on a 0-10 scale with real-time slider
 - **Live Results**: See voting statistics as they come in
@@ -31,6 +33,7 @@ This is a **real-time polling/voting application** designed for team content rev
 - **Serverless Architecture**: Deployed on Vercel with Upstash Redis
 
 ### Technology Stack
+
 - **Backend**: Express.js (serverless on Vercel)
 - **Database**: Upstash Redis (24-hour TTL)
 - **Frontend**: Vanilla JavaScript, HTML5, CSS3
@@ -82,21 +85,25 @@ C:\Users\KonTr\OneDrive\Desktop\voting website\
 The application has evolved through two server implementations:
 
 #### 1. Local Development Server (`server.js`)
+
 **Purpose**: Local testing and development
 
 **Technology**:
+
 - Express.js web framework
 - Socket.IO for WebSocket connections
 - Multer for file uploads
 - In-memory storage (Maps)
 
 **Key Characteristics**:
+
 - Real-time updates via WebSockets
 - File uploads saved to `public/uploads/`
 - Data lost on server restart
 - Runs on port 3000
 
 **Code Structure**:
+
 ```javascript
 const express = require('express');
 const http = require('http');
@@ -113,21 +120,25 @@ const hostTokens = new Map();
 ```
 
 #### 2. Production Server (`api/index.js`)
+
 **Purpose**: Production deployment on Vercel
 
 **Technology**:
+
 - Express.js (serverless function)
 - Upstash Redis for persistence
 - HTTP polling instead of WebSockets
 - URL-based media (no file uploads)
 
 **Key Characteristics**:
+
 - Serverless execution (no persistent connections)
 - 24-hour data retention via Redis TTL
 - Stateless request/response model
 - Supports unlimited concurrent sessions
 
 **Code Structure**:
+
 ```javascript
 const express = require('express');
 const { Redis } = require('@upstash/redis');
@@ -137,18 +148,20 @@ const app = express();
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN
 });
 ```
 
 ### Why Two Servers?
 
 **Transition Reason**: Vercel's serverless environment doesn't support:
+
 - Persistent WebSocket connections
 - File system storage
 - Long-running processes
 
 **Migration Changes**:
+
 1. Socket.IO → HTTP polling (2-second intervals)
 2. File uploads → Direct URL input
 3. In-memory Maps → Redis storage
@@ -161,6 +174,7 @@ const redis = new Redis({
 ### Upstash Redis
 
 Upstash is a serverless Redis service that provides:
+
 - REST API (no persistent connection needed)
 - Automatic scaling
 - Global edge network
@@ -169,6 +183,7 @@ Upstash is a serverless Redis service that provides:
 ### Data Structure
 
 #### Session Data
+
 **Key**: `session:{sessionId}`
 **Value**: JSON object
 **TTL**: 86400 seconds (24 hours)
@@ -204,6 +219,7 @@ Upstash is a serverless Redis service that provides:
 ```
 
 #### Host Authentication Token
+
 **Key**: `host:token:{token}`
 **Value**: `"authorized"`
 **TTL**: 86400 seconds (24 hours)
@@ -214,6 +230,7 @@ await redis.set('host:token:550e8400-e29b-41d4', 'authorized', { ex: 86400 });
 ```
 
 #### Saved Sessions List
+
 **Key**: `host:saved-sessions`
 **Value**: JSON array
 **TTL**: None (persists indefinitely)
@@ -221,21 +238,22 @@ await redis.set('host:token:550e8400-e29b-41d4', 'authorized', { ex: 86400 });
 ```javascript
 [
   {
-    id: "session123",
-    name: "Monday Team Meeting",
-    created: "2024-01-15T10:30:00Z"
+    id: 'session123',
+    name: 'Monday Team Meeting',
+    created: '2024-01-15T10:30:00Z'
   },
   {
-    id: "session456",
-    name: "Product Review",
-    created: "2024-01-16T14:20:00Z"
+    id: 'session456',
+    name: 'Product Review',
+    created: '2024-01-16T14:20:00Z'
   }
-]
+];
 ```
 
 ### Redis Helper Functions
 
 #### Converting Maps for Storage
+
 Redis only stores JSON, but JavaScript uses Map objects. The API includes conversion functions:
 
 ```javascript
@@ -252,11 +270,7 @@ async function saveSession(session) {
     voters: Object.fromEntries(session.voters)
   };
 
-  await redis.set(
-    `session:${session.id}`,
-    JSON.stringify(serialized),
-    { ex: 86400 }
-  );
+  await redis.set(`session:${session.id}`, JSON.stringify(serialized), { ex: 86400 });
 }
 
 // Get session (convert Objects to Maps)
@@ -298,16 +312,17 @@ async function getSession(sessionId) {
 
 The server serves static HTML pages for different parts of the application:
 
-| Route | File | Description |
-|-------|------|-------------|
-| `/` | `views/index.html` | Landing page with Host/Join buttons |
-| `/host-login` | `views/host-login.html` | Host authentication form |
-| `/session-select` | `views/session-select.html` | Choose live or saved session |
-| `/join-session` | `views/join-session.html` | Voter enters email + session ID |
-| `/host/:sessionId` | `views/host.html` | Host dashboard (create polls, view results) |
-| `/vote/:sessionId` | `views/voter.html` | Voter interface (rate content) |
+| Route              | File                        | Description                                 |
+| ------------------ | --------------------------- | ------------------------------------------- |
+| `/`                | `views/index.html`          | Landing page with Host/Join buttons         |
+| `/host-login`      | `views/host-login.html`     | Host authentication form                    |
+| `/session-select`  | `views/session-select.html` | Choose live or saved session                |
+| `/join-session`    | `views/join-session.html`   | Voter enters email + session ID             |
+| `/host/:sessionId` | `views/host.html`           | Host dashboard (create polls, view results) |
+| `/vote/:sessionId` | `views/voter.html`          | Voter interface (rate content)              |
 
 **Implementation**:
+
 ```javascript
 // Serve HTML views
 app.get('/', (req, res) => {
@@ -326,6 +341,7 @@ All API routes are prefixed with `/api/` and return JSON responses.
 #### Authentication Routes
 
 **POST `/api/host/login`**
+
 - **Purpose**: Authenticate host user
 - **Body**: `{ username: string, password: string }`
 - **Response**: `{ success: boolean, token?: string, error?: string }`
@@ -350,6 +366,7 @@ app.post('/api/host/login', async (req, res) => {
 #### Session Management Routes
 
 **POST `/api/host/create-session`** (requires auth)
+
 - **Purpose**: Create new voting session
 - **Headers**: `Authorization: Bearer {token}`
 - **Body**: `{ isLive: boolean, sessionName?: string }`
@@ -376,7 +393,7 @@ app.post('/api/host/create-session', checkHostAuth, async (req, res) => {
 
   if (!isLive) {
     // Add to saved sessions list
-    const savedSessions = await redis.get('host:saved-sessions') || [];
+    const savedSessions = (await redis.get('host:saved-sessions')) || [];
     savedSessions.push({
       id: sessionId,
       name: session.name,
@@ -390,14 +407,17 @@ app.post('/api/host/create-session', checkHostAuth, async (req, res) => {
 ```
 
 **GET `/api/host/saved-sessions`** (requires auth)
+
 - **Purpose**: Retrieve all saved sessions
 - **Response**: `{ sessions: Array<{id, name, created}> }`
 
 **DELETE `/api/host/session/:sessionId`** (requires auth)
+
 - **Purpose**: Delete a saved session
 - **Response**: `{ success: boolean }`
 
 **POST `/api/session/verify`**
+
 - **Purpose**: Verify session exists and register voter
 - **Body**: `{ sessionId: string, email: string }`
 - **Response**: `{ success: boolean, voterId?: string }`
@@ -422,6 +442,7 @@ app.post('/api/session/verify', async (req, res) => {
 #### Poll Management Routes
 
 **POST `/api/session/:sessionId/poll`**
+
 - **Purpose**: Add poll to session
 - **Body**: `{ title: string, mediaUrl: string, mediaType: 'video'|'image' }`
 - **Response**: `{ success: boolean, poll?: object }`
@@ -460,10 +481,12 @@ app.post('/api/session/:sessionId/poll', async (req, res) => {
 ```
 
 **GET `/api/session/:sessionId`**
+
 - **Purpose**: Get session information
 - **Response**: `{ success: boolean, session: object }`
 
 **POST `/api/session/:sessionId/start/:pollIndex`**
+
 - **Purpose**: Start specific poll by index
 - **Response**: `{ success: boolean }`
 
@@ -498,6 +521,7 @@ app.post('/api/session/:sessionId/start/:pollIndex', async (req, res) => {
 #### Voting Routes
 
 **GET `/api/session/:sessionId/current-poll?voterId={id}`**
+
 - **Purpose**: Get currently active poll
 - **Query**: `voterId` (to check if already voted)
 - **Response**: `{ currentPoll?: object, hasVoted?: boolean, voterRating?: number }`
@@ -522,6 +546,7 @@ app.get('/api/session/:sessionId/current-poll', async (req, res) => {
 ```
 
 **POST `/api/session/:sessionId/vote`**
+
 - **Purpose**: Submit vote for current poll
 - **Body**: `{ pollId: string, voterId: string, rating: number }`
 - **Response**: `{ success: boolean }`
@@ -557,6 +582,7 @@ app.post('/api/session/:sessionId/vote', async (req, res) => {
 ```
 
 **GET `/api/session/:sessionId/results/:pollId`**
+
 - **Purpose**: Get voting results for specific poll
 - **Response**: `{ totalVotes, average, ratings, votesWithEmails }`
 
@@ -591,6 +617,7 @@ app.get('/api/session/:sessionId/results/:pollId', async (req, res) => {
 #### Utility Routes
 
 **GET `/api/health`**
+
 - **Purpose**: Health check for monitoring
 - **Response**: `{ status: 'ok', timestamp, env: { hasRedis } }`
 
@@ -622,6 +649,7 @@ async function checkHostAuth(req, res, next) {
 ### Host Authentication Flow
 
 #### 1. Login Process
+
 ```
 User → Enter Credentials → POST /api/host/login → Token Generated
      ↓
@@ -633,6 +661,7 @@ Redirect to /session-select
 ```
 
 **Client-side (host-login.js)**:
+
 ```javascript
 async function login() {
   const username = document.getElementById('username').value;
@@ -656,11 +685,13 @@ async function login() {
 ```
 
 #### 2. Token Persistence
+
 - **Storage**: `sessionStorage` (cleared when browser tab closes)
 - **Lifetime**: 24 hours in Redis, until tab close in browser
 - **Format**: UUID v4 (e.g., `550e8400-e29b-41d4-a716-446655440000`)
 
 #### 3. Protected Requests
+
 ```javascript
 async function createSession(isLive, sessionName) {
   const token = sessionStorage.getItem('hostToken');
@@ -669,7 +700,7 @@ async function createSession(isLive, sessionName) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+      Authorization: `Bearer ${token}`
     },
     body: JSON.stringify({ isLive, sessionName })
   });
@@ -681,6 +712,7 @@ async function createSession(isLive, sessionName) {
 ### Voter Authentication Flow
 
 #### 1. Session Join Process
+
 ```
 User → Enter Email + Session ID → POST /api/session/verify
      ↓
@@ -696,6 +728,7 @@ Redirect to /vote/:sessionId
 ```
 
 **Client-side (join-session.js)**:
+
 ```javascript
 async function joinSession() {
   const email = document.getElementById('voterEmail').value;
@@ -720,6 +753,7 @@ async function joinSession() {
 ```
 
 #### 2. Voter Identification
+
 - **Storage**: `localStorage` (persists until cleared)
 - **Keys**:
   - `voterId_{sessionId}` - UUID for this voter in this session
@@ -727,13 +761,12 @@ async function joinSession() {
 - **Purpose**: Prevent duplicate voting, track who voted
 
 #### 3. Vote Verification
+
 ```javascript
 async function checkCurrentPoll() {
   const voterId = localStorage.getItem(`voterId_${sessionId}`);
 
-  const response = await fetch(
-    `/api/session/${sessionId}/current-poll?voterId=${voterId}`
-  );
+  const response = await fetch(`/api/session/${sessionId}/current-poll?voterId=${voterId}`);
 
   const data = await response.json();
 
@@ -801,12 +834,14 @@ app.post('/api/session/:sessionId/poll', upload.single('media'), (req, res) => {
 ```
 
 **Process**:
+
 1. Client uploads file via FormData
 2. Multer saves to `public/uploads/` directory
 3. File accessible at `/uploads/filename.ext`
 4. Server serves file with Express static middleware
 
 **Limitations**:
+
 - ❌ Vercel serverless has no persistent file system
 - ❌ Large files consume bandwidth
 - ❌ No CDN acceleration
@@ -906,27 +941,32 @@ function isValidImageUrl(url) {
 ### Supported Media Sources
 
 #### Videos (YouTube only)
+
 - **Input**: `https://www.youtube.com/watch?v=dQw4w9WgXcQ`
 - **Converted**: `https://www.youtube.com/embed/dQw4w9WgXcQ`
 - **Rendered**: `<iframe>` element
 
 **Benefits**:
+
 - ✅ YouTube's CDN handles streaming
 - ✅ Adaptive quality based on connection
 - ✅ No bandwidth cost to server
 - ✅ Mobile-friendly player
 
 #### Images (Direct URLs)
+
 - **Supported**: Imgur, direct image links, CDN URLs
 - **Format**: Must end in `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`
 - **Rendered**: `<img>` element
 
 **Example URLs**:
+
 - `https://i.imgur.com/abc123.jpg`
 - `https://example.com/image.png`
 - `https://cdn.example.com/photo.webp`
 
 **Benefits**:
+
 - ✅ Instant loading
 - ✅ No server storage needed
 - ✅ Leverage existing CDNs
@@ -934,18 +974,20 @@ function isValidImageUrl(url) {
 ### Client-Side Implementation
 
 **Host Interface (host.html)**:
+
 ```html
 <div class="form-group">
   <label for="pollMedia">Media URL:</label>
-  <input type="text" id="pollMedia" placeholder="YouTube URL or direct image URL">
+  <input type="text" id="pollMedia" placeholder="YouTube URL or direct image URL" />
   <small>
-    For videos: Use YouTube URLs (e.g., https://youtube.com/watch?v=xxxxx)<br>
+    For videos: Use YouTube URLs (e.g., https://youtube.com/watch?v=xxxxx)<br />
     For images: Use direct URLs (e.g., https://i.imgur.com/xxxxx.jpg)
   </small>
 </div>
 ```
 
 **JavaScript (host.js)**:
+
 ```javascript
 async function addPoll() {
   const title = document.getElementById('pollTitle').value;
@@ -982,20 +1024,21 @@ The application needs real-time updates so voters see new polls immediately and 
 ### Local Development: Socket.IO (WebSockets)
 
 **Server (server.js)**:
+
 ```javascript
 const io = socketIo(server);
 
-io.on('connection', (socket) => {
+io.on('connection', socket => {
   console.log('Client connected:', socket.id);
 
   // Voter joins session room
-  socket.on('joinSession', (sessionId) => {
+  socket.on('joinSession', sessionId => {
     socket.join(sessionId);
     console.log(`Voter joined session: ${sessionId}`);
   });
 
   // Host joins dedicated host room
-  socket.on('joinHostSession', (sessionId) => {
+  socket.on('joinHostSession', sessionId => {
     socket.join(`host-${sessionId}`);
     console.log(`Host joined session: ${sessionId}`);
   });
@@ -1015,6 +1058,7 @@ io.on('connection', (socket) => {
 ```
 
 **Client - Voter (voter.js)**:
+
 ```javascript
 const socket = io();
 
@@ -1036,6 +1080,7 @@ function submitVote(rating) {
 ```
 
 **Client - Host (host.js)**:
+
 ```javascript
 const socket = io();
 
@@ -1049,17 +1094,19 @@ function startPoll(pollIndex) {
 }
 
 // Listen for vote updates
-socket.on('voteUpdate', (results) => {
+socket.on('voteUpdate', results => {
   updateResultsDisplay(results);
 });
 ```
 
 **Benefits**:
+
 - ✅ Instant updates (< 100ms latency)
 - ✅ Push-based (server pushes to clients)
 - ✅ Efficient (one connection per client)
 
 **Limitations**:
+
 - ❌ Requires persistent server connection
 - ❌ Not compatible with serverless (Vercel)
 - ❌ Harder to scale horizontally
@@ -1069,6 +1116,7 @@ socket.on('voteUpdate', (results) => {
 Since Vercel doesn't support WebSockets, the production version uses HTTP polling.
 
 **Client - Voter (voter.js)**:
+
 ```javascript
 let pollCheckInterval;
 
@@ -1082,9 +1130,7 @@ async function checkForPoll() {
   const voterId = localStorage.getItem(`voterId_${sessionId}`);
 
   try {
-    const response = await fetch(
-      `/api/session/${sessionId}/current-poll?voterId=${voterId}`
-    );
+    const response = await fetch(`/api/session/${sessionId}/current-poll?voterId=${voterId}`);
     const data = await response.json();
 
     if (data.currentPoll) {
@@ -1116,6 +1162,7 @@ window.addEventListener('beforeunload', () => {
 ```
 
 **Client - Host (host.js)**:
+
 ```javascript
 let resultsInterval;
 
@@ -1161,18 +1208,19 @@ function stopResultsPolling() {
 
 ### Comparison
 
-| Feature | Socket.IO | HTTP Polling |
-|---------|-----------|--------------|
-| Latency | < 100ms | ~2 seconds |
-| Server Load | Low (push-based) | Higher (constant requests) |
-| Scalability | Complex (sticky sessions) | Simple (stateless) |
-| Serverless | ❌ Not compatible | ✅ Compatible |
-| Battery Impact | Low | Moderate |
-| Implementation | Complex | Simple |
+| Feature        | Socket.IO                 | HTTP Polling               |
+| -------------- | ------------------------- | -------------------------- |
+| Latency        | < 100ms                   | ~2 seconds                 |
+| Server Load    | Low (push-based)          | Higher (constant requests) |
+| Scalability    | Complex (sticky sessions) | Simple (stateless)         |
+| Serverless     | ❌ Not compatible         | ✅ Compatible              |
+| Battery Impact | Low                       | Moderate                   |
+| Implementation | Complex                   | Simple                     |
 
 ### Optimization Strategies
 
 #### Exponential Backoff on Errors
+
 ```javascript
 let pollInterval = 2000; // Start at 2 seconds
 let consecutiveErrors = 0;
@@ -1190,6 +1238,7 @@ async function checkForPoll() {
 ```
 
 #### Stop Polling When Tab Hidden
+
 ```javascript
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
@@ -1247,7 +1296,7 @@ document.getElementById('joinBtn').addEventListener('click', () => {
 const loginForm = document.getElementById('loginForm');
 const errorDiv = document.getElementById('errorMessage');
 
-loginForm.addEventListener('submit', async (e) => {
+loginForm.addEventListener('submit', async e => {
   e.preventDefault();
 
   const username = document.getElementById('username').value;
@@ -1285,6 +1334,7 @@ document.getElementById('backBtn').addEventListener('click', () => {
 
 **File**: ~40 lines
 **Key Features**:
+
 - Form validation
 - Error handling
 - Token storage
@@ -1297,6 +1347,7 @@ document.getElementById('backBtn').addEventListener('click', () => {
 **Purpose**: Create or manage voting sessions
 
 **Key Features**:
+
 - Create live session (instant)
 - Create saved session (with custom name)
 - View saved sessions list
@@ -1405,6 +1456,7 @@ async function deleteSession(sessionId) {
 
 **File**: ~150 lines
 **Key Concepts**:
+
 - Token-based auth
 - Modal UI
 - Session CRUD operations
@@ -1419,6 +1471,7 @@ async function deleteSession(sessionId) {
 **Key Sections**:
 
 #### A. Initialization
+
 ```javascript
 const sessionId = window.location.pathname.split('/').pop().split('?')[0];
 const urlParams = new URLSearchParams(window.location.search);
@@ -1444,6 +1497,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 ```
 
 #### B. Poll Creation
+
 ```javascript
 async function addPoll() {
   const title = document.getElementById('pollTitle').value;
@@ -1498,6 +1552,7 @@ function displayPollInList(poll) {
 ```
 
 #### C. Starting Voting Session
+
 ```javascript
 async function startVotingSession() {
   if (polls.length === 0) {
@@ -1546,7 +1601,8 @@ function displayCurrentPoll() {
     iframe.width = '100%';
     iframe.height = '500';
     iframe.frameBorder = '0';
-    iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+    iframe.allow =
+      'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
     iframe.allowFullscreen = true;
     mediaContainer.appendChild(iframe);
   } else {
@@ -1560,20 +1616,20 @@ function displayCurrentPoll() {
 ```
 
 #### D. Results Polling
+
 ```javascript
 async function updateResults() {
   if (!currentPoll) return;
 
   try {
-    const response = await fetch(
-      `/api/session/${sessionId}/results/${currentPoll.id}`
-    );
+    const response = await fetch(`/api/session/${sessionId}/results/${currentPoll.id}`);
     const data = await response.json();
 
     // Update stats
     document.getElementById('totalVotes').textContent = data.totalVotes;
-    document.getElementById('averageRating').textContent =
-      data.average ? data.average.toFixed(2) : '0.00';
+    document.getElementById('averageRating').textContent = data.average
+      ? data.average.toFixed(2)
+      : '0.00';
 
     // Update voter list
     const ratingsList = document.getElementById('ratingsList');
@@ -1592,6 +1648,7 @@ async function updateResults() {
 ```
 
 #### E. Poll Navigation
+
 ```javascript
 async function nextPoll() {
   // Stop results polling
@@ -1620,9 +1677,7 @@ async function displayCompletedPolls() {
   container.innerHTML = '';
 
   for (const poll of polls) {
-    const response = await fetch(
-      `/api/session/${sessionId}/results/${poll.id}`
-    );
+    const response = await fetch(`/api/session/${sessionId}/results/${poll.id}`);
     const data = await response.json();
 
     const card = createCompletedPollCard(poll, data);
@@ -1651,11 +1706,14 @@ function createCompletedPollCard(poll, results) {
   details.className = 'completed-poll-details hidden';
   details.innerHTML = `
     <h4>Individual Ratings:</h4>
-    ${results.votesWithEmails.map(v =>
-      `<div class="vote-detail">
+    ${results.votesWithEmails
+      .map(
+        v =>
+          `<div class="vote-detail">
         <strong>${v.email}:</strong> ${v.rating}/10
       </div>`
-    ).join('')}
+      )
+      .join('')}
   `;
 
   // Toggle details on click
@@ -1672,6 +1730,7 @@ function createCompletedPollCard(poll, results) {
 ```
 
 #### F. Mode Handling
+
 ```javascript
 function showEditMode() {
   // Show poll creation
@@ -1708,6 +1767,7 @@ function showLiveMode() {
 
 **File**: 370 lines
 **Key Features**:
+
 - Poll CRUD
 - Media rendering (YouTube/images)
 - Real-time results
@@ -1724,6 +1784,7 @@ function showLiveMode() {
 **Key Sections**:
 
 #### A. Initialization
+
 ```javascript
 const sessionId = window.location.pathname.split('/').pop();
 const voterId = localStorage.getItem(`voterId_${sessionId}`);
@@ -1745,12 +1806,11 @@ window.addEventListener('DOMContentLoaded', () => {
 ```
 
 #### B. Poll Checking
+
 ```javascript
 async function checkForPoll() {
   try {
-    const response = await fetch(
-      `/api/session/${sessionId}/current-poll?voterId=${voterId}`
-    );
+    const response = await fetch(`/api/session/${sessionId}/current-poll?voterId=${voterId}`);
     const data = await response.json();
 
     if (data.currentPoll) {
@@ -1779,6 +1839,7 @@ async function checkForPoll() {
 ```
 
 #### C. Poll Display
+
 ```javascript
 function displayPoll(poll) {
   // Set title
@@ -1794,7 +1855,8 @@ function displayPoll(poll) {
     iframe.width = '100%';
     iframe.height = '400';
     iframe.frameBorder = '0';
-    iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+    iframe.allow =
+      'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
     iframe.allowFullscreen = true;
     mediaContainer.appendChild(iframe);
   } else {
@@ -1813,17 +1875,18 @@ function displayPoll(poll) {
 ```
 
 #### D. Rating Input Synchronization
+
 ```javascript
 const slider = document.getElementById('ratingSlider');
 const input = document.getElementById('ratingInput');
 
 // Slider → Input
-slider.addEventListener('input', (e) => {
+slider.addEventListener('input', e => {
   input.value = e.target.value;
 });
 
 // Input → Slider
-input.addEventListener('input', (e) => {
+input.addEventListener('input', e => {
   let value = parseInt(e.target.value);
 
   // Validate range
@@ -1836,6 +1899,7 @@ input.addEventListener('input', (e) => {
 ```
 
 #### E. Vote Submission
+
 ```javascript
 document.getElementById('submitVote').addEventListener('click', async () => {
   const rating = parseInt(document.getElementById('ratingInput').value);
@@ -1893,6 +1957,7 @@ function showMessage(text, type) {
 
 **File**: 153 lines
 **Key Features**:
+
 - Automatic poll detection
 - Media rendering
 - Synchronized slider/input
@@ -1907,6 +1972,7 @@ function showMessage(text, type) {
 **Purpose**: Persistent background music across all pages
 
 **Key Features**:
+
 - Auto-play on page load
 - Persistent playback position across pages
 - Compact UI (expands on hover)
@@ -1915,8 +1981,9 @@ function showMessage(text, type) {
 - Settings saved to localStorage
 
 #### A. Player Injection
+
 ```javascript
-(function() {
+(function () {
   const playerHTML = `
     <div class="music-player" id="musicPlayer">
       <audio id="bgMusic" loop autoplay>
@@ -1949,6 +2016,7 @@ function showMessage(text, type) {
 ```
 
 #### B. Settings Persistence
+
 ```javascript
 function setupPlayer() {
   const audio = document.getElementById('bgMusic');
@@ -1984,6 +2052,7 @@ function setupPlayer() {
 ```
 
 #### C. Autoplay Logic
+
 ```javascript
 // Try to autoplay
 setTimeout(() => {
@@ -2018,9 +2087,10 @@ document.addEventListener('keydown', handleFirstInteraction, { once: true });
 ```
 
 #### D. Controls
+
 ```javascript
 // Play/Pause
-playPauseBtn.addEventListener('click', (e) => {
+playPauseBtn.addEventListener('click', e => {
   e.stopPropagation();
 
   if (audio.paused) {
@@ -2042,7 +2112,7 @@ muteBtn.addEventListener('click', () => {
 });
 
 // Volume
-volumeSlider.addEventListener('input', (e) => {
+volumeSlider.addEventListener('input', e => {
   const volume = e.target.value;
   audio.volume = volume / 100;
   volumeDisplay.textContent = volume + '%';
@@ -2058,6 +2128,7 @@ volumeSlider.addEventListener('input', (e) => {
 ```
 
 #### E. Position Saving
+
 ```javascript
 // Save position every second
 setInterval(() => {
@@ -2075,6 +2146,7 @@ window.addEventListener('beforeunload', () => {
 
 **File**: 167 lines
 **Key Features**:
+
 - IIFE (Immediately Invoked Function Expression) pattern
 - Cross-page persistence
 - Autoplay with fallback
@@ -2090,22 +2162,23 @@ window.addEventListener('beforeunload', () => {
 The application uses a cohesive design system with consistent colors, typography, and spacing.
 
 #### Color Palette
+
 ```css
 /* Primary Colors */
---primary: #667eea;        /* Purple-blue for primary actions */
---primary-hover: #5568d3;  /* Darker on hover */
+--primary: #667eea; /* Purple-blue for primary actions */
+--primary-hover: #5568d3; /* Darker on hover */
 
 /* Success */
---success: #48bb78;        /* Green for confirmation */
+--success: #48bb78; /* Green for confirmation */
 --success-hover: #38a169;
 
 /* Secondary */
---secondary: #718096;      /* Gray for secondary actions */
+--secondary: #718096; /* Gray for secondary actions */
 --secondary-hover: #4a5568;
 
 /* Background Gradient */
 --gradient-start: #e91e8c; /* Pink */
---gradient-end: #764ba2;   /* Purple */
+--gradient-end: #764ba2; /* Purple */
 
 /* Text */
 --text-dark: #333;
@@ -2122,21 +2195,32 @@ The application uses a cohesive design system with consistent colors, typography
 ```
 
 #### Typography
+
 ```css
 /* Font Stack */
-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-             Oxygen, Ubuntu, Cantarell, sans-serif;
+font-family:
+  -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 
 /* Headings */
-h1 { font-size: 2.5em; }   /* 40px */
-h2 { font-size: 1.8em; }   /* ~29px */
-h3 { font-size: 1.3em; }   /* ~21px */
+h1 {
+  font-size: 2.5em;
+} /* 40px */
+h2 {
+  font-size: 1.8em;
+} /* ~29px */
+h3 {
+  font-size: 1.3em;
+} /* ~21px */
 
 /* Subtitle */
-.subtitle { font-size: 1.8em; font-weight: 600; }
+.subtitle {
+  font-size: 1.8em;
+  font-weight: 600;
+}
 ```
 
 #### Spacing System
+
 ```css
 /* Padding */
 --spacing-xs: 10px;
@@ -2161,11 +2245,11 @@ h3 { font-size: 1.3em; }   /* ~21px */
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-               Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   background: linear-gradient(135deg, #e91e8c 0%, #764ba2 100%);
-  background-image: url('/images/background-pattern.png'),
-                    linear-gradient(135deg, #e91e8c 0%, #764ba2 100%);
+  background-image:
+    url('/images/background-pattern.png'), linear-gradient(135deg, #e91e8c 0%, #764ba2 100%);
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center;
@@ -2179,6 +2263,7 @@ body {
 ```
 
 **Key Features**:
+
 - Gradient background with pattern overlay
 - `background-size: cover` - scales image to fill viewport
 - `background-attachment: fixed` - parallax effect
@@ -2187,7 +2272,9 @@ body {
 ### Card Styles
 
 ```css
-.welcome-card, .host-dashboard, .voter-view {
+.welcome-card,
+.host-dashboard,
+.voter-view {
   background: white;
   border-radius: 12px;
   padding: 40px;
@@ -2270,6 +2357,7 @@ body {
 ```
 
 **Key Features**:
+
 - Hover lift effect (`translateY(-2px)`)
 - Shadow on hover for depth
 - Disabled state styling
@@ -2307,6 +2395,7 @@ body {
 ```
 
 **Key Features**:
+
 - **Glassmorphism**: `backdrop-filter: blur(10px)` for frosted glass effect
 - **Compact by default**: 60px circle
 - **Expands on hover**: 300px wide with smooth transition
@@ -2358,8 +2447,8 @@ body {
   font-weight: 600;
 }
 
-.form-group input[type="text"],
-.form-group input[type="file"] {
+.form-group input[type='text'],
+.form-group input[type='file'] {
   width: 100%;
   padding: 10px;
   border: 1px solid #ddd;
@@ -2515,7 +2604,9 @@ body {
 
 ```css
 @media (max-width: 768px) {
-  .welcome-card, .host-dashboard, .voter-view {
+  .welcome-card,
+  .host-dashboard,
+  .voter-view {
     padding: 20px;
   }
 
@@ -2572,34 +2663,35 @@ body {
 ```html
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Team Polling App</title>
-  <link rel="stylesheet" href="/css/style.css">
-</head>
-<body>
-  <div class="container">
-    <div class="welcome-card">
-      <h1>Content Production Team Roundtable</h1>
-      <p class="subtitle">🎊 It's Friday! 🎊</p>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Team Polling App</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="welcome-card">
+        <h1>Content Production Team Roundtable</h1>
+        <p class="subtitle">🎊 It's Friday! 🎊</p>
 
-      <div class="action-section">
-        <div class="button-group">
-          <button id="hostBtn" class="btn btn-primary btn-large">Host Session</button>
-          <button id="joinBtn" class="btn btn-primary btn-large">Join Session</button>
+        <div class="action-section">
+          <div class="button-group">
+            <button id="hostBtn" class="btn btn-primary btn-large">Host Session</button>
+            <button id="joinBtn" class="btn btn-primary btn-large">Join Session</button>
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <script src="/js/music-player.js"></script>
-  <script src="/js/index.js"></script>
-</body>
+    <script src="/js/music-player.js"></script>
+    <script src="/js/index.js"></script>
+  </body>
 </html>
 ```
 
 **Key Features**:
+
 - Centered layout (via CSS flexbox on body)
 - Two call-to-action buttons
 - Music player auto-injected via script
@@ -2612,43 +2704,44 @@ body {
 ```html
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Host Login</title>
-  <link rel="stylesheet" href="/css/style.css">
-</head>
-<body>
-  <div class="container">
-    <div class="welcome-card">
-      <h1>Host Login</h1>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Host Login</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="welcome-card">
+        <h1>Host Login</h1>
 
-      <form id="loginForm" class="login-form">
-        <div id="errorMessage" class="error-message hidden"></div>
+        <form id="loginForm" class="login-form">
+          <div id="errorMessage" class="error-message hidden"></div>
 
-        <div class="form-group">
-          <label for="username">Username:</label>
-          <input type="text" id="username" required>
-        </div>
+          <div class="form-group">
+            <label for="username">Username:</label>
+            <input type="text" id="username" required />
+          </div>
 
-        <div class="form-group">
-          <label for="password">Password:</label>
-          <input type="password" id="password" required>
-        </div>
+          <div class="form-group">
+            <label for="password">Password:</label>
+            <input type="password" id="password" required />
+          </div>
 
-        <button type="submit" class="btn btn-primary">Login</button>
-        <button type="button" id="backBtn" class="btn btn-secondary">Back</button>
-      </form>
+          <button type="submit" class="btn btn-primary">Login</button>
+          <button type="button" id="backBtn" class="btn btn-secondary">Back</button>
+        </form>
+      </div>
     </div>
-  </div>
 
-  <script src="/js/music-player.js"></script>
-  <script src="/js/host-login.js"></script>
-</body>
+    <script src="/js/music-player.js"></script>
+    <script src="/js/host-login.js"></script>
+  </body>
 </html>
 ```
 
 **Key Features**:
+
 - Standard login form
 - Error message display
 - Back button for navigation
@@ -2660,100 +2753,101 @@ body {
 ```html
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Select Session Type</title>
-  <link rel="stylesheet" href="/css/style.css">
-  <style>
-    .session-options {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 20px;
-      margin-top: 30px;
-    }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Select Session Type</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <style>
+      .session-options {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-top: 30px;
+      }
 
-    .session-card {
-      background: #f7fafc;
-      padding: 30px;
-      border-radius: 12px;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      border: 2px solid transparent;
-    }
+      .session-card {
+        background: #f7fafc;
+        padding: 30px;
+        border-radius: 12px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+      }
 
-    .session-card:hover {
-      background: white;
-      border-color: #667eea;
-      transform: translateY(-5px);
-      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.2);
-    }
+      .session-card:hover {
+        background: white;
+        border-color: #667eea;
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.2);
+      }
 
-    .modal {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.5);
-      z-index: 1000;
-      align-items: center;
-      justify-content: center;
-    }
+      .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+      }
 
-    .modal:not(.hidden) {
-      display: flex;
-    }
+      .modal:not(.hidden) {
+        display: flex;
+      }
 
-    .modal-content {
-      background: white;
-      padding: 40px;
-      border-radius: 12px;
-      max-width: 600px;
-      width: 90%;
-      max-height: 80vh;
-      overflow-y: auto;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="host-dashboard">
-      <h1>Select Session Type</h1>
+      .modal-content {
+        background: white;
+        padding: 40px;
+        border-radius: 12px;
+        max-width: 600px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="host-dashboard">
+        <h1>Select Session Type</h1>
 
-      <div class="session-options">
-        <div class="session-card" id="liveSessionBtn">
-          <h2>🎬 Start Live Session</h2>
-          <p>Create and present polls immediately</p>
-        </div>
+        <div class="session-options">
+          <div class="session-card" id="liveSessionBtn">
+            <h2>🎬 Start Live Session</h2>
+            <p>Create and present polls immediately</p>
+          </div>
 
-        <div class="session-card" id="savedSessionsBtn">
-          <h2>💾 Saved Sessions</h2>
-          <p>Create, edit, or present saved sessions</p>
+          <div class="session-card" id="savedSessionsBtn">
+            <h2>💾 Saved Sessions</h2>
+            <p>Create, edit, or present saved sessions</p>
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Modal for saved sessions -->
-  <div id="savedSessionsModal" class="modal hidden">
-    <div class="modal-content">
-      <h2>Saved Sessions</h2>
-      <button id="createSavedBtn" class="btn btn-primary">Create New Saved Session</button>
-      <div id="sessionsList"></div>
-      <button id="closeModal" class="btn btn-secondary">Close</button>
+    <!-- Modal for saved sessions -->
+    <div id="savedSessionsModal" class="modal hidden">
+      <div class="modal-content">
+        <h2>Saved Sessions</h2>
+        <button id="createSavedBtn" class="btn btn-primary">Create New Saved Session</button>
+        <div id="sessionsList"></div>
+        <button id="closeModal" class="btn btn-secondary">Close</button>
+      </div>
     </div>
-  </div>
 
-  <script src="/js/music-player.js"></script>
-  <script src="/js/session-select.js"></script>
-</body>
+    <script src="/js/music-player.js"></script>
+    <script src="/js/session-select.js"></script>
+  </body>
 </html>
 ```
 
 **Key Features**:
+
 - Card-based UI for options
 - Modal overlay for saved sessions
 - Embedded styles for custom components
@@ -2765,116 +2859,117 @@ body {
 ```html
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Host Dashboard</title>
-  <link rel="stylesheet" href="/css/style.css">
-</head>
-<body>
-  <div class="container">
-    <div class="host-dashboard">
-      <!-- Header -->
-      <div class="header">
-        <div class="session-info">
-          <h1>Host Dashboard</h1>
-          <div class="session-id-box">
-            <div class="id-display">
-              <span>Session ID:</span>
-              <strong id="sessionIdDisplay"></strong>
-              <button class="btn btn-small" id="copyIdBtn">Copy</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Poll Setup Section -->
-      <div id="pollSetup">
-        <div id="pollCreation" class="poll-form">
-          <h2>Create Polls</h2>
-
-          <div class="form-group">
-            <label for="pollTitle">Poll Question:</label>
-            <input type="text" id="pollTitle" placeholder="What would you like to ask?">
-          </div>
-
-          <div class="form-group">
-            <label for="pollMedia">Media URL:</label>
-            <input type="text" id="pollMedia" placeholder="YouTube URL or direct image URL">
-            <small>
-              For videos: Use YouTube URLs (e.g., https://youtube.com/watch?v=xxxxx)<br>
-              For images: Use direct image URLs (e.g., https://i.imgur.com/xxxxx.jpg)
-            </small>
-          </div>
-
-          <button id="addPollBtn" class="btn btn-primary">Add Poll</button>
-        </div>
-
-        <!-- Created Polls List -->
-        <div class="polls-list">
-          <h3>Created Polls</h3>
-          <div id="pollsContainer"></div>
-        </div>
-
-        <button id="startSessionBtn" class="btn btn-success btn-large">
-          Start Voting Session
-        </button>
-      </div>
-
-      <!-- Voting Section (hidden initially) -->
-      <div id="votingSection" class="hidden">
-        <div class="host-vote-section">
-          <h2 id="currentPollTitle"></h2>
-
-          <!-- Media Display -->
-          <div id="mediaContainer" class="media-container"></div>
-
-          <!-- Results Panel -->
-          <div class="results-panel">
-            <h3>Live Results</h3>
-
-            <div class="stats">
-              <div class="stat-box">
-                <span class="stat-label">Total Votes</span>
-                <span class="stat-value" id="totalVotes">0</span>
-              </div>
-              <div class="stat-box">
-                <span class="stat-label">Average Rating</span>
-                <span class="stat-value" id="averageRating">0.00</span>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Host Dashboard</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="host-dashboard">
+        <!-- Header -->
+        <div class="header">
+          <div class="session-info">
+            <h1>Host Dashboard</h1>
+            <div class="session-id-box">
+              <div class="id-display">
+                <span>Session ID:</span>
+                <strong id="sessionIdDisplay"></strong>
+                <button class="btn btn-small" id="copyIdBtn">Copy</button>
               </div>
             </div>
+          </div>
+        </div>
 
-            <h4>Individual Ratings:</h4>
-            <div class="ratings-list" id="ratingsList"></div>
+        <!-- Poll Setup Section -->
+        <div id="pollSetup">
+          <div id="pollCreation" class="poll-form">
+            <h2>Create Polls</h2>
+
+            <div class="form-group">
+              <label for="pollTitle">Poll Question:</label>
+              <input type="text" id="pollTitle" placeholder="What would you like to ask?" />
+            </div>
+
+            <div class="form-group">
+              <label for="pollMedia">Media URL:</label>
+              <input type="text" id="pollMedia" placeholder="YouTube URL or direct image URL" />
+              <small>
+                For videos: Use YouTube URLs (e.g., https://youtube.com/watch?v=xxxxx)<br />
+                For images: Use direct image URLs (e.g., https://i.imgur.com/xxxxx.jpg)
+              </small>
+            </div>
+
+            <button id="addPollBtn" class="btn btn-primary">Add Poll</button>
           </div>
 
-          <!-- Poll Controls -->
-          <div class="poll-controls">
-            <span id="pollProgress"></span>
-            <div>
-              <button id="nextPollBtn" class="btn btn-primary">Next Poll</button>
-              <button id="finishBtn" class="btn btn-success">Finish Session</button>
+          <!-- Created Polls List -->
+          <div class="polls-list">
+            <h3>Created Polls</h3>
+            <div id="pollsContainer"></div>
+          </div>
+
+          <button id="startSessionBtn" class="btn btn-success btn-large">
+            Start Voting Session
+          </button>
+        </div>
+
+        <!-- Voting Section (hidden initially) -->
+        <div id="votingSection" class="hidden">
+          <div class="host-vote-section">
+            <h2 id="currentPollTitle"></h2>
+
+            <!-- Media Display -->
+            <div id="mediaContainer" class="media-container"></div>
+
+            <!-- Results Panel -->
+            <div class="results-panel">
+              <h3>Live Results</h3>
+
+              <div class="stats">
+                <div class="stat-box">
+                  <span class="stat-label">Total Votes</span>
+                  <span class="stat-value" id="totalVotes">0</span>
+                </div>
+                <div class="stat-box">
+                  <span class="stat-label">Average Rating</span>
+                  <span class="stat-value" id="averageRating">0.00</span>
+                </div>
+              </div>
+
+              <h4>Individual Ratings:</h4>
+              <div class="ratings-list" id="ratingsList"></div>
+            </div>
+
+            <!-- Poll Controls -->
+            <div class="poll-controls">
+              <span id="pollProgress"></span>
+              <div>
+                <button id="nextPollBtn" class="btn btn-primary">Next Poll</button>
+                <button id="finishBtn" class="btn btn-success">Finish Session</button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Completed Polls Summary -->
-      <div id="sessionResults" class="session-results hidden">
-        <h2>Session Complete!</h2>
-        <p>All polls have been completed. Here are the results:</p>
-        <div id="completedPollsContainer"></div>
+        <!-- Completed Polls Summary -->
+        <div id="sessionResults" class="session-results hidden">
+          <h2>Session Complete!</h2>
+          <p>All polls have been completed. Here are the results:</p>
+          <div id="completedPollsContainer"></div>
+        </div>
       </div>
     </div>
-  </div>
 
-  <script src="/js/music-player.js"></script>
-  <script src="/js/host.js"></script>
-</body>
+    <script src="/js/music-player.js"></script>
+    <script src="/js/host.js"></script>
+  </body>
 </html>
 ```
 
 **Key Sections**:
+
 1. **Header**: Session ID display with copy button
 2. **Poll Setup**: Form to create polls
 3. **Voting Section**: Live results during presentation
@@ -2887,44 +2982,50 @@ body {
 ```html
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Join Session</title>
-  <link rel="stylesheet" href="/css/style.css">
-</head>
-<body>
-  <div class="container">
-    <div class="welcome-card">
-      <h1>Join Voting Session</h1>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Join Session</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="welcome-card">
+        <h1>Join Voting Session</h1>
 
-      <div class="login-form">
-        <div id="errorMessage" class="error-message hidden"></div>
+        <div class="login-form">
+          <div id="errorMessage" class="error-message hidden"></div>
 
-        <div class="form-group">
-          <label for="voterEmail">Your Email:</label>
-          <input type="email" id="voterEmail" required>
+          <div class="form-group">
+            <label for="voterEmail">Your Email:</label>
+            <input type="email" id="voterEmail" required />
+          </div>
+
+          <div class="form-group">
+            <label for="sessionId">Session ID:</label>
+            <input
+              type="text"
+              id="sessionId"
+              placeholder="ABC12345"
+              style="text-transform: uppercase"
+              required
+            />
+          </div>
+
+          <button id="joinBtn" class="btn btn-primary">Join Session</button>
+          <button id="backBtn" class="btn btn-secondary">Back</button>
         </div>
-
-        <div class="form-group">
-          <label for="sessionId">Session ID:</label>
-          <input type="text" id="sessionId" placeholder="ABC12345"
-                 style="text-transform: uppercase" required>
-        </div>
-
-        <button id="joinBtn" class="btn btn-primary">Join Session</button>
-        <button id="backBtn" class="btn btn-secondary">Back</button>
       </div>
     </div>
-  </div>
 
-  <script src="/js/music-player.js"></script>
-  <script src="/js/join-session.js"></script>
-</body>
+    <script src="/js/music-player.js"></script>
+    <script src="/js/join-session.js"></script>
+  </body>
 </html>
 ```
 
 **Key Features**:
+
 - Email input for identification
 - Session ID input (auto-uppercase)
 - Error handling
@@ -2936,54 +3037,55 @@ body {
 ```html
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vote</title>
-  <link rel="stylesheet" href="/css/style.css">
-</head>
-<body>
-  <div class="container">
-    <div class="voter-view">
-      <!-- Waiting Screen -->
-      <div id="waitingScreen" class="waiting-screen">
-        <div class="waiting-message">
-          <h2>Waiting for host to start the poll...</h2>
-          <div class="spinner"></div>
-        </div>
-      </div>
-
-      <!-- Voting Screen (hidden initially) -->
-      <div id="votingScreen" class="hidden">
-        <h2 id="pollTitle"></h2>
-
-        <!-- Media Display -->
-        <div id="mediaContainer" class="media-container"></div>
-
-        <!-- Rating Section -->
-        <div class="rating-section">
-          <label>Rate this content (0-10):</label>
-
-          <div class="rating-input-group">
-            <input type="range" id="ratingSlider" min="0" max="10" value="5">
-            <input type="number" id="ratingInput" min="0" max="10" value="5">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vote</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="voter-view">
+        <!-- Waiting Screen -->
+        <div id="waitingScreen" class="waiting-screen">
+          <div class="waiting-message">
+            <h2>Waiting for host to start the poll...</h2>
+            <div class="spinner"></div>
           </div>
+        </div>
 
-          <button id="submitVote" class="btn btn-success">Submit Vote</button>
+        <!-- Voting Screen (hidden initially) -->
+        <div id="votingScreen" class="hidden">
+          <h2 id="pollTitle"></h2>
 
-          <div id="submitMessage" class="submit-message hidden"></div>
+          <!-- Media Display -->
+          <div id="mediaContainer" class="media-container"></div>
+
+          <!-- Rating Section -->
+          <div class="rating-section">
+            <label>Rate this content (0-10):</label>
+
+            <div class="rating-input-group">
+              <input type="range" id="ratingSlider" min="0" max="10" value="5" />
+              <input type="number" id="ratingInput" min="0" max="10" value="5" />
+            </div>
+
+            <button id="submitVote" class="btn btn-success">Submit Vote</button>
+
+            <div id="submitMessage" class="submit-message hidden"></div>
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <script src="/js/music-player.js"></script>
-  <script src="/js/voter.js"></script>
-</body>
+    <script src="/js/music-player.js"></script>
+    <script src="/js/voter.js"></script>
+  </body>
 </html>
 ```
 
 **Key Sections**:
+
 1. **Waiting Screen**: Shown when no active poll
 2. **Voting Screen**: Poll display and rating interface
 
@@ -2996,12 +3098,14 @@ body {
 #### Host Journey (Detailed)
 
 **Step 1: Landing Page**
+
 - User visits `/`
 - Sees title: "Content Production Team Roundtable"
 - Subtitle: "🎊 It's Friday! 🎊"
 - Clicks "Host Session" button
 
 **Step 2: Authentication**
+
 - Redirected to `/host-login`
 - Enters credentials:
   - Username: `GrowthBossHosting`
@@ -3014,11 +3118,13 @@ body {
 - Redirected to `/session-select`
 
 **Step 3: Session Type Selection**
+
 - Page checks for `hostToken` in sessionStorage
 - If missing, redirects to login
 - Two options presented:
 
 **Option A: Live Session**
+
 1. Click "Start Live Session" card
 2. JavaScript calls `POST /api/host/create-session { isLive: true }`
 3. Server creates session with 8-char ID (e.g., `ABC12345`)
@@ -3026,6 +3132,7 @@ body {
 5. Redirect to `/host/ABC12345`
 
 **Option B: Saved Session**
+
 1. Click "Saved Sessions" card
 2. Modal opens showing existing saved sessions
 3. Can choose to:
@@ -3035,6 +3142,7 @@ body {
    - **Delete**: Click "Delete" → `DELETE /api/host/session/{id}`
 
 **Step 4: Host Dashboard (Live Mode)**
+
 - Page loads with session ID: `ABC12345`
 - Poll creation form shown:
   - Poll Question input
@@ -3056,11 +3164,13 @@ body {
   7. Repeat for more polls
 
 **Step 5: Share Session**
+
 - Session ID displayed at top: `ABC12345`
 - "Copy" button copies to clipboard
 - Host shares ID with team (Slack, email, etc.)
 
 **Step 6: Start Voting**
+
 - Host clicks "Start Voting Session" button
 - Poll setup section hides
 - Voting section shows
@@ -3075,6 +3185,7 @@ body {
   6. Results panel shown (initially 0 votes)
 
 **Step 7: Monitor Votes**
+
 - JavaScript polls `/api/session/ABC12345/results/{pollId}` every 2 seconds
 - Updates displayed:
   - Total Votes: 0 → 1 → 2 → ...
@@ -3083,12 +3194,14 @@ body {
 - Host watches votes come in live
 
 **Step 8: Move to Next Poll**
+
 - Host clicks "Next Poll" button
 - Current results polling stops
 - Next poll activated (index 1)
 - Process repeats
 
 **Step 9: Finish Session**
+
 - After last poll, "Next Poll" disabled
 - Host clicks "Finish Session"
 - Voting section hides
@@ -3098,6 +3211,7 @@ body {
   - Individual voter ratings listed
 
 **Step 10: Session Ends**
+
 - Session remains in Redis for 24 hours
 - After TTL expires, data automatically deleted
 
@@ -3106,11 +3220,13 @@ body {
 #### Voter Journey (Detailed)
 
 **Step 1: Join Session**
+
 - User visits `/`
 - Clicks "Join Session" button
 - Redirected to `/join-session`
 
 **Step 2: Enter Credentials**
+
 - Enter email: `voter@example.com`
 - Enter session ID: `ABC12345` (from host)
 - Click "Join Session"
@@ -3128,6 +3244,7 @@ body {
   5. Redirect to `/vote/ABC12345`
 
 **Step 3: Waiting Screen**
+
 - Voter page loads
 - Checks localStorage for voterId
 - If missing, redirects to join page
@@ -3139,6 +3256,7 @@ body {
   - Initially returns empty (no active poll)
 
 **Step 4: Poll Starts**
+
 - Host activates poll on their end
 - Voter's next poll check returns:
   ```json
@@ -3160,6 +3278,7 @@ body {
   5. Enables rating controls
 
 **Step 5: Submit Vote**
+
 - Voter adjusts slider: 0 → 8
 - Number input updates simultaneously
 - Click "Submit Vote"
@@ -3184,11 +3303,14 @@ body {
      - Success message: "You rated this 8/10. Waiting for next poll..."
 
 **Step 6: Next Poll**
+
 - Host moves to next poll
 - Voter's polling detects new poll:
   ```json
   {
-    "currentPoll": { /* new poll */ },
+    "currentPoll": {
+      /* new poll */
+    },
     "hasVoted": false
   }
   ```
@@ -3199,11 +3321,14 @@ body {
   - Controls enabled
 
 **Step 7: Already Voted Check**
+
 - If voter refreshes page mid-poll
 - Polling returns:
   ```json
   {
-    "currentPoll": { /* current poll */ },
+    "currentPoll": {
+      /* current poll */
+    },
     "hasVoted": true,
     "voterRating": 8
   }
@@ -3211,6 +3336,7 @@ body {
 - UI shows locked state with their previous vote
 
 **Step 8: Session Ends**
+
 - Host finishes all polls
 - Voter's polling returns empty
 - Waiting screen shown again
@@ -3254,6 +3380,7 @@ body {
 ### Vercel Configuration
 
 **File: vercel.json**
+
 ```json
 {
   "functions": {
@@ -3271,36 +3398,43 @@ body {
 ```
 
 **Key Settings**:
+
 - **maxDuration**: 60 seconds (maximum function execution time)
 - **rewrites**: All routes handled by single serverless function
 
 ### Deployment Process
 
 **1. Connect Repository**
+
 - Link GitHub repo to Vercel
 - Vercel auto-detects Node.js project
 
 **2. Environment Variables**
+
 - Add in Vercel dashboard:
   - `UPSTASH_REDIS_REST_URL`
   - `UPSTASH_REDIS_REST_TOKEN`
 
 **3. Build Settings**
+
 - Build Command: `npm install` (automatic)
 - Output Directory: Not needed (serverless)
 - Install Command: `npm install`
 
 **4. Deploy**
+
 - Push to main branch → Auto-deploy
 - Or click "Deploy" in Vercel dashboard
 
 **5. Custom Domain (optional)**
+
 - Add custom domain in Vercel settings
 - Vercel provides SSL automatically
 
 ### Static Asset Serving
 
 Vercel automatically serves files from `public/`:
+
 - `/css/style.css` → `public/css/style.css`
 - `/js/host.js` → `public/js/host.js`
 - `/images/background-pattern.png` → `public/images/background-pattern.png`
@@ -3309,22 +3443,26 @@ Vercel automatically serves files from `public/`:
 ### How Serverless Functions Work
 
 **Traditional Server**:
+
 ```
 Request → Express App (always running) → Response
 ```
 
 **Vercel Serverless**:
+
 ```
 Request → Spin up function → Express App → Response → Shutdown
 ```
 
 **Benefits**:
+
 - ✅ Auto-scaling (handles any traffic)
 - ✅ Pay per request (not per server)
 - ✅ Zero maintenance
 - ✅ Global edge network
 
 **Limitations**:
+
 - ❌ No persistent connections (WebSockets)
 - ❌ No file system storage
 - ❌ Cold start latency (~100-500ms first request)
@@ -3333,6 +3471,7 @@ Request → Spin up function → Express App → Response → Shutdown
 ### Environment Setup
 
 **Local Development**:
+
 ```bash
 # .env file
 UPSTASH_REDIS_REST_URL=https://your-redis.upstash.io
@@ -3343,6 +3482,7 @@ npm run dev   # Uses server.js (Socket.IO)
 ```
 
 **Production**:
+
 ```bash
 # Environment variables set in Vercel dashboard
 # Runs api/index.js (serverless)
@@ -3357,23 +3497,27 @@ npm run dev   # Uses server.js (Socket.IO)
 #### Current Implementation
 
 **1. Authentication**
+
 - ❌ **Hardcoded Credentials**: Password stored in source code
 - ❌ **Plaintext Storage**: No hashing
 - ✅ **Token-based**: UUID tokens with 24h expiration
 - ❌ **sessionStorage**: Vulnerable to XSS attacks
 
 **2. Authorization**
+
 - ✅ **Token Verification**: All host endpoints check token
 - ❌ **No Rate Limiting**: API can be spammed
 - ❌ **No CORS**: Accepts requests from any origin
 
 **3. Input Validation**
+
 - ✅ **Rating Range**: Validates 0-10
 - ✅ **URL Validation**: Checks format
 - ❌ **No Sanitization**: User input not sanitized
 - ❌ **No SQL Injection Protection**: (Not applicable - using Redis)
 
 **4. Data Protection**
+
 - ✅ **HTTPS**: Vercel provides SSL
 - ❌ **No Encryption**: Data stored in plain text in Redis
 - ✅ **TTL**: Auto-delete after 24 hours
@@ -3381,6 +3525,7 @@ npm run dev   # Uses server.js (Socket.IO)
 #### Recommended Improvements
 
 **1. Move Credentials to Environment Variables**
+
 ```javascript
 // Instead of:
 if (username === 'GrowthBossHosting' && password === 'y&%)U#2+${QF/wG7')
@@ -3391,17 +3536,15 @@ if (username === process.env.HOST_USERNAME &&
 ```
 
 **2. Use JWT Instead of Plain Tokens**
+
 ```javascript
 const jwt = require('jsonwebtoken');
 
-const token = jwt.sign(
-  { role: 'host' },
-  process.env.JWT_SECRET,
-  { expiresIn: '24h' }
-);
+const token = jwt.sign({ role: 'host' }, process.env.JWT_SECRET, { expiresIn: '24h' });
 ```
 
 **3. Add Rate Limiting**
+
 ```javascript
 const rateLimit = require('express-rate-limit');
 
@@ -3414,16 +3557,20 @@ app.use('/api/', limiter);
 ```
 
 **4. Configure CORS**
+
 ```javascript
 const cors = require('cors');
 
-app.use(cors({
-  origin: 'https://your-domain.com',
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: 'https://your-domain.com',
+    credentials: true
+  })
+);
 ```
 
 **5. Sanitize User Input**
+
 ```javascript
 const validator = require('validator');
 
@@ -3431,6 +3578,7 @@ const title = validator.escape(req.body.title);
 ```
 
 **6. Add CSRF Protection**
+
 ```javascript
 const csrf = require('csurf');
 
@@ -3445,16 +3593,19 @@ app.use(csrfProtection);
 #### Redis Performance
 
 **Read Operations** (voter checks poll):
+
 - Latency: ~10-50ms (Upstash edge network)
 - Frequency: Every 2 seconds per voter
 - Load: 10 voters = 5 req/sec
 
 **Write Operations** (vote submission):
+
 - Latency: ~10-50ms
 - Frequency: Once per poll per voter
 - Load: Minimal (batch updates)
 
 **TTL Management**:
+
 - Automatic cleanup after 24 hours
 - No manual deletion needed
 - Prevents database bloat
@@ -3462,6 +3613,7 @@ app.use(csrfProtection);
 #### HTTP Polling Impact
 
 **Voter Polling**:
+
 ```
 1 voter × 1 request/2s = 0.5 req/sec
 10 voters = 5 req/sec
@@ -3469,18 +3621,21 @@ app.use(csrfProtection);
 ```
 
 **Host Polling**:
+
 ```
 1 host × 1 request/2s = 0.5 req/sec
 (Only polls while viewing results)
 ```
 
 **Total Load** (typical session):
+
 - 10 voters + 1 host = ~6 req/sec
 - Well within Vercel/Upstash free tier limits
 
 #### Optimization Strategies
 
 **1. Exponential Backoff on Errors**
+
 ```javascript
 let pollInterval = 2000;
 let consecutiveErrors = 0;
@@ -3499,6 +3654,7 @@ async function poll() {
 ```
 
 **2. Stop Polling When Tab Hidden**
+
 ```javascript
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
@@ -3512,6 +3668,7 @@ document.addEventListener('visibilitychange', () => {
 
 **3. Batch Updates (Future Enhancement)**
 Instead of individual vote updates, could batch:
+
 ```javascript
 // Client buffers votes
 const voteBatch = [];
@@ -3530,6 +3687,7 @@ setInterval(() => {
 ```
 
 **4. Server-Sent Events (Alternative to Polling)**
+
 ```javascript
 // Server
 app.get('/api/session/:sessionId/stream', (req, res) => {
@@ -3547,7 +3705,7 @@ app.get('/api/session/:sessionId/stream', (req, res) => {
 
 // Client
 const eventSource = new EventSource(`/api/session/${sessionId}/stream`);
-eventSource.onmessage = (event) => {
+eventSource.onmessage = event => {
   const data = JSON.parse(event.data);
   updateUI(data);
 };
@@ -3556,12 +3714,14 @@ eventSource.onmessage = (event) => {
 #### Media Loading Performance
 
 **YouTube Embeds**:
+
 - Loaded from YouTube's CDN
 - Adaptive streaming (quality adjusts to bandwidth)
 - No server bandwidth used
 - Caching handled by browser + YouTube
 
 **Images**:
+
 - Loaded from source CDN (Imgur, etc.)
 - Browser caching applies
 - No server bandwidth used
@@ -3574,6 +3734,7 @@ eventSource.onmessage = (event) => {
 
 **CSS**: ~10 KB (uncompressed)
 **JavaScript**:
+
 - index.js: ~1 KB
 - host-login.js: ~2 KB
 - session-select.js: ~4 KB
@@ -3585,6 +3746,7 @@ eventSource.onmessage = (event) => {
 **Total**: ~47 KB JavaScript + 10 KB CSS = **57 KB**
 
 **Optimization Opportunities**:
+
 - Minification (could reduce by ~40%)
 - Gzip compression (automatic on Vercel)
 - Code splitting (load only needed JS per page)
@@ -3596,12 +3758,14 @@ eventSource.onmessage = (event) => {
 ### 1. Serverless Architecture
 
 **What is Serverless?**
+
 - Code runs in stateless compute containers
 - Spins up on request, shuts down after
 - Billed per execution, not per hour
 - Auto-scales infinitely
 
 **How it Works in This App**:
+
 1. User requests `https://yourapp.vercel.app/host/ABC123`
 2. Vercel receives request
 3. Spins up Node.js container
@@ -3611,26 +3775,31 @@ eventSource.onmessage = (event) => {
 7. Container shuts down (or stays warm for ~5 min)
 
 **Trade-offs**:
+
 - ✅ Zero ops, auto-scaling, pay-per-use
 - ❌ Cold starts, no persistent state, timeout limits
 
 ### 2. Redis as Database
 
 **Why Redis?**
+
 - In-memory (extremely fast reads/writes)
 - Simple key-value store
 - Built-in TTL (auto-expiration)
 - Serverless-friendly (REST API)
 
 **Data Structure Choices**:
+
 - **Sessions**: JSON blobs (easy serialization)
 - **Votes**: Nested Maps (logical grouping)
 - **Tokens**: Simple strings (fast lookup)
 
 **TTL Strategy**:
+
 ```javascript
 await redis.set(key, value, { ex: 86400 }); // 24 hours
 ```
+
 - Automatic cleanup
 - No database bloat
 - Suitable for temporary voting sessions
@@ -3638,6 +3807,7 @@ await redis.set(key, value, { ex: 86400 }); // 24 hours
 ### 3. HTTP Polling vs WebSockets
 
 **WebSockets** (server.js):
+
 ```
 Client ←──────────→ Server
    (persistent connection)
@@ -3648,6 +3818,7 @@ Requires long-lived connection
 ```
 
 **HTTP Polling** (api/index.js):
+
 ```
 Client → Request → Server
        ← Response ←
@@ -3661,6 +3832,7 @@ No persistent connection needed
 ```
 
 **Why Polling for Production?**
+
 - Vercel serverless can't maintain connections
 - Simpler to implement and debug
 - 2-second delay acceptable for voting app
@@ -3668,11 +3840,13 @@ No persistent connection needed
 ### 4. localStorage vs sessionStorage
 
 **localStorage**:
+
 - Persists until manually cleared
 - Survives browser close/reopen
 - Used for: voterId (want to remember user)
 
 **sessionStorage**:
+
 - Cleared when tab closes
 - Survives page refresh within tab
 - Used for: hostToken (session-specific auth)
@@ -3680,8 +3854,9 @@ No persistent connection needed
 ### 5. IIFE Pattern
 
 **Immediately Invoked Function Expression**:
+
 ```javascript
-(function() {
+(function () {
   // Code here runs immediately
   // Variables are scoped to this function
   const privateVar = 'hidden';
@@ -3691,6 +3866,7 @@ No persistent connection needed
 ```
 
 **Why Used in music-player.js?**
+
 - Avoids polluting global namespace
 - Encapsulates player logic
 - Prevents variable conflicts with other scripts
@@ -3698,6 +3874,7 @@ No persistent connection needed
 ### 6. Async/Await
 
 **Promise-based Asynchronous Code**:
+
 ```javascript
 // Old way (callback hell)
 fetch('/api/data', (error, data) => {
@@ -3723,6 +3900,7 @@ async function getData() {
 ```
 
 **Used Throughout App**:
+
 - API requests (fetch)
 - Redis operations
 - Sequential operations (must wait for response)
@@ -3730,12 +3908,14 @@ async function getData() {
 ### 7. REST API Design
 
 **RESTful Principles**:
+
 - Resources identified by URLs (`/api/session/:id`)
 - HTTP methods convey action (GET, POST, DELETE)
 - Stateless (each request independent)
 - JSON for data exchange
 
 **Example Route**:
+
 ```
 POST /api/session/ABC123/vote
 {
@@ -3751,16 +3931,18 @@ POST /api/session/ABC123/vote
 ### 8. Flexbox Layout
 
 **CSS Flexbox** (for centering):
+
 ```css
 body {
   display: flex;
-  align-items: center;      /* Vertical center */
-  justify-content: center;  /* Horizontal center */
-  min-height: 100vh;        /* Full viewport height */
+  align-items: center; /* Vertical center */
+  justify-content: center; /* Horizontal center */
+  min-height: 100vh; /* Full viewport height */
 }
 ```
 
 **How it Works**:
+
 - `display: flex` makes body a flex container
 - Children (container) become flex items
 - `align-items: center` centers vertically
@@ -3769,6 +3951,7 @@ body {
 ### 9. Event Delegation
 
 **Pattern**:
+
 ```javascript
 // Instead of adding listener to each button
 document.querySelectorAll('.btn').forEach(btn => {
@@ -3776,7 +3959,7 @@ document.querySelectorAll('.btn').forEach(btn => {
 });
 
 // Add one listener to parent
-document.getElementById('container').addEventListener('click', (e) => {
+document.getElementById('container').addEventListener('click', e => {
   if (e.target.classList.contains('btn')) {
     handler(e);
   }
@@ -3784,6 +3967,7 @@ document.getElementById('container').addEventListener('click', (e) => {
 ```
 
 **Benefits**:
+
 - Fewer event listeners
 - Works with dynamically added elements
 - Better performance
@@ -3791,6 +3975,7 @@ document.getElementById('container').addEventListener('click', (e) => {
 ### 10. CSS Transitions
 
 **Smooth Animations**:
+
 ```css
 .music-player {
   width: 60px;
@@ -3803,11 +3988,13 @@ document.getElementById('container').addEventListener('click', (e) => {
 ```
 
 **How it Works**:
+
 - Browser animates property changes
 - `transition: all 0.4s` - animate all properties over 0.4 seconds
 - `cubic-bezier()` - easing function (speed curve)
 
 **Cubic Bezier**:
+
 - (0.4, 0, 0.2, 1) = ease-out curve
 - Starts fast, slows at end
 - Creates natural motion
@@ -3819,6 +4006,7 @@ document.getElementById('container').addEventListener('click', (e) => {
 This voting website is a well-architected real-time polling application that successfully demonstrates modern web development practices:
 
 **Key Achievements**:
+
 - ✅ Serverless deployment (zero ops, infinite scale)
 - ✅ Persistent data with Redis (24-hour TTL)
 - ✅ Real-time updates (HTTP polling)
@@ -3828,6 +4016,7 @@ This voting website is a well-architected real-time polling application that suc
 - ✅ Session management (live + saved)
 
 **Architecture Highlights**:
+
 - Clean separation of concerns (client/server)
 - RESTful API design
 - Stateless serverless functions
@@ -3835,6 +4024,7 @@ This voting website is a well-architected real-time polling application that suc
 - Vanilla JavaScript (no framework bloat)
 
 **Learning Outcomes**:
+
 - Serverless vs traditional architecture
 - WebSockets vs HTTP polling
 - Redis data structures

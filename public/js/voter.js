@@ -1,7 +1,7 @@
 const sessionId = window.location.pathname.split('/')[2];
 
 let currentPoll = null;
-let voterId = localStorage.getItem(`voterId_${sessionId}`);
+const voterId = localStorage.getItem(`voterId_${sessionId}`);
 let pollingInterval = null;
 let lastPollId = null;
 let timerInterval = null;
@@ -13,11 +13,11 @@ if (!voterId) {
 const ratingSlider = document.getElementById('ratingSlider');
 const ratingInput = document.getElementById('ratingInput');
 
-ratingSlider.addEventListener('input', (e) => {
+ratingSlider.addEventListener('input', e => {
   ratingInput.value = e.target.value;
 });
 
-ratingInput.addEventListener('input', (e) => {
+ratingInput.addEventListener('input', e => {
   let value = parseInt(e.target.value);
   if (value < 0) value = 0;
   if (value > 10) value = 10;
@@ -210,7 +210,6 @@ document.getElementById('submitRatingBtn').addEventListener('click', async () =>
     ratingSlider.disabled = true;
     ratingInput.disabled = true;
     document.getElementById('submitRatingBtn').disabled = true;
-
   } catch (error) {
     const messageDiv = document.getElementById('submitMessage');
     messageDiv.textContent = 'Error submitting rating: ' + error.message;
@@ -334,13 +333,18 @@ function renderVoterCarouselItem(index) {
 
   // Update indicators
   const indicators = document.getElementById('voterCarouselIndicators');
-  indicators.innerHTML = window.voterCarouselItems.map((_, i) =>
-    `<span class="carousel-dot ${i === index ? 'active' : ''}" onclick="voterCarouselGoto(${i})"></span>`
-  ).join('');
+  indicators.innerHTML = window.voterCarouselItems
+    .map(
+      (_, i) =>
+        `<span class="carousel-dot ${i === index ? 'active' : ''}" onclick="voterCarouselGoto(${i})"></span>`
+    )
+    .join('');
 }
 
 function voterCarouselPrev() {
-  window.voterCarouselIndex = (window.voterCarouselIndex - 1 + window.voterCarouselItems.length) % window.voterCarouselItems.length;
+  window.voterCarouselIndex =
+    (window.voterCarouselIndex - 1 + window.voterCarouselItems.length) %
+    window.voterCarouselItems.length;
   renderVoterCarouselItem(window.voterCarouselIndex);
 }
 

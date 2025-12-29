@@ -54,7 +54,7 @@ app.get('/vote/:sessionId', (req, res) => {
 app.post('/api/host/login', (req, res) => {
   const { username, password } = req.body;
 
-  if (username === 'GrowthBossHosting' && password === 'y&%)U#2+${QF/wG7') {
+  if (username === process.env.HOST_USERNAME && password === process.env.HOST_PASSWORD) {
     const sessionId = uuidv4().substring(0, 8);
     sessions.set(sessionId, {
       id: sessionId,
@@ -190,9 +190,8 @@ app.post('/api/session/:sessionId/vote', (req, res) => {
   pollVotes.set(voterId, ratingValue);
 
   const ratings = Array.from(pollVotes.values());
-  const average = ratings.length > 0
-    ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(2)
-    : 0;
+  const average =
+    ratings.length > 0 ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(2) : 0;
 
   const votesWithEmails = Array.from(pollVotes.entries()).map(([vId, rating]) => ({
     email: session.voters.get(vId) || 'Unknown',
@@ -210,7 +209,7 @@ app.post('/api/session/:sessionId/vote', (req, res) => {
   res.json({ success: true });
 });
 
-io.on('connection', (socket) => {
+io.on('connection', socket => {
   console.log('Client connected:', socket.id);
 
   socket.on('joinSession', ({ sessionId, role }) => {

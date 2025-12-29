@@ -52,16 +52,19 @@ Vercel Blob is required for storing uploaded images and videos.
 ### Option 2: Deploy via CLI
 
 1. Install dependencies:
+
    ```bash
    npm install
    ```
 
 2. Login to Vercel:
+
    ```bash
    vercel login
    ```
 
 3. Link to a new project:
+
    ```bash
    vercel link
    ```
@@ -69,6 +72,7 @@ Vercel Blob is required for storing uploaded images and videos.
 4. Create KV and Blob storage as described above in the Vercel dashboard
 
 5. Deploy:
+
    ```bash
    vercel --prod
    ```
@@ -99,32 +103,39 @@ The KV and Blob storage credentials are automatically added by Vercel when you c
 ## Troubleshooting
 
 ### "Session not found" error
+
 - Sessions expire after 24 hours
 - Host needs to create a new session
 
 ### Media upload fails
+
 - Check file size is under the limit
 - Verify Blob storage is connected in project settings
 
 ### Results not updating
+
 - Check browser console for errors
 - Verify KV database is connected
 
 ## Cost Estimates
 
 **Free Tier Includes:**
+
 - Vercel KV: 256MB storage, 30,000 commands/month
 - Vercel Blob: 100GB bandwidth/month
 - Vercel Hosting: 100GB bandwidth/month
 
 For typical usage (small team, occasional polls):
+
 - **Free tier should be sufficient**
 
 For production use with many teams:
+
 - Consider upgrading to Pro tier ($20/month)
 
 ## Support
 
 For issues with Vercel services:
+
 - Vercel Docs: https://vercel.com/docs
 - Vercel Support: https://vercel.com/support

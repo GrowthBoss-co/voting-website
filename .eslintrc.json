@@ -1,0 +1,65 @@
+{
+  "root": true,
+  "env": {
+    "es2021": true
+  },
+  "parserOptions": {
+    "ecmaVersion": "latest"
+  },
+  "rules": {
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "no-console": "off",
+    "semi": ["error", "always"],
+    "quotes": ["error", "single", { "avoidEscape": true }],
+    "indent": ["error", 2],
+    "comma-dangle": ["error", "never"],
+    "eqeqeq": ["error", "always"],
+    "no-var": "error",
+    "prefer-const": "warn"
+  },
+  "overrides": [
+    {
+      "files": ["api/**/*.js", "server.js"],
+      "env": {
+        "node": true
+      },
+      "globals": {
+        "require": "readonly",
+        "module": "readonly",
+        "process": "readonly",
+        "__dirname": "readonly"
+      }
+    },
+    {
+      "files": ["public/js/**/*.js"],
+      "env": {
+        "browser": true
+      },
+      "globals": {
+        "window": "readonly",
+        "document": "readonly",
+        "localStorage": "readonly",
+        "sessionStorage": "readonly",
+        "fetch": "readonly",
+        "alert": "readonly",
+        "confirm": "readonly",
+        "navigator": "readonly",
+        "Audio": "readonly",
+        "URL": "readonly",
+        "console": "readonly",
+        "setInterval": "readonly",
+        "clearInterval": "readonly",
+        "setTimeout": "readonly",
+        "parseFloat": "readonly",
+        "parseInt": "readonly",
+        "Date": "readonly",
+        "Map": "readonly",
+        "Array": "readonly",
+        "Object": "readonly",
+        "JSON": "readonly",
+        "Promise": "readonly"
+      }
+    }
+  ],
+  "ignorePatterns": ["node_modules/", "public/uploads/", "*.min.js"]
+}

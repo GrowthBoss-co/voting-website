@@ -10,7 +10,7 @@ async function createLiveSession() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${hostToken}`
+        Authorization: `Bearer ${hostToken}`
       },
       body: JSON.stringify({ isLive: true })
     });
@@ -33,7 +33,7 @@ async function createNewSavedSession() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${hostToken}`
+        Authorization: `Bearer ${hostToken}`
       },
       body: JSON.stringify({
         isLive: false,
@@ -54,7 +54,7 @@ async function showSavedSessions() {
   try {
     const response = await fetch('/api/host/saved-sessions', {
       headers: {
-        'Authorization': `Bearer ${hostToken}`
+        Authorization: `Bearer ${hostToken}`
       }
     });
 
@@ -73,11 +73,14 @@ function displaySavedSessions(sessions) {
   const container = document.getElementById('sessionsList');
 
   if (sessions.length === 0) {
-    container.innerHTML = '<p style="text-align: center; color: #718096;">No saved sessions yet. Create one to get started!</p>';
+    container.innerHTML =
+      '<p style="text-align: center; color: #718096;">No saved sessions yet. Create one to get started!</p>';
     return;
   }
 
-  container.innerHTML = sessions.map(session => `
+  container.innerHTML = sessions
+    .map(
+      session => `
     <div class="session-item">
       <div>
         <h4>${session.name}</h4>
@@ -89,7 +92,9 @@ function displaySavedSessions(sessions) {
         <button onclick="deleteSession('${session.id}')" class="btn btn-secondary btn-small">Delete</button>
       </div>
     </div>
-  `).join('');
+  `
+    )
+    .join('');
 }
 
 function editSession(sessionId) {
@@ -109,7 +114,7 @@ async function deleteSession(sessionId) {
     const response = await fetch(`/api/host/session/${sessionId}`, {
       method: 'DELETE',
       headers: {
-        'Authorization': `Bearer ${hostToken}`
+        Authorization: `Bearer ${hostToken}`
       }
     });
 

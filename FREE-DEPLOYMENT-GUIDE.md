@@ -1,6 +1,7 @@
 # Free Deployment Guide - Hybrid Setup (ImgBB + Cloudinary)
 
 Deploy your Team Polling App to Vercel **100% FREE** using a smart hybrid approach:
+
 - **Images** → ImgBB (unlimited)
 - **Videos** → Cloudinary (compressed to fit free tier)
 
@@ -30,6 +31,7 @@ Deploy your Team Polling App to Vercel **100% FREE** using a smart hybrid approa
    - `UPSTASH_REDIS_REST_TOKEN`
 
 **Free Tier:**
+
 - 10,000 commands per day
 - 256 MB storage
 
@@ -44,6 +46,7 @@ Deploy your Team Polling App to Vercel **100% FREE** using a smart hybrid approa
 5. **Copy and save**: `IMGBB_API_KEY`
 
 **Free Tier:**
+
 - ✅ Unlimited storage
 - ✅ Unlimited bandwidth
 - ✅ Unlimited uploads
@@ -62,6 +65,7 @@ Deploy your Team Polling App to Vercel **100% FREE** using a smart hybrid approa
    - `API Secret` (click "eye" icon to reveal)
 
 **Free Tier:**
+
 - 25 GB storage
 - 25 GB bandwidth/month
 - **Auto-compression** keeps you within limits!
@@ -71,6 +75,7 @@ Deploy your Team Polling App to Vercel **100% FREE** using a smart hybrid approa
 ## Step 4: Push Code to GitHub
 
 1. **Initialize Git**:
+
    ```bash
    git init
    git add .
@@ -105,14 +110,14 @@ Deploy your Team Polling App to Vercel **100% FREE** using a smart hybrid approa
 
 In the Vercel project configuration, click **Environment Variables** and add **ALL 6** variables:
 
-| Name | Value | Where to find |
-|------|-------|---------------|
-| `UPSTASH_REDIS_REST_URL` | `https://...` | From Upstash dashboard |
-| `UPSTASH_REDIS_REST_TOKEN` | `AY...` | From Upstash dashboard |
-| `IMGBB_API_KEY` | `abc123def...` | From ImgBB API page |
-| `CLOUDINARY_CLOUD_NAME` | `dx1a2b3c4` | From Cloudinary dashboard |
-| `CLOUDINARY_API_KEY` | `123456789012345` | From Cloudinary dashboard |
-| `CLOUDINARY_API_SECRET` | `your-secret` | From Cloudinary dashboard |
+| Name                       | Value             | Where to find             |
+| -------------------------- | ----------------- | ------------------------- |
+| `UPSTASH_REDIS_REST_URL`   | `https://...`     | From Upstash dashboard    |
+| `UPSTASH_REDIS_REST_TOKEN` | `AY...`           | From Upstash dashboard    |
+| `IMGBB_API_KEY`            | `abc123def...`    | From ImgBB API page       |
+| `CLOUDINARY_CLOUD_NAME`    | `dx1a2b3c4`       | From Cloudinary dashboard |
+| `CLOUDINARY_API_KEY`       | `123456789012345` | From Cloudinary dashboard |
+| `CLOUDINARY_API_SECRET`    | `your-secret`     | From Cloudinary dashboard |
 
 **Make sure all 6 are added!**
 
@@ -161,12 +166,12 @@ Video file (MP4, MOV, etc.)
 
 **For 30 polls/week with 15 people:**
 
-| Service | Your Usage | Free Tier | Status |
-|---------|-----------|-----------|--------|
-| **Upstash** | ~7,260 req/month | 300,000/month | ✅ 2.4% used |
-| **ImgBB** (images) | Unlimited | Unlimited | ✅ No limits! |
-| **Cloudinary** (videos) | ~15 GB/month | 25 GB/month | ✅ 60% used |
-| **Vercel** | ~5 GB/month | 100 GB/month | ✅ 5% used |
+| Service                 | Your Usage       | Free Tier     | Status        |
+| ----------------------- | ---------------- | ------------- | ------------- |
+| **Upstash**             | ~7,260 req/month | 300,000/month | ✅ 2.4% used  |
+| **ImgBB** (images)      | Unlimited        | Unlimited     | ✅ No limits! |
+| **Cloudinary** (videos) | ~15 GB/month     | 25 GB/month   | ✅ 60% used   |
+| **Vercel**              | ~5 GB/month      | 100 GB/month  | ✅ 5% used    |
 
 **Total Cost: $0/month FOREVER** 🎉
 
@@ -175,6 +180,7 @@ Video file (MP4, MOV, etc.)
 ## Automatic Compression
 
 Videos are automatically compressed to:
+
 - **Max resolution**: 720p (HD quality)
 - **Quality**: Auto-optimized
 - **Size reduction**: ~70-80% smaller
@@ -187,19 +193,23 @@ Videos are automatically compressed to:
 ## Troubleshooting
 
 ### "Session not found" error
+
 - Check Upstash environment variables in Vercel
 - Redeploy after adding env variables
 
 ### Image upload fails
+
 - Verify `IMGBB_API_KEY` is correct (no spaces)
 - Check https://api.imgbb.com/ to verify API key is active
 
 ### Video upload fails
+
 - Check all 3 Cloudinary variables are correct
 - Verify API Secret has no spaces
 - Make sure video is under 100 MB before upload
 
 ### Can't access environment variables
+
 - Go to Vercel: **Settings** → **Environment Variables**
 - All 6 variables must be added for **Production**
 - Redeploy the project after adding
@@ -222,12 +232,14 @@ git push
 ## Usage Recommendations
 
 **To stay 100% free:**
+
 - ✅ Mix of images and videos (perfect!)
 - ✅ Up to 30 polls/week
 - ✅ Keep videos under 5 minutes each
 - ✅ Auto-compression handles the rest
 
 **If you exceed Cloudinary limits:**
+
 - You'll get an email warning
 - Videos still work, but you may need to upgrade
 - Cloudinary Plus: $89/year ($7.42/month)
@@ -236,11 +248,11 @@ git push
 
 ## Why This Hybrid Approach?
 
-| Method | Images | Videos | Monthly Cost |
-|--------|--------|--------|--------------|
-| **Only Cloudinary** | Limited | Limited | Free (tight limits) |
-| **Only ImgBB** | Unlimited | ❌ Not supported | Won't work |
-| **Hybrid (This!)** | ✅ Unlimited | ✅ Compressed | ✅ $0/month |
+| Method              | Images       | Videos           | Monthly Cost        |
+| ------------------- | ------------ | ---------------- | ------------------- |
+| **Only Cloudinary** | Limited      | Limited          | Free (tight limits) |
+| **Only ImgBB**      | Unlimited    | ❌ Not supported | Won't work          |
+| **Hybrid (This!)**  | ✅ Unlimited | ✅ Compressed    | ✅ $0/month         |
 
 **Best of both worlds!**
 
@@ -249,12 +261,14 @@ git push
 ## Need Help?
 
 **Common Issues:**
+
 1. **Deployment fails**: Check all 6 env variables
 2. **Images won't upload**: Verify ImgBB API key
 3. **Videos won't upload**: Verify Cloudinary credentials
 4. **Sessions not persisting**: Check Upstash credentials
 
 **Support:**
+
 - Vercel: https://vercel.com/docs
 - Upstash: https://docs.upstash.com
 - ImgBB: https://api.imgbb.com/

@@ -1,34 +1,46 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Join Session</title>
-  <link rel="stylesheet" href="/css/style.css">
-</head>
-<body>
-  <div class="container">
-    <div class="welcome-card">
-      <h1>Join Session</h1>
-      <p>Enter your email and session ID to join</p>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Join Session</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="welcome-card">
+        <h1>Join Session</h1>
+        <p>Enter your email and session ID to join</p>
 
-      <form id="joinForm" class="login-form">
-        <div class="form-group">
-          <label for="email">Your Email:</label>
-          <input type="email" id="email" required placeholder="you@example.com" autocomplete="email">
-        </div>
-        <div class="form-group">
-          <label for="sessionId">Session ID:</label>
-          <input type="text" id="sessionId" required placeholder="Enter session ID" autocomplete="off">
-        </div>
-        <div id="errorMessage" class="error-message hidden"></div>
-        <button type="submit" class="btn btn-primary">Join Session</button>
-        <button type="button" id="backBtn" class="btn btn-secondary">Back</button>
-      </form>
+        <form id="joinForm" class="login-form">
+          <div class="form-group">
+            <label for="email">Your Email:</label>
+            <input
+              type="email"
+              id="email"
+              required
+              placeholder="you@example.com"
+              autocomplete="email"
+            />
+          </div>
+          <div class="form-group">
+            <label for="sessionId">Session ID:</label>
+            <input
+              type="text"
+              id="sessionId"
+              required
+              placeholder="Enter session ID"
+              autocomplete="off"
+            />
+          </div>
+          <div id="errorMessage" class="error-message hidden"></div>
+          <button type="submit" class="btn btn-primary">Join Session</button>
+          <button type="button" id="backBtn" class="btn btn-secondary">Back</button>
+        </form>
+      </div>
     </div>
-  </div>
 
-  <script src="/js/music-player.js"></script>
-  <script src="/js/join-session.js"></script>
-</body>
+    <script src="/js/music-player.js"></script>
+    <script src="/js/join-session.js"></script>
+  </body>
 </html>

@@ -1,44 +1,44 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vote</title>
-  <link rel="stylesheet" href="/css/style.css">
-</head>
-<body>
-  <div class="container">
-    <div class="voter-view">
-      <h1>Team Poll</h1>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vote</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="voter-view">
+        <h1>Team Poll</h1>
 
-      <div id="waitingScreen" class="waiting-screen">
-        <div class="waiting-message">
-          <h2>Waiting for host to start the poll...</h2>
-          <div class="spinner"></div>
-        </div>
-      </div>
-
-      <div id="votingScreen" class="voting-screen hidden">
-        <div class="timer-display" id="timerDisplay">
-          <span id="timerText">Time remaining: <strong id="timerValue">60</strong>s</span>
-        </div>
-        <h2 id="pollTitle"></h2>
-        <div id="pollMedia" class="media-container"></div>
-
-        <div class="rating-section">
-          <label for="ratingInput">Your Rating (0-10):</label>
-          <div class="rating-input-group">
-            <input type="range" id="ratingSlider" min="0" max="10" value="5">
-            <input type="number" id="ratingInput" min="0" max="10" value="5">
+        <div id="waitingScreen" class="waiting-screen">
+          <div class="waiting-message">
+            <h2>Waiting for host to start the poll...</h2>
+            <div class="spinner"></div>
           </div>
-          <button id="submitRatingBtn" class="btn btn-primary">Submit Rating</button>
-          <div id="submitMessage" class="submit-message hidden"></div>
+        </div>
+
+        <div id="votingScreen" class="voting-screen hidden">
+          <div class="timer-display" id="timerDisplay">
+            <span id="timerText">Time remaining: <strong id="timerValue">60</strong>s</span>
+          </div>
+          <h2 id="pollTitle"></h2>
+          <div id="pollMedia" class="media-container"></div>
+
+          <div class="rating-section">
+            <label for="ratingInput">Your Rating (0-10):</label>
+            <div class="rating-input-group">
+              <input type="range" id="ratingSlider" min="0" max="10" value="5" />
+              <input type="number" id="ratingInput" min="0" max="10" value="5" />
+            </div>
+            <button id="submitRatingBtn" class="btn btn-primary">Submit Rating</button>
+            <div id="submitMessage" class="submit-message hidden"></div>
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <script src="/js/music-player.js"></script>
-  <script src="/js/voter.js"></script>
-</body>
+    <script src="/js/music-player.js"></script>
+    <script src="/js/voter.js"></script>
+  </body>
 </html>
