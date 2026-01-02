@@ -550,4 +550,131 @@ app.get('/api/session/:sessionId/results/:pollId', async (req, res) => {
   });
 });
 
+// Get creator and company lists
+app.get('/api/host/lists', checkHostAuth, async (req, res) => {
+  try {
+    const creators = (await redis.get('host:creators')) || [
+      'Crizan Leone',
+      'Isaac Brito',
+      'Vinicius Freitas'
+    ];
+    const companies = (await redis.get('host:companies')) || [];
+
+    res.json({ creators, companies });
+  } catch (error) {
+    console.error('Error fetching lists:', error);
+    res.status(500).json({ error: 'Failed to fetch lists' });
+  }
+});
+
+// Add creator
+app.post('/api/host/creators', checkHostAuth, async (req, res) => {
+  try {
+    const { name } = req.body;
+
+    if (!name || name.trim() === '') {
+      return res.status(400).json({ error: 'Creator name is required' });
+    }
+
+    const creators = (await redis.get('host:creators')) || [
+      'Crizan Leone',
+      'Isaac Brito',
+      'Vinicius Freitas'
+    ];
+
+    const trimmedName = name.trim();
+
+    // Check if already exists (case-insensitive)
+    if (creators.some(c => c.toLowerCase() === trimmedName.toLowerCase())) {
+      return res.status(400).json({ error: 'Creator already exists' });
+    }
+
+    creators.push(trimmedName);
+    await redis.set('host:creators', creators);
+
+    res.json({ success: true, creators });
+  } catch (error) {
+    console.error('Error adding creator:', error);
+    res.status(500).json({ error: 'Failed to add creator' });
+  }
+});
+
+// Delete creator
+app.delete('/api/host/creators/:name', checkHostAuth, async (req, res) => {
+  try {
+    const { name } = req.params;
+    const creators = (await redis.get('host:creators')) || [
+      'Crizan Leone',
+      'Isaac Brito',
+      'Vinicius Freitas'
+    ];
+
+    const filtered = creators.filter(c => c !== decodeURIComponent(name));
+
+    if (filtered.length === creators.length) {
+      return res.status(404).json({ error: 'Creator not found' });
+    }
+
+    await redis.set('host:creators', filtered);
+    res.json({ success: true, creators: filtered });
+  } catch (error) {
+    console.error('Error deleting creator:', error);
+    res.status(500).json({ error: 'Failed to delete creator' });
+  }
+});
+
+// Add company
+app.post('/api/host/companies', checkHostAuth, async (req, res) => {
+  try {
+    const { name } = req.body;
+
+    if (!name || name.trim() === '') {
+      return res.status(400).json({ error: 'Company name is required' });
+    }
+
+    const companies = (await redis.get('host:companies')) || [];
+
+    // Capitalize company name (first letter of each word)
+    const formattedName = name
+      .trim()
+      .toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+
+    // Check if already exists (case-insensitive)
+    if (companies.some(c => c.toLowerCase() === formattedName.toLowerCase())) {
+      return res.status(400).json({ error: 'Company already exists' });
+    }
+
+    companies.push(formattedName);
+    await redis.set('host:companies', companies);
+
+    res.json({ success: true, companies });
+  } catch (error) {
+    console.error('Error adding company:', error);
+    res.status(500).json({ error: 'Failed to add company' });
+  }
+});
+
+// Delete company
+app.delete('/api/host/companies/:name', checkHostAuth, async (req, res) => {
+  try {
+    const { name } = req.params;
+    const companies = (await redis.get('host:companies')) || [];
+
+    const filtered = companies.filter(c => c !== decodeURIComponent(name));
+
+    if (filtered.length === companies.length) {
+      return res.status(404).json({ error: 'Company not found' });
+    }
+
+    await redis.set('host:companies', filtered);
+    res.json({ success: true, companies: filtered });
+  } catch (error) {
+    console.error('Error deleting company:', error);
+    res.status(500).json({ error: 'Failed to delete company' });
+  }
+});
+
 module.exports = app;

@@ -7,8 +7,240 @@ let currentPollIndex = -1;
 let currentPoll = null;
 let pollingInterval = null;
 const completedPolls = []; // Store results of completed polls
+let creators = [];
+let companies = [];
 
 document.getElementById('sessionId').textContent = sessionId;
+
+// Load creator and company lists
+async function loadLists() {
+  try {
+    const token = localStorage.getItem('hostToken');
+    const response = await fetch('/api/host/lists', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      creators = data.creators;
+      companies = data.companies;
+      updateCreatorsList();
+      updateCompaniesList();
+    }
+  } catch (error) {
+    console.error('Error loading lists:', error);
+  }
+}
+
+// Update creators dropdown and list
+function updateCreatorsList() {
+  const select = document.getElementById('pollCreator');
+  const currentValue = select.value;
+
+  select.innerHTML = '<option value="">Select a creator...</option>';
+  creators.forEach(creator => {
+    const option = document.createElement('option');
+    option.value = creator;
+    option.textContent = creator;
+    select.appendChild(option);
+  });
+
+  // Restore selection if it still exists
+  if (currentValue && creators.includes(currentValue)) {
+    select.value = currentValue;
+  }
+
+  // Update the list with delete buttons
+  const listContainer = document.getElementById('creatorsList');
+  listContainer.innerHTML = creators
+    .map(
+      creator => `
+    <div style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; background: #f7fafc; border-radius: 4px; font-size: 13px;">
+      <span>${creator}</span>
+      <button type="button" onclick="deleteCreator('${creator.replace(/'/g, "\\'")}')" style="background: none; border: none; color: #e53e3e; cursor: pointer; padding: 0 4px; font-size: 16px; line-height: 1;" title="Delete">&times;</button>
+    </div>
+  `
+    )
+    .join('');
+}
+
+// Update companies dropdown and list
+function updateCompaniesList() {
+  const select = document.getElementById('pollCompany');
+  const currentValue = select.value;
+
+  select.innerHTML = '<option value="">Select a company...</option>';
+  companies.forEach(company => {
+    const option = document.createElement('option');
+    option.value = company;
+    option.textContent = company;
+    select.appendChild(option);
+  });
+
+  // Add custom option at the end
+  const customOption = document.createElement('option');
+  customOption.value = '__custom__';
+  customOption.textContent = 'Type custom company...';
+  select.appendChild(customOption);
+
+  // Restore selection if it still exists
+  if (currentValue && (companies.includes(currentValue) || currentValue === '__custom__')) {
+    select.value = currentValue;
+  }
+
+  // Update the list with delete buttons
+  const listContainer = document.getElementById('companiesList');
+  listContainer.innerHTML = companies
+    .map(
+      company => `
+    <div style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; background: #f7fafc; border-radius: 4px; font-size: 13px;">
+      <span>${company}</span>
+      <button type="button" onclick="deleteCompany('${company.replace(/'/g, "\\'")}')" style="background: none; border: none; color: #e53e3e; cursor: pointer; padding: 0 4px; font-size: 16px; line-height: 1;" title="Delete">&times;</button>
+    </div>
+  `
+    )
+    .join('');
+}
+
+// Show/hide custom company input based on selection
+document.getElementById('pollCompany').addEventListener('change', e => {
+  const customInput = document.getElementById('pollCompanyCustom');
+  if (e.target.value === '__custom__') {
+    customInput.style.display = 'block';
+    customInput.required = true;
+  } else {
+    customInput.style.display = 'none';
+    customInput.required = false;
+    customInput.value = '';
+  }
+});
+
+// Add creator dialog
+function showAddCreatorDialog() {
+  const name = prompt('Enter creator name:');
+  if (name && name.trim()) {
+    addCreator(name.trim());
+  }
+}
+
+async function addCreator(name) {
+  try {
+    const token = localStorage.getItem('hostToken');
+    const response = await fetch('/api/host/creators', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ name })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      alert('Error: ' + (data.error || 'Failed to add creator'));
+      return;
+    }
+
+    creators = data.creators;
+    updateCreatorsList();
+  } catch (error) {
+    console.error('Error adding creator:', error);
+    alert('Error adding creator: ' + error.message);
+  }
+}
+
+async function deleteCreator(name) {
+  if (!confirm(`Delete creator "${name}"?`)) {
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem('hostToken');
+    const response = await fetch(`/api/host/creators/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      alert('Error: ' + (data.error || 'Failed to delete creator'));
+      return;
+    }
+
+    creators = data.creators;
+    updateCreatorsList();
+  } catch (error) {
+    console.error('Error deleting creator:', error);
+    alert('Error deleting creator: ' + error.message);
+  }
+}
+
+// Add company dialog
+function showAddCompanyDialog() {
+  const name = prompt('Enter company name:');
+  if (name && name.trim()) {
+    addCompany(name.trim());
+  }
+}
+
+async function addCompany(name) {
+  try {
+    const token = localStorage.getItem('hostToken');
+    const response = await fetch('/api/host/companies', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ name })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      alert('Error: ' + (data.error || 'Failed to add company'));
+      return;
+    }
+
+    companies = data.companies;
+    updateCompaniesList();
+  } catch (error) {
+    console.error('Error adding company:', error);
+    alert('Error adding company: ' + error.message);
+  }
+}
+
+async function deleteCompany(name) {
+  if (!confirm(`Delete company "${name}"?`)) {
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem('hostToken');
+    const response = await fetch(`/api/host/companies/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      alert('Error: ' + (data.error || 'Failed to delete company'));
+      return;
+    }
+
+    companies = data.companies;
+    updateCompaniesList();
+  } catch (error) {
+    console.error('Error deleting company:', error);
+    alert('Error deleting company: ' + error.message);
+  }
+}
+
+// Load lists on page load
+loadLists();
 
 // Load existing polls if in edit or present mode
 async function loadExistingPolls() {
@@ -47,7 +279,18 @@ document.getElementById('pollForm').addEventListener('submit', async e => {
   e.preventDefault();
 
   const creator = document.getElementById('pollCreator').value;
-  const company = document.getElementById('pollCompany').value.trim();
+  const companySelect = document.getElementById('pollCompany').value;
+  let company = companySelect;
+
+  // If custom company is selected, use the custom input
+  if (companySelect === '__custom__') {
+    company = document.getElementById('pollCompanyCustom').value.trim();
+    if (!company) {
+      alert('Please enter a company name');
+      return;
+    }
+  }
+
   const timer = parseInt(document.getElementById('pollTimer').value) || 60;
   const mediaUrlsText = document.getElementById('mediaUrls').value.trim();
   const submitBtn = e.target.querySelector('button[type="submit"]');
@@ -193,6 +436,8 @@ document.getElementById('pollForm').addEventListener('submit', async e => {
       document.getElementById('pollForm').reset();
       document.getElementById('pollTimer').value = 60;
       document.getElementById('mediaUrls').value = '';
+      document.getElementById('pollCompanyCustom').style.display = 'none';
+      document.getElementById('pollCompanyCustom').value = '';
 
       document.getElementById('startVotingBtn').disabled = false;
 
@@ -644,7 +889,19 @@ function editPoll(index) {
 
   // Fill form with poll data
   document.getElementById('pollCreator').value = poll.creator;
-  document.getElementById('pollCompany').value = poll.company;
+
+  // Check if company exists in the list
+  const companySelect = document.getElementById('pollCompany');
+  if (companies.includes(poll.company)) {
+    companySelect.value = poll.company;
+    document.getElementById('pollCompanyCustom').style.display = 'none';
+  } else {
+    // Company not in list, use custom input
+    companySelect.value = '__custom__';
+    document.getElementById('pollCompanyCustom').value = poll.company;
+    document.getElementById('pollCompanyCustom').style.display = 'block';
+  }
+
   document.getElementById('pollTimer').value = poll.timer;
 
   // Convert mediaItems back to URLs (one per line)
@@ -705,6 +962,8 @@ function cancelEdit() {
   document.getElementById('pollForm').reset();
   document.getElementById('pollTimer').value = 60;
   document.getElementById('mediaUrls').value = '';
+  document.getElementById('pollCompanyCustom').style.display = 'none';
+  document.getElementById('pollCompanyCustom').value = '';
 }
 
 // Drag and drop functions for reordering polls
