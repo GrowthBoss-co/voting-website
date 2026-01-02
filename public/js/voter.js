@@ -156,16 +156,35 @@ async function checkForPoll() {
         displayPoll(data.currentPoll, data.hasVoted, data.voterRating);
       }
     } else {
-      if (currentPoll !== null) {
-        currentPoll = null;
-        lastPollId = null;
-        document.getElementById('waitingScreen').classList.remove('hidden');
-        document.getElementById('votingScreen').classList.add('hidden');
+      // No active poll - show appropriate waiting screen
+      currentPoll = null;
+      lastPollId = null;
+
+      if (!data.sessionStarted) {
+        // Session hasn't started yet
+        showWaitingScreen(
+          'Waiting for host to start the session...',
+          `The session has ${data.totalPolls} poll${data.totalPolls !== 1 ? 's' : ''} ready. Please wait for the host to begin.`
+        );
+      } else {
+        // Session started but between polls or finished
+        if (data.totalPolls > 0) {
+          showWaitingScreen('Waiting for next poll...', 'The host will start the next poll shortly.');
+        } else {
+          showWaitingScreen('Session ended', 'Thank you for participating!');
+        }
       }
     }
   } catch (error) {
     console.error('Error checking for poll:', error);
   }
+}
+
+function showWaitingScreen(title, subtitle) {
+  document.getElementById('waitingTitle').textContent = title;
+  document.getElementById('waitingSubtitle').textContent = subtitle;
+  document.getElementById('waitingScreen').classList.remove('hidden');
+  document.getElementById('votingScreen').classList.add('hidden');
 }
 
 checkForPoll();

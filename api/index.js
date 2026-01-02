@@ -439,7 +439,11 @@ app.get('/api/session/:sessionId/current-poll', async (req, res) => {
   }
 
   if (session.currentPollIndex === -1 || session.currentPollIndex >= session.polls.length) {
-    return res.json({ currentPoll: null });
+    return res.json({
+      currentPoll: null,
+      sessionStarted: session.currentPollIndex !== -1,
+      totalPolls: session.polls.length
+    });
   }
 
   const currentPoll = session.polls[session.currentPollIndex];
@@ -451,7 +455,9 @@ app.get('/api/session/:sessionId/current-poll', async (req, res) => {
     currentPoll,
     pollIndex: session.currentPollIndex,
     hasVoted,
-    voterRating
+    voterRating,
+    sessionStarted: true,
+    totalPolls: session.polls.length
   });
 });
 
