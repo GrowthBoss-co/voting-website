@@ -116,11 +116,7 @@ async function saveSession(sessionId, session) {
 app.post('/api/host/login', async (req, res) => {
   const { username, password } = req.body;
 
-  // Use environment variables if set, otherwise fall back to hardcoded values
-  const validUsername = process.env.HOST_USERNAME || 'GrowthBossHosting';
-  const validPassword = process.env.HOST_PASSWORD || 'y&%)U#2+${QF/wG7';
-
-  if (username === validUsername && password === validPassword) {
+  if (username === process.env.HOST_USERNAME && password === process.env.HOST_PASSWORD) {
     // Generate a simple auth token (in production, use JWT)
     const token = uuidv4();
     await redis.set(`host:token:${token}`, 'authorized', { ex: 86400 }); // 24 hour token
