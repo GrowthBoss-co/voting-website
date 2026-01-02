@@ -301,6 +301,10 @@ async function startPoll(pollIndex) {
 
       window.hostCarouselIndex = 0;
       window.hostCarouselItems = currentPoll.mediaItems;
+
+      // Preload all images in the carousel
+      preloadCarouselImages(currentPoll.mediaItems);
+
       renderHostCarouselItem(0);
     }
 
@@ -548,6 +552,16 @@ function hostCarouselNext() {
 function hostCarouselGoto(index) {
   window.hostCarouselIndex = index;
   renderHostCarouselItem(index);
+}
+
+// Preload all images in carousel for instant navigation
+function preloadCarouselImages(mediaItems) {
+  mediaItems.forEach(item => {
+    if (item.type === 'image') {
+      const img = new Image();
+      img.src = item.url;
+    }
+  });
 }
 
 // Edit poll function

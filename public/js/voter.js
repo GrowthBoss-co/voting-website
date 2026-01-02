@@ -89,6 +89,10 @@ function displayPoll(poll, hasVoted = false, voterRating = null) {
 
     window.voterCarouselIndex = 0;
     window.voterCarouselItems = currentPoll.mediaItems;
+
+    // Preload all images in the carousel
+    preloadCarouselImages(currentPoll.mediaItems);
+
     renderVoterCarouselItem(0);
   }
 
@@ -356,4 +360,14 @@ function voterCarouselNext() {
 function voterCarouselGoto(index) {
   window.voterCarouselIndex = index;
   renderVoterCarouselItem(index);
+}
+
+// Preload all images in carousel for instant navigation
+function preloadCarouselImages(mediaItems) {
+  mediaItems.forEach(item => {
+    if (item.type === 'image') {
+      const img = new Image();
+      img.src = item.url;
+    }
+  });
 }
