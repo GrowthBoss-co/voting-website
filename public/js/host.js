@@ -628,7 +628,7 @@ async function startPoll(pollIndex) {
         stopPolling();
         stopTimer();
         await saveCompletedPoll();
-        showSessionResults();
+        await showSessionResults();
       };
     } else {
       nextBtn.textContent = 'Next Poll';
@@ -734,16 +734,35 @@ async function saveCompletedPoll() {
   }
 }
 
-function showSessionResults() {
+async function showSessionResults() {
   document.getElementById('votingSection').classList.add('hidden');
 
   const container = document.querySelector('.host-dashboard');
+
+  // Fetch all poll results from backend instead of relying on completedPolls array
+  const allPollResults = [];
+  for (const poll of polls) {
+    try {
+      const response = await fetch(`/api/session/${sessionId}/results/${poll.id}`);
+      const data = await response.json();
+      allPollResults.push({
+        creator: poll.creator,
+        company: poll.company,
+        pollId: poll.id,
+        totalVotes: data.totalVotes,
+        average: data.average,
+        votesWithEmails: data.votesWithEmails || []
+      });
+    } catch (error) {
+      console.error('Error fetching results for poll:', poll.id, error);
+    }
+  }
 
   // Calculate creator and company averages
   const creatorStats = {};
   const companyStats = {};
 
-  completedPolls.forEach(poll => {
+  allPollResults.forEach(poll => {
     // Creator stats
     if (!creatorStats[poll.creator]) {
       creatorStats[poll.creator] = { total: 0, count: 0, votes: 0 };
@@ -814,7 +833,7 @@ function showSessionResults() {
   container.appendChild(resultsSection);
 
   const completedContainer = document.getElementById('completedPollsContainer');
-  completedContainer.innerHTML = completedPolls
+  completedContainer.innerHTML = allPollResults
     .map(
       (poll, index) => `
     <div class="completed-poll-card">
