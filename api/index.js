@@ -425,7 +425,9 @@ app.get('/api/session/:sessionId', async (req, res) => {
   res.json({
     sessionId: session.id,
     polls: session.polls,
-    currentPollIndex: session.currentPollIndex
+    currentPollIndex: session.currentPollIndex,
+    status: session.status,
+    pausedAtPollIndex: session.pausedAtPollIndex
   });
 });
 
