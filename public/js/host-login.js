@@ -16,7 +16,7 @@ document.getElementById('loginForm').addEventListener('submit', async e => {
 
     if (data.success) {
       // Store auth token
-      sessionStorage.setItem('hostToken', data.token);
+      localStorage.setItem('hostToken', data.token);
       // Redirect to session selection page
       window.location.href = '/session-select';
     } else {

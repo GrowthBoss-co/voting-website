@@ -1,5 +1,5 @@
 // Check if user is authenticated
-const hostToken = sessionStorage.getItem('hostToken');
+const hostToken = localStorage.getItem('hostToken');
 if (!hostToken) {
   window.location.href = '/host-login';
 }
@@ -133,6 +133,6 @@ function closeModal() {
 }
 
 function logout() {
-  sessionStorage.removeItem('hostToken');
+  localStorage.removeItem('hostToken');
   window.location.href = '/';
 }
