@@ -46,11 +46,19 @@ if (mode === 'edit') {
 document.getElementById('pollForm').addEventListener('submit', async e => {
   e.preventDefault();
 
-  const title = document.getElementById('pollTitle').value;
+  const creator = document.getElementById('pollCreator').value;
+  const company = document.getElementById('pollCompany').value.trim();
   const timer = parseInt(document.getElementById('pollTimer').value) || 60;
   const mediaUrlsText = document.getElementById('mediaUrls').value.trim();
   const submitBtn = e.target.querySelector('button[type="submit"]');
   const editingIndex = document.getElementById('editingPollIndex').value;
+
+  // Capitalize company name (first letter of each word)
+  const formattedCompany = company
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 
   if (!mediaUrlsText) {
     alert('Please enter at least one media URL');
@@ -131,7 +139,8 @@ document.getElementById('pollForm').addEventListener('submit', async e => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title,
+          creator,
+          company: formattedCompany,
           mediaItems,
           timer
         })
@@ -160,7 +169,8 @@ document.getElementById('pollForm').addEventListener('submit', async e => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title,
+          creator,
+          company: formattedCompany,
           mediaItems,
           timer
         })
@@ -218,7 +228,7 @@ function updatePollsList() {
         </svg>
       </div>
       <div style="flex: 1;">
-        <strong>Poll ${index + 1}:</strong> ${poll.title}
+        <strong>Poll ${index + 1}:</strong> ${poll.creator} - ${poll.company}
         <span style="margin-left: 10px; color: #666;">(${poll.mediaItems.length} media item${poll.mediaItems.length > 1 ? 's' : ''}, ${poll.timer}s timer)</span>
       </div>
       <div style="display: flex; gap: 8px;">
@@ -267,7 +277,7 @@ async function startPoll(pollIndex) {
     currentPollIndex = pollIndex;
     currentPoll = polls[pollIndex];
 
-    document.getElementById('currentPollTitle').textContent = currentPoll.title;
+    document.getElementById('currentPollTitle').textContent = `${currentPoll.creator} - ${currentPoll.company}`;
 
     // Render carousel for media items
     const mediaContainer = document.getElementById('currentPollMedia');
@@ -420,7 +430,8 @@ async function saveCompletedPoll() {
     const data = await response.json();
 
     completedPolls.push({
-      title: currentPoll.title,
+      creator: currentPoll.creator,
+      company: currentPoll.company,
       pollId: currentPoll.id,
       totalVotes: data.totalVotes,
       average: data.average,
@@ -436,11 +447,74 @@ function showSessionResults() {
 
   const container = document.querySelector('.host-dashboard');
 
+  // Calculate creator and company averages
+  const creatorStats = {};
+  const companyStats = {};
+
+  completedPolls.forEach(poll => {
+    // Creator stats
+    if (!creatorStats[poll.creator]) {
+      creatorStats[poll.creator] = { total: 0, count: 0, votes: 0 };
+    }
+    creatorStats[poll.creator].total += poll.average * poll.totalVotes;
+    creatorStats[poll.creator].count += poll.totalVotes;
+    creatorStats[poll.creator].votes += poll.totalVotes;
+
+    // Company stats
+    if (!companyStats[poll.company]) {
+      companyStats[poll.company] = { total: 0, count: 0, votes: 0 };
+    }
+    companyStats[poll.company].total += poll.average * poll.totalVotes;
+    companyStats[poll.company].count += poll.totalVotes;
+    companyStats[poll.company].votes += poll.totalVotes;
+  });
+
+  // Calculate averages
+  const creatorAverages = Object.entries(creatorStats).map(([name, stats]) => ({
+    name,
+    average: stats.count > 0 ? (stats.total / stats.count).toFixed(2) : 0,
+    totalVotes: stats.votes
+  })).sort((a, b) => b.average - a.average);
+
+  const companyAverages = Object.entries(companyStats).map(([name, stats]) => ({
+    name,
+    average: stats.count > 0 ? (stats.total / stats.count).toFixed(2) : 0,
+    totalVotes: stats.votes
+  })).sort((a, b) => b.average - a.average);
+
   const resultsSection = document.createElement('div');
   resultsSection.className = 'session-results';
   resultsSection.innerHTML = `
     <h2>Session Complete - Final Results</h2>
-    <p>All polls have been completed. Click on each poll to see detailed results.</p>
+
+    <div class="aggregated-stats">
+      <div class="stats-section">
+        <h3>Average Rating by Creator</h3>
+        <div class="stats-list">
+          ${creatorAverages.map(stat => `
+            <div class="stat-item">
+              <span class="stat-name">${stat.name}</span>
+              <span class="stat-value">${stat.average}/10 <small>(${stat.totalVotes} votes)</small></span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="stats-section">
+        <h3>Average Rating by Company</h3>
+        <div class="stats-list">
+          ${companyAverages.map(stat => `
+            <div class="stat-item">
+              <span class="stat-name">${stat.name}</span>
+              <span class="stat-value">${stat.average}/10 <small>(${stat.totalVotes} votes)</small></span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top: 30px;">Individual Poll Results</h3>
+    <p>Click on each poll to see detailed results.</p>
     <div id="completedPollsContainer"></div>
     <button onclick="window.location.href='/'" class="btn btn-primary" style="margin-top: 20px;">Back to Home</button>
   `;
@@ -453,7 +527,7 @@ function showSessionResults() {
       (poll, index) => `
     <div class="completed-poll-card">
       <div class="completed-poll-header" onclick="togglePollDetails(${index})">
-        <h3>Poll ${index + 1}: ${poll.title}</h3>
+        <h3>Poll ${index + 1}: ${poll.creator} - ${poll.company}</h3>
         <div class="poll-summary">
           <span>Total Votes: ${poll.totalVotes}</span>
           <span>Average: ${poll.average}/10</span>
@@ -569,7 +643,8 @@ function editPoll(index) {
   const poll = polls[index];
 
   // Fill form with poll data
-  document.getElementById('pollTitle').value = poll.title;
+  document.getElementById('pollCreator').value = poll.creator;
+  document.getElementById('pollCompany').value = poll.company;
   document.getElementById('pollTimer').value = poll.timer;
 
   // Convert mediaItems back to URLs (one per line)

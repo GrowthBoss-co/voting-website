@@ -252,7 +252,7 @@ app.post('/api/session/verify', async (req, res) => {
 app.post('/api/session/:sessionId/poll', async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const { title, mediaItems, timer } = req.body;
+    const { creator, company, mediaItems, timer } = req.body;
     const session = await getSession(sessionId);
 
     if (!session) {
@@ -274,7 +274,8 @@ app.post('/api/session/:sessionId/poll', async (req, res) => {
 
     const poll = {
       id: uuidv4(),
-      title,
+      creator,
+      company,
       mediaItems, // Array of { url, type: 'image'|'video' }
       timer: timer || 60, // Default 60 seconds
       startTime: null // Will be set when poll starts
@@ -295,7 +296,7 @@ app.post('/api/session/:sessionId/poll', async (req, res) => {
 app.put('/api/session/:sessionId/poll/:pollIndex', async (req, res) => {
   try {
     const { sessionId, pollIndex } = req.params;
-    const { title, mediaItems, timer } = req.body;
+    const { creator, company, mediaItems, timer } = req.body;
     const session = await getSession(sessionId);
 
     if (!session) {
@@ -325,7 +326,8 @@ app.put('/api/session/:sessionId/poll/:pollIndex', async (req, res) => {
 
     const updatedPoll = {
       id: existingPollId,
-      title,
+      creator,
+      company,
       mediaItems,
       timer: timer || 60,
       startTime: null

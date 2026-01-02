@@ -31,7 +31,7 @@ function displayPoll(poll, hasVoted = false, voterRating = null) {
   document.getElementById('waitingScreen').classList.add('hidden');
   document.getElementById('votingScreen').classList.remove('hidden');
 
-  document.getElementById('pollTitle').textContent = currentPoll.title;
+  document.getElementById('pollTitle').textContent = `${currentPoll.creator} - ${currentPoll.company}`;
 
   // Always reset timer display first, before starting new timer
   const timerText = document.getElementById('timerText');

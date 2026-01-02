@@ -27,12 +27,22 @@
           <form id="pollForm" class="poll-form">
             <input type="hidden" id="editingPollIndex" value="" />
             <div class="form-group">
-              <label for="pollTitle">Poll Question/Title:</label>
+              <label for="pollCreator">Creator:</label>
+              <select id="pollCreator" required>
+                <option value="">Select a creator...</option>
+                <option value="Crizan Leone">Crizan Leone</option>
+                <option value="Isaac Brito">Isaac Brito</option>
+                <option value="Vinicius Freitas">Vinicius Freitas</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="pollCompany">Company:</label>
               <input
                 type="text"
-                id="pollTitle"
+                id="pollCompany"
                 required
-                placeholder="e.g., Rate this design concept"
+                placeholder="e.g., Acme Corporation"
               />
             </div>
 
