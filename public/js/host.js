@@ -536,9 +536,11 @@ document.getElementById('startVotingBtn').addEventListener('click', async () => 
     const response = await fetch(`/api/session/${sessionId}`);
     if (response.ok) {
       const sessionData = await response.json();
+      console.log('Session status check:', sessionData.status, 'pausedAtPollIndex:', sessionData.pausedAtPollIndex);
 
       if (sessionData.status === 'paused' && sessionData.pausedAtPollIndex >= 0) {
         // Show resume/restart dialog
+        console.log('Showing resume dialog for poll index:', sessionData.pausedAtPollIndex);
         showResumeDialog(sessionData.pausedAtPollIndex);
         return;
       }
@@ -1147,13 +1149,24 @@ async function pauseSession() {
 }
 
 // Detect when user is in voting section and navigates away
-window.addEventListener('beforeunload', () => {
+window.addEventListener('beforeunload', (e) => {
   // Check if voting section is visible (session is active)
   const votingSection = document.getElementById('votingSection');
   if (votingSection && !votingSection.classList.contains('hidden')) {
+    console.log('Pausing session via beforeunload');
     // Session is active, pause it
     // Use sendBeacon for reliable sending during page unload
     const blob = new Blob([JSON.stringify({})], { type: 'application/json' });
     navigator.sendBeacon(`/api/session/${sessionId}/pause`, blob);
   }
 });
+
+// Also detect navigation via pagehide (more reliable for mobile/navigation)
+window.addEventListener('pagehide', (e) => {
+  const votingSection = document.getElementById('votingSection');
+  if (votingSection && !votingSection.classList.contains('hidden')) {
+    console.log('Pausing session via pagehide');
+    const blob = new Blob([JSON.stringify({})], { type: 'application/json' });
+    navigator.sendBeacon(`/api/session/${sessionId}/pause`, blob);
+  }
+}, { capture: true });
