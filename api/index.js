@@ -493,7 +493,12 @@ app.post('/api/session/:sessionId/start/:pollIndex', async (req, res) => {
 
   session.currentPollIndex = index;
   session.polls[index].startTime = Date.now(); // Set start time for timer
-  session.votes.set(session.polls[index].id, new Map());
+
+  // Only initialize votes if this poll hasn't been voted on yet (preserve existing votes when resuming)
+  if (!session.votes.has(session.polls[index].id)) {
+    session.votes.set(session.polls[index].id, new Map());
+  }
+
   session.status = 'presenting'; // Mark as presenting
   await saveSession(sessionId, session);
 
