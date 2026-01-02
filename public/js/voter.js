@@ -160,7 +160,13 @@ async function checkForPoll() {
       currentPoll = null;
       lastPollId = null;
 
-      if (!data.sessionStarted) {
+      // Check if session is paused
+      if (data.status === 'paused') {
+        showWaitingScreen(
+          'Session Paused',
+          'The host has paused the session. Please wait while they resume.'
+        );
+      } else if (!data.sessionStarted) {
         // Session hasn't started yet
         showWaitingScreen(
           'Waiting for host to start the session...',

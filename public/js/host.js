@@ -503,6 +503,23 @@ document.getElementById('startVotingBtn').addEventListener('click', async () => 
     return;
   }
 
+  // Check if session is paused
+  try {
+    const response = await fetch(`/api/session/${sessionId}`);
+    if (response.ok) {
+      const sessionData = await response.json();
+
+      if (sessionData.status === 'paused' && sessionData.pausedAtPollIndex >= 0) {
+        // Show resume/restart dialog
+        showResumeDialog(sessionData.pausedAtPollIndex);
+        return;
+      }
+    }
+  } catch (error) {
+    console.error('Error checking session status:', error);
+  }
+
+  // Normal start - hide setup, show voting
   document.getElementById('setupSection').classList.add('hidden');
   document.getElementById('votingSection').classList.remove('hidden');
 
@@ -1041,3 +1058,74 @@ async function savePollOrder() {
     alert('Error saving poll order: ' + error.message);
   }
 }
+
+// Show resume/restart dialog
+function showResumeDialog(pausedAtPollIndex) {
+  const modal = document.getElementById('resumeModal');
+  const pollNumber = document.getElementById('pausedPollNumber');
+
+  pollNumber.textContent = pausedAtPollIndex + 1;
+
+  modal.classList.remove('hidden');
+
+  // Handle resume button
+  document.getElementById('resumeFromPauseBtn').onclick = async () => {
+    modal.classList.add('hidden');
+    await resumeSession(false, pausedAtPollIndex);
+  };
+
+  // Handle restart button
+  document.getElementById('restartSessionBtn').onclick = async () => {
+    modal.classList.add('hidden');
+    await resumeSession(true, pausedAtPollIndex);
+  };
+}
+
+// Resume session (with or without restart)
+async function resumeSession(restart, pausedAtPollIndex) {
+  try {
+    const response = await fetch(`/api/session/${sessionId}/resume`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ restart })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to resume session');
+    }
+
+    // Hide setup, show voting
+    document.getElementById('setupSection').classList.add('hidden');
+    document.getElementById('votingSection').classList.remove('hidden');
+
+    // Start from appropriate poll
+    const startIndex = restart ? 0 : pausedAtPollIndex;
+    await startPoll(startIndex);
+  } catch (error) {
+    console.error('Error resuming session:', error);
+    alert('Error resuming session: ' + error.message);
+  }
+}
+
+// Pause session when navigating back to setup
+async function pauseSession() {
+  try {
+    await fetch(`/api/session/${sessionId}/pause`, {
+      method: 'POST'
+    });
+  } catch (error) {
+    console.error('Error pausing session:', error);
+  }
+}
+
+// Detect when user is in voting section and navigates away
+window.addEventListener('beforeunload', () => {
+  // Check if voting section is visible (session is active)
+  const votingSection = document.getElementById('votingSection');
+  if (votingSection && !votingSection.classList.contains('hidden')) {
+    // Session is active, pause it
+    // Use sendBeacon for reliable sending during page unload
+    const blob = new Blob([JSON.stringify({})], { type: 'application/json' });
+    navigator.sendBeacon(`/api/session/${sessionId}/pause`, blob);
+  }
+});

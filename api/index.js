@@ -158,7 +158,8 @@ app.post('/api/host/create-session', checkHostAuth, async (req, res) => {
       voters: new Map(),
       isLive: isLive || false,
       created: new Date().toISOString(),
-      status: 'draft' // draft, presenting, completed
+      status: 'draft', // draft, presenting, paused, completed
+      pausedAtPollIndex: -1 // Track which poll was active when paused
     };
 
     await saveSession(sessionId, sessionData);
@@ -438,11 +439,23 @@ app.get('/api/session/:sessionId/current-poll', async (req, res) => {
     return res.status(404).json({ error: 'Session not found' });
   }
 
+  // Check if session is paused
+  if (session.status === 'paused') {
+    return res.json({
+      currentPoll: null,
+      sessionStarted: true,
+      totalPolls: session.polls.length,
+      status: 'paused',
+      pausedAtPollIndex: session.pausedAtPollIndex
+    });
+  }
+
   if (session.currentPollIndex === -1 || session.currentPollIndex >= session.polls.length) {
     return res.json({
       currentPoll: null,
       sessionStarted: session.currentPollIndex !== -1,
-      totalPolls: session.polls.length
+      totalPolls: session.polls.length,
+      status: session.status || 'draft'
     });
   }
 
@@ -457,7 +470,8 @@ app.get('/api/session/:sessionId/current-poll', async (req, res) => {
     hasVoted,
     voterRating,
     sessionStarted: true,
-    totalPolls: session.polls.length
+    totalPolls: session.polls.length,
+    status: session.status || 'presenting'
   });
 });
 
@@ -478,9 +492,51 @@ app.post('/api/session/:sessionId/start/:pollIndex', async (req, res) => {
   session.currentPollIndex = index;
   session.polls[index].startTime = Date.now(); // Set start time for timer
   session.votes.set(session.polls[index].id, new Map());
+  session.status = 'presenting'; // Mark as presenting
   await saveSession(sessionId, session);
 
   res.json({ success: true });
+});
+
+// Pause session
+app.post('/api/session/:sessionId/pause', async (req, res) => {
+  const { sessionId } = req.params;
+  const session = await getSession(sessionId);
+
+  if (!session) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+
+  session.status = 'paused';
+  session.pausedAtPollIndex = session.currentPollIndex;
+  await saveSession(sessionId, session);
+
+  res.json({ success: true });
+});
+
+// Resume session (with option to restart or continue)
+app.post('/api/session/:sessionId/resume', async (req, res) => {
+  const { sessionId } = req.params;
+  const { restart } = req.body;
+  const session = await getSession(sessionId);
+
+  if (!session) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+
+  if (restart) {
+    // Restart from beginning
+    session.currentPollIndex = -1;
+    session.status = 'draft';
+    session.pausedAtPollIndex = -1;
+  } else {
+    // Continue from where left off
+    session.status = 'presenting';
+  }
+
+  await saveSession(sessionId, session);
+
+  res.json({ success: true, pausedAtPollIndex: session.pausedAtPollIndex });
 });
 
 // Submit vote
