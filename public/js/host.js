@@ -262,17 +262,38 @@ async function loadExistingPolls() {
 // If in edit or present mode, load existing polls
 if (mode === 'edit' || mode === 'present') {
   loadExistingPolls();
+
+  // Check if session is paused on page load
+  checkSessionStatus();
 }
 
 // Update button text based on mode
 if (mode === 'edit') {
   document.getElementById('startVotingBtn').textContent = 'Save & Exit';
-  document.getElementById('startVotingBtn').onclick = function () {
-    alert('Session saved! You can present it anytime from the saved sessions page.');
-    window.location.href = '/session-select';
-  };
 } else if (mode === 'present') {
   document.getElementById('startVotingBtn').textContent = 'Start Presenting';
+}
+
+// Function to check session status on load
+async function checkSessionStatus() {
+  try {
+    const response = await fetch(`/api/session/${sessionId}`);
+    if (response.ok) {
+      const sessionData = await response.json();
+
+      // If session is paused, show a notification
+      if (sessionData.status === 'paused' && sessionData.pausedAtPollIndex >= 0) {
+        const statusMsg = document.createElement('div');
+        statusMsg.style.cssText = 'background: #fed7d7; color: #c53030; padding: 12px; border-radius: 6px; margin-bottom: 20px; text-align: center; font-weight: 600;';
+        statusMsg.textContent = `⏸️ This session is paused at Poll ${sessionData.pausedAtPollIndex + 1}. Click "Start Presenting" to resume or restart.`;
+
+        const setupSection = document.getElementById('setupSection');
+        setupSection.insertBefore(statusMsg, setupSection.firstChild);
+      }
+    }
+  } catch (error) {
+    console.error('Error checking session status:', error);
+  }
 }
 
 document.getElementById('pollForm').addEventListener('submit', async e => {
@@ -498,6 +519,13 @@ function updatePollsList() {
 }
 
 document.getElementById('startVotingBtn').addEventListener('click', async () => {
+  // Handle edit mode - save and exit
+  if (mode === 'edit') {
+    alert('Session saved! You can present it anytime from the saved sessions page.');
+    window.location.href = '/session-select';
+    return;
+  }
+
   if (polls.length === 0) {
     alert('Please add at least one poll');
     return;
