@@ -109,7 +109,7 @@ async function saveSession(sessionId, session) {
   if (session.voters instanceof Map) {
     sessionToSave.voters = Object.fromEntries(session.voters);
   }
-  await redis.set(`session:${sessionId}`, sessionToSave, { ex: 86400 }); // 24 hour expiry
+  await redis.set(`session:${sessionId}`, sessionToSave, { ex: 2592000 }); // 30 day expiry
 }
 
 // Host login endpoint
