@@ -116,7 +116,10 @@
             <div id="pollsContainer"></div>
           </div>
 
-          <button id="startVotingBtn" class="btn btn-success" disabled>Start Voting Session</button>
+          <div style="display: flex; gap: 10px; align-items: center; margin-top: 20px;">
+            <button id="startVotingBtn" class="btn btn-success" disabled>Start Voting Session</button>
+            <button id="clearVotesBtn" class="btn btn-secondary" onclick="clearAllVotes()" style="display: none;">Clear All Votes</button>
+          </div>
         </div>
 
         <div class="voting-section hidden" id="votingSection">

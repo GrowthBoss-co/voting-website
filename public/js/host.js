@@ -290,9 +290,59 @@ async function checkSessionStatus() {
         const setupSection = document.getElementById('setupSection');
         setupSection.insertBefore(statusMsg, setupSection.firstChild);
       }
+
+      // Check if there are any votes - if so, show the clear votes button
+      await checkIfVotesExist();
     }
   } catch (error) {
     console.error('Error checking session status:', error);
+  }
+}
+
+// Check if any votes exist and show/hide the clear votes button
+async function checkIfVotesExist() {
+  try {
+    let hasVotes = false;
+    for (const poll of polls) {
+      const response = await fetch(`/api/session/${sessionId}/results/${poll.id}`);
+      const data = await response.json();
+      if (data.totalVotes > 0) {
+        hasVotes = true;
+        break;
+      }
+    }
+
+    const clearVotesBtn = document.getElementById('clearVotesBtn');
+    if (hasVotes) {
+      clearVotesBtn.style.display = 'block';
+    } else {
+      clearVotesBtn.style.display = 'none';
+    }
+  } catch (error) {
+    console.error('Error checking for votes:', error);
+  }
+}
+
+// Clear all votes function
+async function clearAllVotes() {
+  if (!confirm('Are you sure you want to clear ALL votes? This will allow everyone to vote again on all polls.')) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/session/${sessionId}/clear-votes`, {
+      method: 'POST'
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to clear votes');
+    }
+
+    alert('All votes have been cleared! Voters can now vote again.');
+    document.getElementById('clearVotesBtn').style.display = 'none';
+  } catch (error) {
+    console.error('Error clearing votes:', error);
+    alert('Error clearing votes: ' + error.message);
   }
 }
 

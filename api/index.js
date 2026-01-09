@@ -532,18 +532,42 @@ app.post('/api/session/:sessionId/resume', async (req, res) => {
   }
 
   if (restart) {
-    // Restart from beginning
+    // Restart from beginning - clear ALL votes
     session.currentPollIndex = -1;
     session.status = 'draft';
     session.pausedAtPollIndex = -1;
+    session.votes = new Map(); // Clear all votes
   } else {
-    // Continue from where left off
+    // Continue from where left off - clear votes from paused poll onwards
+    const pausedIndex = session.pausedAtPollIndex;
+    if (pausedIndex >= 0) {
+      for (let i = pausedIndex; i < session.polls.length; i++) {
+        const pollId = session.polls[i].id;
+        session.votes.delete(pollId);
+      }
+    }
     session.status = 'presenting';
   }
 
   await saveSession(sessionId, session);
 
   res.json({ success: true, pausedAtPollIndex: session.pausedAtPollIndex });
+});
+
+// Clear all votes for a session
+app.post('/api/session/:sessionId/clear-votes', async (req, res) => {
+  const { sessionId } = req.params;
+  const session = await getSession(sessionId);
+
+  if (!session) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+
+  // Clear all votes
+  session.votes = new Map();
+  await saveSession(sessionId, session);
+
+  res.json({ success: true });
 });
 
 // Submit vote
