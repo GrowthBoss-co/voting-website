@@ -435,6 +435,36 @@ document.getElementById('pollForm').addEventListener('submit', async e => {
         return;
       }
     }
+    // Check if it's a Google Drive URL
+    else if (url.includes('drive.google.com')) {
+      type = 'video';
+      let fileId = null;
+
+      // Format 1: https://drive.google.com/file/d/FILE_ID/view
+      const match1 = url.match(/\/file\/d\/([^\/]+)/);
+      if (match1) {
+        fileId = match1[1];
+      }
+
+      // Format 2: https://drive.google.com/open?id=FILE_ID
+      const match2 = url.match(/[?&]id=([^&]+)/);
+      if (match2) {
+        fileId = match2[1];
+      }
+
+      // Format 3: Already in preview format
+      const match3 = url.match(/\/file\/d\/([^\/]+)\/preview/);
+      if (match3) {
+        fileId = match3[1];
+      }
+
+      if (fileId) {
+        processedUrl = `https://drive.google.com/file/d/${fileId}/preview`;
+      } else {
+        alert('Could not extract Google Drive file ID from URL: ' + url);
+        return;
+      }
+    }
 
     mediaItems.push({ url: processedUrl, type });
   }
@@ -1044,10 +1074,15 @@ function editPoll(index) {
   // Convert mediaItems back to URLs (one per line)
   const urls = poll.mediaItems
     .map(item => {
-      // Convert embed URLs back to watch URLs for better UX
+      // Convert embed URLs back to watch/view URLs for better UX
       if (item.type === 'video' && item.url.includes('youtube.com/embed/')) {
         const videoId = item.url.split('/embed/')[1].split('?')[0];
         return `https://www.youtube.com/watch?v=${videoId}`;
+      }
+      // Convert Google Drive preview URLs back to view URLs
+      if (item.type === 'video' && item.url.includes('drive.google.com') && item.url.includes('/preview')) {
+        const fileId = item.url.match(/\/file\/d\/([^\/]+)/)[1];
+        return `https://drive.google.com/file/d/${fileId}/view`;
       }
       return item.url;
     })
