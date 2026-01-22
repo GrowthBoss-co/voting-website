@@ -160,8 +160,10 @@ async function checkForPoll() {
       currentPoll = null;
       lastPollId = null;
 
-      // Check if session is paused
-      if (data.status === 'paused') {
+      // Check if session is completed
+      if (data.status === 'completed') {
+        showEndScreen();
+      } else if (data.status === 'paused') {
         showWaitingScreen(
           'Session Paused',
           'The host has paused the session. Please wait while they resume.'
@@ -190,6 +192,13 @@ function showWaitingScreen(title, subtitle) {
   document.getElementById('waitingTitle').textContent = title;
   document.getElementById('waitingSubtitle').textContent = subtitle;
   document.getElementById('waitingScreen').classList.remove('hidden');
+  document.getElementById('votingScreen').classList.add('hidden');
+  document.getElementById('endScreen').classList.add('hidden');
+}
+
+function showEndScreen() {
+  document.getElementById('endScreen').classList.remove('hidden');
+  document.getElementById('waitingScreen').classList.add('hidden');
   document.getElementById('votingScreen').classList.add('hidden');
 }
 

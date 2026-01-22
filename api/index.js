@@ -253,7 +253,7 @@ app.post('/api/session/verify', async (req, res) => {
 app.post('/api/session/:sessionId/poll', async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const { creator, company, mediaItems, timer } = req.body;
+    const { creator, company, mediaItems, timer, exposeThem } = req.body;
     const session = await getSession(sessionId);
 
     if (!session) {
@@ -279,7 +279,9 @@ app.post('/api/session/:sessionId/poll', async (req, res) => {
       company,
       mediaItems, // Array of { url, type: 'image'|'video' }
       timer: timer || 60, // Default 60 seconds
-      startTime: null // Will be set when poll starts
+      startTime: null, // Will be set when poll starts
+      exposeThem: exposeThem || false, // Track if we should expose last voter
+      lastVoter: null // Will store { email, timestamp } of last voter if exposeThem is true
     };
 
     session.polls.push(poll);
@@ -297,7 +299,7 @@ app.post('/api/session/:sessionId/poll', async (req, res) => {
 app.put('/api/session/:sessionId/poll/:pollIndex', async (req, res) => {
   try {
     const { sessionId, pollIndex } = req.params;
-    const { creator, company, mediaItems, timer } = req.body;
+    const { creator, company, mediaItems, timer, exposeThem } = req.body;
     const session = await getSession(sessionId);
 
     if (!session) {
@@ -322,8 +324,9 @@ app.put('/api/session/:sessionId/poll/:pollIndex', async (req, res) => {
       }
     }
 
-    // Keep the existing poll ID
+    // Keep the existing poll ID and preserve lastVoter if exists
     const existingPollId = session.polls[index].id;
+    const existingLastVoter = session.polls[index].lastVoter;
 
     const updatedPoll = {
       id: existingPollId,
@@ -331,7 +334,9 @@ app.put('/api/session/:sessionId/poll/:pollIndex', async (req, res) => {
       company,
       mediaItems,
       timer: timer || 60,
-      startTime: null
+      startTime: null,
+      exposeThem: exposeThem || false,
+      lastVoter: existingLastVoter || null
     };
 
     session.polls[index] = updatedPoll;
@@ -570,6 +575,21 @@ app.post('/api/session/:sessionId/clear-votes', async (req, res) => {
   res.json({ success: true });
 });
 
+// Mark session as completed
+app.post('/api/session/:sessionId/complete', async (req, res) => {
+  const { sessionId } = req.params;
+  const session = await getSession(sessionId);
+
+  if (!session) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+
+  session.status = 'completed';
+  await saveSession(sessionId, session);
+
+  res.json({ success: true });
+});
+
 // Submit vote
 app.post('/api/session/:sessionId/vote', async (req, res) => {
   const { sessionId } = req.params;
@@ -603,6 +623,16 @@ app.post('/api/session/:sessionId/vote', async (req, res) => {
 
   pollVotes.set(voterId, ratingValue);
   session.votes.set(pollId, pollVotes);
+
+  // If exposeThem is true for this poll, track the last voter
+  if (poll && poll.exposeThem) {
+    const voterEmail = session.voters.get(voterId);
+    poll.lastVoter = {
+      email: voterEmail,
+      timestamp: Date.now()
+    };
+  }
+
   await saveSession(sessionId, session);
 
   res.json({ success: true });

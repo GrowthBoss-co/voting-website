@@ -364,6 +364,7 @@ document.getElementById('pollForm').addEventListener('submit', async e => {
 
   const timer = parseInt(document.getElementById('pollTimer').value) || 60;
   const mediaUrlsText = document.getElementById('mediaUrls').value.trim();
+  const exposeThem = document.getElementById('exposeThem').checked;
   const submitBtn = e.target.querySelector('button[type="submit"]');
   const editingIndex = document.getElementById('editingPollIndex').value;
 
@@ -456,7 +457,8 @@ document.getElementById('pollForm').addEventListener('submit', async e => {
           creator,
           company: formattedCompany,
           mediaItems,
-          timer
+          timer,
+          exposeThem
         })
       });
 
@@ -486,7 +488,8 @@ document.getElementById('pollForm').addEventListener('submit', async e => {
           creator,
           company: formattedCompany,
           mediaItems,
-          timer
+          timer,
+          exposeThem
         })
       });
 
@@ -507,6 +510,7 @@ document.getElementById('pollForm').addEventListener('submit', async e => {
       document.getElementById('pollForm').reset();
       document.getElementById('pollTimer').value = 60;
       document.getElementById('mediaUrls').value = '';
+      document.getElementById('exposeThem').checked = false;
       document.getElementById('pollCompanyCustom').style.display = 'none';
       document.getElementById('pollCompanyCustom').value = '';
 
@@ -787,6 +791,15 @@ async function saveCompletedPoll() {
 async function showSessionResults() {
   document.getElementById('votingSection').classList.add('hidden');
 
+  // Mark session as completed
+  try {
+    await fetch(`/api/session/${sessionId}/complete`, {
+      method: 'POST'
+    });
+  } catch (error) {
+    console.error('Error marking session as completed:', error);
+  }
+
   const container = document.querySelector('.host-dashboard');
 
   // Fetch all poll results from backend instead of relying on completedPolls array
@@ -801,7 +814,9 @@ async function showSessionResults() {
         pollId: poll.id,
         totalVotes: data.totalVotes,
         average: data.average,
-        votesWithEmails: data.votesWithEmails || []
+        votesWithEmails: data.votesWithEmails || [],
+        exposeThem: poll.exposeThem || false,
+        lastVoter: poll.lastVoter || null
       });
     } catch (error) {
       console.error('Error fetching results for poll:', poll.id, error);
@@ -909,6 +924,11 @@ async function showSessionResults() {
           `
             )
             .join('')}
+          ${poll.exposeThem && poll.lastVoter ? `
+          <div style="margin-top: 15px; padding: 10px; background: #fef5e7; border-left: 4px solid #f39c12; border-radius: 4px;">
+            <strong>Last to vote:</strong> ${poll.lastVoter.email} 😎
+          </div>
+          ` : ''}
         `
             : '<p>No votes recorded for this poll.</p>'
         }
@@ -1019,6 +1039,7 @@ function editPoll(index) {
   }
 
   document.getElementById('pollTimer').value = poll.timer;
+  document.getElementById('exposeThem').checked = poll.exposeThem || false;
 
   // Convert mediaItems back to URLs (one per line)
   const urls = poll.mediaItems
