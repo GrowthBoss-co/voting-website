@@ -18,7 +18,8 @@
       "Bash(vercel whoami:*)",
       "Bash(vercel ls:*)",
       "Bash(vercel env add:*)",
-      "Bash(vercel --prod:*)"
+      "Bash(vercel --prod:*)",
+      "Bash(vercel logs:*)"
     ]
   }
 }

@@ -327,25 +327,31 @@ app.post('/api/automation/add-poll', async (req, res) => {
     }
 
     // Handle both string (comma-separated) and array formats
-    console.log('Received driveLinks:', driveLinks);
+    console.log('Received driveLinks (raw):', JSON.stringify(driveLinks));
     console.log('Type:', typeof driveLinks);
+    console.log('String length:', typeof driveLinks === 'string' ? driveLinks.length : 'N/A');
 
     let linksArray;
     if (typeof driveLinks === 'string') {
+      const splitParts = driveLinks.split(',');
+      console.log('After split by comma:', splitParts.length, 'parts');
+      console.log('Each part:', splitParts.map((p, i) => `${i}: "${p.substring(0, 50)}..."`));
+
       // Parse comma-separated string (with or without quotes)
-      linksArray = driveLinks
-        .split(',')
+      linksArray = splitParts
         .map(link => link.trim())
         .map(link => link.replace(/^["']|["']$/g, '')) // Remove quotes
         .filter(link => link.length > 0);
+
+      console.log('After trim and filter:', linksArray.length, 'links');
     } else if (Array.isArray(driveLinks)) {
       linksArray = driveLinks;
     } else {
       return res.status(400).json({ error: 'driveLinks must be an array or comma-separated string' });
     }
 
-    console.log('Parsed linksArray:', linksArray);
-    console.log('Number of links:', linksArray.length);
+    console.log('Final parsed linksArray:', linksArray);
+    console.log('Number of final links:', linksArray.length);
 
     if (linksArray.length === 0) {
       return res.status(400).json({ error: 'At least one drive link is required' });
