@@ -714,10 +714,15 @@ async function startPoll(pollIndex) {
     document.getElementById('pollProgress').textContent =
       `Poll ${pollIndex + 1} of ${polls.length}`;
 
-    // Reset the expose them checkbox for this poll
+    // Reset the expose them checkboxes for this poll
     const exposeThemCheckbox = document.getElementById('exposeThem');
     if (exposeThemCheckbox) {
       exposeThemCheckbox.checked = currentPoll.exposeThem || false;
+    }
+
+    const exposeThemV2Checkbox = document.getElementById('exposeThemV2');
+    if (exposeThemV2Checkbox) {
+      exposeThemV2Checkbox.checked = currentPoll.exposeThemV2 || false;
     }
 
     // Start timer countdown
@@ -822,11 +827,14 @@ async function saveCompletedPoll() {
   if (!currentPoll) return;
 
   try {
-    // Save the exposeThem status from the checkbox to the current poll
+    // Save the exposeThem and exposeThemV2 status from the checkboxes to the current poll
     const exposeThemCheckbox = document.getElementById('exposeThem');
     const exposeThemValue = exposeThemCheckbox ? exposeThemCheckbox.checked : false;
 
-    // Update the poll with exposeThem status
+    const exposeThemV2Checkbox = document.getElementById('exposeThemV2');
+    const exposeThemV2Value = exposeThemV2Checkbox ? exposeThemV2Checkbox.checked : false;
+
+    // Update the poll with exposeThem and exposeThemV2 status
     const pollIndex = polls.findIndex(p => p.id === currentPoll.id);
     if (pollIndex !== -1) {
       const updateResponse = await fetch(`/api/session/${sessionId}/poll/${pollIndex}`, {
@@ -837,7 +845,8 @@ async function saveCompletedPoll() {
           company: currentPoll.company,
           mediaItems: currentPoll.mediaItems,
           timer: currentPoll.timer,
-          exposeThem: exposeThemValue
+          exposeThem: exposeThemValue,
+          exposeThemV2: exposeThemV2Value
         })
       });
 
@@ -845,6 +854,7 @@ async function saveCompletedPoll() {
         const updatedData = await updateResponse.json();
         polls[pollIndex] = updatedData.poll;
         currentPoll.exposeThem = exposeThemValue;
+        currentPoll.exposeThemV2 = exposeThemV2Value;
       }
     }
 
@@ -859,7 +869,9 @@ async function saveCompletedPoll() {
       average: data.average,
       votesWithEmails: data.votesWithEmails || [],
       exposeThem: exposeThemValue,
-      lastVoter: currentPoll.lastVoter
+      lastVoter: data.lastVoter || null,
+      exposeThemV2: exposeThemV2Value,
+      nonVoters: data.nonVoters || []
     });
   } catch (error) {
     console.error('Error saving completed poll:', error);
@@ -894,7 +906,9 @@ async function showSessionResults() {
         average: data.average,
         votesWithEmails: data.votesWithEmails || [],
         exposeThem: poll.exposeThem || false,
-        lastVoter: poll.lastVoter || null
+        lastVoter: data.lastVoter || null,
+        exposeThemV2: poll.exposeThemV2 || false,
+        nonVoters: data.nonVoters || []
       });
     } catch (error) {
       console.error('Error fetching results for poll:', poll.id, error);
@@ -1005,6 +1019,11 @@ async function showSessionResults() {
           ${poll.exposeThem && poll.lastVoter ? `
           <div style="margin-top: 15px; padding: 10px; background: #fef5e7; border-left: 4px solid #f39c12; border-radius: 4px;">
             <strong>Last to vote:</strong> ${poll.lastVoter.email} 😎
+          </div>
+          ` : ''}
+          ${poll.exposeThemV2 && poll.nonVoters && poll.nonVoters.length > 0 ? `
+          <div style="margin-top: 15px; padding: 10px; background: #fee; border-left: 4px solid #e74c3c; border-radius: 4px;">
+            <strong>Did NOT vote:</strong> ${poll.nonVoters.join(', ')} 😎
           </div>
           ` : ''}
         `

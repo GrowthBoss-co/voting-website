@@ -283,7 +283,8 @@ app.post('/api/session/:sessionId/poll', async (req, res) => {
       timer: timer || 60, // Default 60 seconds
       startTime: null, // Will be set when poll starts
       exposeThem: exposeThem || false, // Track if we should expose last voter
-      lastVoter: null // Will store { email, timestamp } of last voter if exposeThem is true
+      lastVoter: null, // Will store { email, timestamp } of last voter if exposeThem is true
+      exposeThemV2: false // Track if we should expose who didn't vote (set during live poll)
     };
 
     session.polls.push(poll);
@@ -425,7 +426,7 @@ app.post('/api/automation/add-poll', async (req, res) => {
 app.put('/api/session/:sessionId/poll/:pollIndex', async (req, res) => {
   try {
     const { sessionId, pollIndex } = req.params;
-    const { creator, company, mediaItems, timer, exposeThem } = req.body;
+    const { creator, company, mediaItems, timer, exposeThem, exposeThemV2 } = req.body;
     const session = await getSession(sessionId);
 
     if (!session) {
@@ -462,7 +463,8 @@ app.put('/api/session/:sessionId/poll/:pollIndex', async (req, res) => {
       timer: timer || 60,
       startTime: null,
       exposeThem: exposeThem || false,
-      lastVoter: existingLastVoter || null
+      lastVoter: existingLastVoter || null,
+      exposeThemV2: exposeThemV2 || false
     };
 
     session.polls[index] = updatedPoll;
@@ -791,11 +793,26 @@ app.get('/api/session/:sessionId/results/:pollId', async (req, res) => {
     rating
   }));
 
+  // Find the poll to get lastVoter and exposeThemV2 info
+  const poll = session.polls.find(p => p.id === pollId);
+
+  // Calculate who didn't vote if exposeThemV2 is true
+  let nonVoters = [];
+  if (poll?.exposeThemV2) {
+    const voterIds = Array.from(pollVotes.keys());
+    const allVoters = Array.from(session.voters.entries());
+    nonVoters = allVoters
+      .filter(([voterId]) => !voterIds.includes(voterId))
+      .map(([voterId, email]) => email);
+  }
+
   res.json({
     totalVotes: ratings.length,
     average,
     ratings,
-    votesWithEmails
+    votesWithEmails,
+    lastVoter: poll?.lastVoter || null,
+    nonVoters: nonVoters
   });
 });
 
