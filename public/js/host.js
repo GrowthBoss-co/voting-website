@@ -379,11 +379,27 @@ document.getElementById('pollForm').addEventListener('submit', async e => {
     return;
   }
 
-  // Split by lines and filter empty lines
-  const urls = mediaUrlsText
-    .split('\n')
-    .map(url => url.trim())
-    .filter(url => url.length > 0);
+  // Split by newlines OR commas (with optional quotes and spaces)
+  // This handles both formats:
+  // 1. Line-separated: URL1\nURL2\nURL3
+  // 2. Comma-separated: "URL1", "URL2", "URL3" or URL1, URL2, URL3
+  let urls = [];
+
+  if (mediaUrlsText.includes(',')) {
+    // Comma-separated format
+    urls = mediaUrlsText
+      .split(',')
+      .map(url => url.trim())
+      // Remove quotes if present
+      .map(url => url.replace(/^["']|["']$/g, ''))
+      .filter(url => url.length > 0);
+  } else {
+    // Newline-separated format (original)
+    urls = mediaUrlsText
+      .split('\n')
+      .map(url => url.trim())
+      .filter(url => url.length > 0);
+  }
 
   if (urls.length === 0) {
     alert('Please enter at least one valid media URL');

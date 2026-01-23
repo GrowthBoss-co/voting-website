@@ -8,7 +8,17 @@
       "Bash(grep:*)",
       "Bash(for file in views/index.html views/join-session.html views/session-select.html views/host-login.html)",
       "Bash(do sed -i '/<script src=\"\"\\\\/js\\\\/music-player.js\"\"><\\\\/script>/d' \"$file\")",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(if [ -f .env ])",
+      "Bash(then grep -v \"REDIS\" .env)",
+      "Bash(else echo \"No .env file found\")",
+      "Bash(fi)",
+      "Bash(npm install:*)",
+      "Bash(where:*)",
+      "Bash(vercel whoami:*)",
+      "Bash(vercel ls:*)",
+      "Bash(vercel env add:*)",
+      "Bash(vercel --prod:*)"
     ]
   }
 }
