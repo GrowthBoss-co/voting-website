@@ -103,6 +103,92 @@ app.post('/api/session/:sessionId/poll', upload.single('media'), (req, res) => {
   res.json({ poll });
 });
 
+// N8N Automation endpoint - Add poll via automation with API key
+app.post('/api/automation/add-poll', (req, res) => {
+  try {
+    // Check API key for authentication
+    const apiKey = req.headers['x-api-key'];
+    const validApiKey = process.env.N8N_API_KEY || 'your-secret-api-key-here';
+
+    if (!apiKey || apiKey !== validApiKey) {
+      return res.status(401).json({ error: 'Unauthorized: Invalid API key' });
+    }
+
+    const { sessionId, creator, company, driveLinks, timer, exposeThem } = req.body;
+
+    if (!sessionId) {
+      return res.status(400).json({ error: 'sessionId is required' });
+    }
+
+    if (!creator || !company) {
+      return res.status(400).json({ error: 'creator and company are required' });
+    }
+
+    if (!driveLinks || !Array.isArray(driveLinks) || driveLinks.length === 0) {
+      return res.status(400).json({ error: 'driveLinks array is required with at least one link' });
+    }
+
+    const session = sessions.get(sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Process Google Drive links into mediaItems
+    const mediaItems = driveLinks.map(link => {
+      let fileId = null;
+
+      // Extract file ID from various Google Drive URL formats
+      const match1 = link.match(/\/file\/d\/([^\/]+)/);
+      if (match1) {
+        fileId = match1[1];
+      }
+
+      const match2 = link.match(/[?&]id=([^&]+)/);
+      if (match2) {
+        fileId = match2[1];
+      }
+
+      if (!fileId) {
+        throw new Error(`Could not extract Google Drive file ID from: ${link}`);
+      }
+
+      return {
+        url: `https://drive.google.com/file/d/${fileId}/preview`,
+        type: 'video'
+      };
+    });
+
+    // Capitalize company name
+    const formattedCompany = company
+      .toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+
+    const poll = {
+      id: uuidv4(),
+      creator,
+      company: formattedCompany,
+      mediaItems,
+      timer: timer || 60,
+      startTime: null,
+      exposeThem: exposeThem || false,
+      lastVoter: null
+    };
+
+    session.polls.push(poll);
+
+    res.json({
+      success: true,
+      poll,
+      message: `Poll added successfully to session ${sessionId}`
+    });
+  } catch (error) {
+    console.error('Error in automation endpoint:', error);
+    res.status(500).json({ error: error.message || 'Failed to add poll' });
+  }
+});
+
 app.get('/api/session/:sessionId', (req, res) => {
   const { sessionId } = req.params;
   const session = sessions.get(sessionId);

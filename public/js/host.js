@@ -364,7 +364,6 @@ document.getElementById('pollForm').addEventListener('submit', async e => {
 
   const timer = parseInt(document.getElementById('pollTimer').value) || 60;
   const mediaUrlsText = document.getElementById('mediaUrls').value.trim();
-  const exposeThem = document.getElementById('exposeThem').checked;
   const submitBtn = e.target.querySelector('button[type="submit"]');
   const editingIndex = document.getElementById('editingPollIndex').value;
 
@@ -488,7 +487,7 @@ document.getElementById('pollForm').addEventListener('submit', async e => {
           company: formattedCompany,
           mediaItems,
           timer,
-          exposeThem
+          exposeThem: false
         })
       });
 
@@ -519,7 +518,7 @@ document.getElementById('pollForm').addEventListener('submit', async e => {
           company: formattedCompany,
           mediaItems,
           timer,
-          exposeThem
+          exposeThem: false
         })
       });
 
@@ -540,7 +539,6 @@ document.getElementById('pollForm').addEventListener('submit', async e => {
       document.getElementById('pollForm').reset();
       document.getElementById('pollTimer').value = 60;
       document.getElementById('mediaUrls').value = '';
-      document.getElementById('exposeThem').checked = false;
       document.getElementById('pollCompanyCustom').style.display = 'none';
       document.getElementById('pollCompanyCustom').value = '';
 
@@ -700,6 +698,12 @@ async function startPoll(pollIndex) {
     document.getElementById('pollProgress').textContent =
       `Poll ${pollIndex + 1} of ${polls.length}`;
 
+    // Reset the expose them checkbox for this poll
+    const exposeThemCheckbox = document.getElementById('exposeThem');
+    if (exposeThemCheckbox) {
+      exposeThemCheckbox.checked = currentPoll.exposeThem || false;
+    }
+
     // Start timer countdown
     startTimer(currentPoll.timer);
 
@@ -802,6 +806,32 @@ async function saveCompletedPoll() {
   if (!currentPoll) return;
 
   try {
+    // Save the exposeThem status from the checkbox to the current poll
+    const exposeThemCheckbox = document.getElementById('exposeThem');
+    const exposeThemValue = exposeThemCheckbox ? exposeThemCheckbox.checked : false;
+
+    // Update the poll with exposeThem status
+    const pollIndex = polls.findIndex(p => p.id === currentPoll.id);
+    if (pollIndex !== -1) {
+      const updateResponse = await fetch(`/api/session/${sessionId}/poll/${pollIndex}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          creator: currentPoll.creator,
+          company: currentPoll.company,
+          mediaItems: currentPoll.mediaItems,
+          timer: currentPoll.timer,
+          exposeThem: exposeThemValue
+        })
+      });
+
+      if (updateResponse.ok) {
+        const updatedData = await updateResponse.json();
+        polls[pollIndex] = updatedData.poll;
+        currentPoll.exposeThem = exposeThemValue;
+      }
+    }
+
     const response = await fetch(`/api/session/${sessionId}/results/${currentPoll.id}`);
     const data = await response.json();
 
@@ -811,7 +841,9 @@ async function saveCompletedPoll() {
       pollId: currentPoll.id,
       totalVotes: data.totalVotes,
       average: data.average,
-      votesWithEmails: data.votesWithEmails || []
+      votesWithEmails: data.votesWithEmails || [],
+      exposeThem: exposeThemValue,
+      lastVoter: currentPoll.lastVoter
     });
   } catch (error) {
     console.error('Error saving completed poll:', error);
@@ -1069,7 +1101,6 @@ function editPoll(index) {
   }
 
   document.getElementById('pollTimer').value = poll.timer;
-  document.getElementById('exposeThem').checked = poll.exposeThem || false;
 
   // Convert mediaItems back to URLs (one per line)
   const urls = poll.mediaItems
