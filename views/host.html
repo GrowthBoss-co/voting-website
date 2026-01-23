@@ -118,19 +118,6 @@
             <div id="pollsContainer"></div>
           </div>
 
-          <div style="margin-top: 20px; padding: 15px; background: #f0f8ff; border-radius: 8px; border-left: 4px solid #4a90e2;">
-            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 16px;">
-              <input type="checkbox" id="autoAdvanceToggle" style="width: auto; cursor: pointer; transform: scale(1.2);" />
-              <span><strong>Auto-Advance Mode</strong> 🚀</span>
-            </label>
-            <small style="color: #555; display: block; margin-top: 8px; line-height: 1.5;">
-              When enabled:<br/>
-              • Poll advances after 70% vote + 10 second countdown<br/>
-              • Carousel items rotate every 5 seconds<br/>
-              • Videos autoplay and advance 5 seconds after ending
-            </small>
-          </div>
-
           <div style="display: flex; gap: 10px; align-items: center; margin-top: 20px;">
             <button id="startVotingBtn" class="btn btn-success" disabled>Start Voting Session</button>
             <button id="clearVotesBtn" class="btn btn-secondary" onclick="clearAllVotes()" style="display: none;">Clear All Votes</button>
@@ -175,6 +162,17 @@
               </label>
               <small style="color: #666; display: block; margin-top: 5px">
                 Check this to reveal who did NOT vote on this poll in the final results
+              </small>
+            </div>
+
+            <div style="margin: 15px 0; padding: 12px; background: #f0f8ff; border-radius: 8px; border-left: 4px solid #4a90e2;">
+              <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin-bottom: 8px;">
+                <input type="checkbox" id="autoAdvanceToggle" style="width: auto; cursor: pointer; transform: scale(1.2);" />
+                <span><strong>Auto-Advance Mode</strong> 🚀</span>
+              </label>
+              <small style="color: #555; display: block; line-height: 1.4;">
+                • Poll auto-advances after 70% vote + 10s countdown<br/>
+                • Carousel rotates every 5s • Videos autoplay + advance after 60s
               </small>
             </div>
 

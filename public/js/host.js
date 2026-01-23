@@ -652,9 +652,6 @@ document.getElementById('startVotingBtn').addEventListener('click', async () => 
     console.error('Error checking session status:', error);
   }
 
-  // Capture auto-advance setting
-  autoAdvanceEnabled = document.getElementById('autoAdvanceToggle').checked;
-
   // Get total number of voters for threshold calculation
   try {
     const sessionResponse = await fetch(`/api/session/${sessionId}`);
@@ -724,8 +721,9 @@ async function startPoll(pollIndex) {
 
       renderHostCarouselItem(0);
 
-      // Start auto-carousel if enabled
-      if (autoAdvanceEnabled) {
+      // Start auto-carousel if enabled (check toggle state)
+      const autoAdvanceToggle = document.getElementById('autoAdvanceToggle');
+      if (autoAdvanceToggle && autoAdvanceToggle.checked) {
         startAutoCarousel();
       }
     }
@@ -805,8 +803,12 @@ function startTimer(duration) {
   timerText.textContent = 'Time remaining: ';
 
   timerInterval = setInterval(() => {
+    // Check current state of auto-advance toggle (can be changed during poll)
+    const autoAdvanceToggle = document.getElementById('autoAdvanceToggle');
+    const isAutoAdvanceEnabled = autoAdvanceToggle ? autoAdvanceToggle.checked : false;
+
     // Check if we've reached 70% threshold in auto-advance mode
-    if (autoAdvanceEnabled && !hasReachedThreshold && totalVotersInSession > 0) {
+    if (isAutoAdvanceEnabled && !hasReachedThreshold && totalVotersInSession > 0) {
       const totalVotesElement = document.getElementById('totalVotes');
       const currentVotes = parseInt(totalVotesElement.textContent) || 0;
       const threshold = Math.ceil(totalVotersInSession * 0.7);
@@ -846,7 +848,10 @@ function startTimer(duration) {
       timerValue.textContent = '0';
 
       // Auto-advance if enabled and threshold was reached
-      if (autoAdvanceEnabled && hasReachedThreshold) {
+      const autoAdvanceToggle = document.getElementById('autoAdvanceToggle');
+      const isAutoAdvanceEnabled = autoAdvanceToggle ? autoAdvanceToggle.checked : false;
+
+      if (isAutoAdvanceEnabled && hasReachedThreshold) {
         setTimeout(async () => {
           const nextBtn = document.getElementById('nextPollBtn');
           if (nextBtn) {
@@ -1155,9 +1160,13 @@ function renderHostCarouselItem(index) {
   stopVideoEndTimeout(); // Clear any existing timeout
 
   if (item.type === 'video') {
+    // Check if auto-advance is currently enabled
+    const autoAdvanceToggle = document.getElementById('autoAdvanceToggle');
+    const isAutoAdvanceEnabled = autoAdvanceToggle ? autoAdvanceToggle.checked : false;
+
     // Add autoplay parameter if auto-advance is enabled
     let videoUrl = item.url;
-    if (autoAdvanceEnabled) {
+    if (isAutoAdvanceEnabled) {
       // For YouTube embeds, add autoplay parameter
       if (videoUrl.includes('youtube.com/embed/')) {
         videoUrl += (videoUrl.includes('?') ? '&' : '?') + 'autoplay=1&mute=0';
@@ -1175,10 +1184,10 @@ function renderHostCarouselItem(index) {
     `;
 
     // In auto-advance mode with video carousel, pause auto-carousel
-    // and estimate video duration (assume 30 seconds average) + 5 second buffer
-    if (autoAdvanceEnabled && window.hostCarouselItems.length > 1) {
+    // and estimate video duration (60 seconds) + 5 second buffer
+    if (isAutoAdvanceEnabled && window.hostCarouselItems.length > 1) {
       stopAutoCarousel(); // Stop auto-rotation while video plays
-      const estimatedVideoDuration = 30000; // 30 seconds
+      const estimatedVideoDuration = 60000; // 60 seconds (1 minute)
       const bufferAfterVideo = 5000; // 5 seconds after video ends
 
       videoEndTimeout = setTimeout(() => {
