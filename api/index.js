@@ -312,7 +312,7 @@ app.post('/api/automation/add-poll', async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized: Invalid API key' });
     }
 
-    const { sessionId, creator, company, driveLinks, timer, exposeThem } = req.body;
+    let { sessionId, creator, company, driveLinks, timer, exposeThem } = req.body;
 
     if (!sessionId) {
       return res.status(400).json({ error: 'sessionId is required' });
@@ -322,8 +322,27 @@ app.post('/api/automation/add-poll', async (req, res) => {
       return res.status(400).json({ error: 'creator and company are required' });
     }
 
-    if (!driveLinks || !Array.isArray(driveLinks) || driveLinks.length === 0) {
-      return res.status(400).json({ error: 'driveLinks array is required with at least one link' });
+    if (!driveLinks) {
+      return res.status(400).json({ error: 'driveLinks is required' });
+    }
+
+    // Handle both string (comma-separated) and array formats
+    let linksArray;
+    if (typeof driveLinks === 'string') {
+      // Parse comma-separated string (with or without quotes)
+      linksArray = driveLinks
+        .split(',')
+        .map(link => link.trim())
+        .map(link => link.replace(/^["']|["']$/g, '')) // Remove quotes
+        .filter(link => link.length > 0);
+    } else if (Array.isArray(driveLinks)) {
+      linksArray = driveLinks;
+    } else {
+      return res.status(400).json({ error: 'driveLinks must be an array or comma-separated string' });
+    }
+
+    if (linksArray.length === 0) {
+      return res.status(400).json({ error: 'At least one drive link is required' });
     }
 
     const session = await getSession(sessionId);
@@ -332,7 +351,7 @@ app.post('/api/automation/add-poll', async (req, res) => {
     }
 
     // Process Google Drive links into mediaItems
-    const mediaItems = driveLinks.map(link => {
+    const mediaItems = linksArray.map(link => {
       let fileId = null;
 
       // Extract file ID from various Google Drive URL formats
