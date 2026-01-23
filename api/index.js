@@ -327,6 +327,9 @@ app.post('/api/automation/add-poll', async (req, res) => {
     }
 
     // Handle both string (comma-separated) and array formats
+    console.log('Received driveLinks:', driveLinks);
+    console.log('Type:', typeof driveLinks);
+
     let linksArray;
     if (typeof driveLinks === 'string') {
       // Parse comma-separated string (with or without quotes)
@@ -340,6 +343,9 @@ app.post('/api/automation/add-poll', async (req, res) => {
     } else {
       return res.status(400).json({ error: 'driveLinks must be an array or comma-separated string' });
     }
+
+    console.log('Parsed linksArray:', linksArray);
+    console.log('Number of links:', linksArray.length);
 
     if (linksArray.length === 0) {
       return res.status(400).json({ error: 'At least one drive link is required' });
@@ -355,11 +361,13 @@ app.post('/api/automation/add-poll', async (req, res) => {
       let fileId = null;
 
       // Extract file ID from various Google Drive URL formats
-      const match1 = link.match(/\/file\/d\/([^\/]+)/);
+      // Format 1: /file/d/FILE_ID/view or /file/d/FILE_ID?usp=...
+      const match1 = link.match(/\/file\/d\/([^\/\?]+)/);
       if (match1) {
         fileId = match1[1];
       }
 
+      // Format 2: ?id=FILE_ID or &id=FILE_ID
       const match2 = link.match(/[?&]id=([^&]+)/);
       if (match2) {
         fileId = match2[1];
