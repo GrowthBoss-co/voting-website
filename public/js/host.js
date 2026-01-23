@@ -9,6 +9,11 @@ let pollingInterval = null;
 const completedPolls = []; // Store results of completed polls
 let creators = [];
 let companies = [];
+let autoAdvanceEnabled = false;
+let totalVotersInSession = 0;
+let hasReachedThreshold = false;
+let autoCarouselInterval = null;
+let videoEndTimeout = null;
 
 document.getElementById('sessionId').textContent = sessionId;
 
@@ -647,6 +652,18 @@ document.getElementById('startVotingBtn').addEventListener('click', async () => 
     console.error('Error checking session status:', error);
   }
 
+  // Capture auto-advance setting
+  autoAdvanceEnabled = document.getElementById('autoAdvanceToggle').checked;
+
+  // Get total number of voters for threshold calculation
+  try {
+    const sessionResponse = await fetch(`/api/session/${sessionId}`);
+    const sessionData = await sessionResponse.json();
+    totalVotersInSession = sessionData.totalVoters || 0;
+  } catch (error) {
+    console.error('Error getting session data:', error);
+  }
+
   // Normal start - hide setup, show voting
   document.getElementById('setupSection').classList.add('hidden');
   document.getElementById('votingSection').classList.remove('hidden');
@@ -706,6 +723,11 @@ async function startPoll(pollIndex) {
       preloadCarouselImages(currentPoll.mediaItems);
 
       renderHostCarouselItem(0);
+
+      // Start auto-carousel if enabled
+      if (autoAdvanceEnabled) {
+        startAutoCarousel();
+      }
     }
 
     document.getElementById('totalVotes').textContent = '0';
@@ -772,28 +794,66 @@ function startTimer(duration) {
   }
 
   let timeLeft = duration;
+  hasReachedThreshold = false;
   const timerValue = document.getElementById('timerValue');
   const timerDisplay = document.getElementById('timerDisplay');
+  const timerText = document.getElementById('timerText');
 
   timerValue.textContent = timeLeft;
   timerDisplay.style.background = '#48bb78';
   timerDisplay.style.color = 'white';
+  timerText.textContent = 'Time remaining: ';
 
   timerInterval = setInterval(() => {
-    timeLeft--;
-    timerValue.textContent = timeLeft;
+    // Check if we've reached 70% threshold in auto-advance mode
+    if (autoAdvanceEnabled && !hasReachedThreshold && totalVotersInSession > 0) {
+      const totalVotesElement = document.getElementById('totalVotes');
+      const currentVotes = parseInt(totalVotesElement.textContent) || 0;
+      const threshold = Math.ceil(totalVotersInSession * 0.7);
 
-    // Change color as time runs out
-    if (timeLeft <= 10) {
-      timerDisplay.style.background = '#e53e3e';
-    } else if (timeLeft <= 30) {
-      timerDisplay.style.background = '#ed8936';
+      if (currentVotes >= threshold) {
+        // Switch to 10-second countdown
+        hasReachedThreshold = true;
+        timeLeft = 10;
+        timerText.textContent = '70% voted! Auto-advancing in: ';
+        timerDisplay.style.background = '#667eea';
+        timerValue.textContent = timeLeft;
+        return; // Skip the rest of this interval
+      }
+    }
+
+    if (!hasReachedThreshold) {
+      // Normal countdown
+      timeLeft--;
+      timerValue.textContent = timeLeft;
+
+      // Change color as time runs out
+      if (timeLeft <= 10) {
+        timerDisplay.style.background = '#e53e3e';
+      } else if (timeLeft <= 30) {
+        timerDisplay.style.background = '#ed8936';
+      }
+    } else {
+      // Threshold reached, 10-second countdown
+      timeLeft--;
+      timerValue.textContent = timeLeft;
+      timerDisplay.style.background = '#667eea';
     }
 
     if (timeLeft <= 0) {
       clearInterval(timerInterval);
       timerDisplay.style.background = '#718096';
       timerValue.textContent = '0';
+
+      // Auto-advance if enabled and threshold was reached
+      if (autoAdvanceEnabled && hasReachedThreshold) {
+        setTimeout(async () => {
+          const nextBtn = document.getElementById('nextPollBtn');
+          if (nextBtn) {
+            nextBtn.click();
+          }
+        }, 500);
+      }
     }
   }, 1000);
 }
@@ -802,6 +862,29 @@ function stopTimer() {
   if (timerInterval) {
     clearInterval(timerInterval);
     timerInterval = null;
+  }
+}
+
+function startAutoCarousel() {
+  stopAutoCarousel();
+  if (window.hostCarouselItems && window.hostCarouselItems.length > 1) {
+    autoCarouselInterval = setInterval(() => {
+      hostCarouselNext();
+    }, 5000); // Rotate every 5 seconds
+  }
+}
+
+function stopAutoCarousel() {
+  if (autoCarouselInterval) {
+    clearInterval(autoCarouselInterval);
+    autoCarouselInterval = null;
+  }
+}
+
+function stopVideoEndTimeout() {
+  if (videoEndTimeout) {
+    clearTimeout(videoEndTimeout);
+    videoEndTimeout = null;
   }
 }
 
@@ -825,6 +908,10 @@ async function updateResults() {
 
 async function saveCompletedPoll() {
   if (!currentPoll) return;
+
+  // Stop auto-carousel and video timeouts
+  stopAutoCarousel();
+  stopVideoEndTimeout();
 
   try {
     // Save the exposeThem and exposeThemV2 status from the checkboxes to the current poll
@@ -1065,14 +1152,46 @@ function renderHostCarouselItem(index) {
   const item = window.hostCarouselItems[index];
   const content = document.getElementById('hostCarouselContent');
 
+  stopVideoEndTimeout(); // Clear any existing timeout
+
   if (item.type === 'video') {
+    // Add autoplay parameter if auto-advance is enabled
+    let videoUrl = item.url;
+    if (autoAdvanceEnabled) {
+      // For YouTube embeds, add autoplay parameter
+      if (videoUrl.includes('youtube.com/embed/')) {
+        videoUrl += (videoUrl.includes('?') ? '&' : '?') + 'autoplay=1&mute=0';
+      }
+      // For Google Drive, we can't directly control autoplay via URL
+      // The user will need to click play, but we estimate video length
+    }
+
     content.innerHTML = `
       <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
-        <iframe src="${item.url}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
+        <iframe src="${videoUrl}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen>
         </iframe>
       </div>
     `;
+
+    // In auto-advance mode with video carousel, pause auto-carousel
+    // and estimate video duration (assume 30 seconds average) + 5 second buffer
+    if (autoAdvanceEnabled && window.hostCarouselItems.length > 1) {
+      stopAutoCarousel(); // Stop auto-rotation while video plays
+      const estimatedVideoDuration = 30000; // 30 seconds
+      const bufferAfterVideo = 5000; // 5 seconds after video ends
+
+      videoEndTimeout = setTimeout(() => {
+        hostCarouselNext();
+        // Restart auto-carousel for next item if it's not a video
+        if (window.hostCarouselIndex < window.hostCarouselItems.length - 1) {
+          const nextItem = window.hostCarouselItems[window.hostCarouselIndex];
+          if (nextItem.type !== 'video') {
+            startAutoCarousel();
+          }
+        }
+      }, estimatedVideoDuration + bufferAfterVideo);
+    }
   } else {
     content.innerHTML = `
       <img src="${item.url}" alt="Poll media" style="max-width: 100%; max-height: 500px; display: block; margin: 0 auto; border-radius: 8px;">

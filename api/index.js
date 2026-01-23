@@ -560,7 +560,8 @@ app.get('/api/session/:sessionId', async (req, res) => {
     polls: session.polls,
     currentPollIndex: session.currentPollIndex,
     status: session.status,
-    pausedAtPollIndex: session.pausedAtPollIndex
+    pausedAtPollIndex: session.pausedAtPollIndex,
+    totalVoters: session.voters.size
   });
 });
 
