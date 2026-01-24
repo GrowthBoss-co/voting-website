@@ -1334,8 +1334,15 @@ function editPoll(index) {
 
 // Delete poll function
 async function deletePoll(index) {
-  if (!confirm(`Are you sure you want to delete Poll ${index + 1}?`)) {
-    return;
+  // Check if delete mode is enabled
+  const deleteModeToggle = document.getElementById('deleteModeToggle');
+  const isDeleteModeEnabled = deleteModeToggle && deleteModeToggle.checked;
+
+  // Only show confirmation if delete mode is OFF
+  if (!isDeleteModeEnabled) {
+    if (!confirm(`Are you sure you want to delete Poll ${index + 1}?`)) {
+      return;
+    }
   }
 
   try {
@@ -1356,6 +1363,40 @@ async function deletePoll(index) {
   } catch (error) {
     console.error('Error deleting poll:', error);
     alert('Error deleting poll: ' + error.message);
+  }
+}
+
+async function clearAllPolls() {
+  if (polls.length === 0) {
+    alert('No polls to clear!');
+    return;
+  }
+
+  if (!confirm(`Are you sure you want to delete all ${polls.length} polls? This cannot be undone.`)) {
+    return;
+  }
+
+  try {
+    // Delete all polls one by one
+    for (let i = polls.length - 1; i >= 0; i--) {
+      const response = await fetch(`/api/session/${sessionId}/poll/${i}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete poll ${i + 1}`);
+      }
+    }
+
+    // Clear the polls array
+    polls = [];
+    updatePollsList();
+    document.getElementById('startVotingBtn').disabled = true;
+
+    alert('All polls cleared successfully!');
+  } catch (error) {
+    console.error('Error clearing polls:', error);
+    alert('Error clearing polls: ' + error.message);
   }
 }
 
