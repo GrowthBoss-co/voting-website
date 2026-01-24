@@ -745,6 +745,14 @@ async function startPoll(pollIndex) {
       exposeThemV2Checkbox.checked = currentPoll.exposeThemV2 || false;
     }
 
+    // Add toggle listener to stop carousel/video timeouts when turned off
+    const autoAdvanceToggle = document.getElementById('autoAdvanceToggle');
+    if (autoAdvanceToggle) {
+      // Remove any existing listener to avoid duplicates
+      autoAdvanceToggle.removeEventListener('change', handleToggleChange);
+      autoAdvanceToggle.addEventListener('change', handleToggleChange);
+    }
+
     // Start timer countdown
     startTimer(currentPoll.timer);
 
@@ -890,6 +898,25 @@ function stopVideoEndTimeout() {
   if (videoEndTimeout) {
     clearTimeout(videoEndTimeout);
     videoEndTimeout = null;
+  }
+}
+
+function handleToggleChange(event) {
+  const isEnabled = event.target.checked;
+
+  if (!isEnabled) {
+    // Toggle turned off - stop all auto-advance features
+    stopAutoCarousel();
+    stopVideoEndTimeout();
+  } else {
+    // Toggle turned on - restart carousel if applicable
+    if (window.hostCarouselItems && window.hostCarouselItems.length > 1) {
+      const currentItem = window.hostCarouselItems[window.hostCarouselIndex];
+      // Only start carousel if current item is not a video
+      if (currentItem && currentItem.type !== 'video') {
+        startAutoCarousel();
+      }
+    }
   }
 }
 
@@ -1191,12 +1218,18 @@ function renderHostCarouselItem(index) {
       const bufferAfterVideo = 5000; // 5 seconds after video ends
 
       videoEndTimeout = setTimeout(() => {
-        hostCarouselNext();
-        // Restart auto-carousel for next item if it's not a video
-        if (window.hostCarouselIndex < window.hostCarouselItems.length - 1) {
-          const nextItem = window.hostCarouselItems[window.hostCarouselIndex];
-          if (nextItem.type !== 'video') {
-            startAutoCarousel();
+        // Check if auto-advance is still enabled before advancing
+        const autoAdvanceToggle = document.getElementById('autoAdvanceToggle');
+        const isStillEnabled = autoAdvanceToggle ? autoAdvanceToggle.checked : false;
+
+        if (isStillEnabled) {
+          hostCarouselNext();
+          // Restart auto-carousel for next item if it's not a video
+          if (window.hostCarouselIndex < window.hostCarouselItems.length - 1) {
+            const nextItem = window.hostCarouselItems[window.hostCarouselIndex];
+            if (nextItem.type !== 'video') {
+              startAutoCarousel();
+            }
           }
         }
       }, estimatedVideoDuration + bufferAfterVideo);
