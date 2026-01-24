@@ -805,6 +805,12 @@ function startTimer(duration) {
   const timerDisplay = document.getElementById('timerDisplay');
   const timerText = document.getElementById('timerText');
 
+  // Check if timer elements exist
+  if (!timerValue || !timerDisplay || !timerText) {
+    console.error('Timer elements not found in DOM');
+    return;
+  }
+
   timerValue.textContent = timeLeft;
   timerDisplay.style.background = '#48bb78';
   timerDisplay.style.color = 'white';
