@@ -528,6 +528,87 @@ async function clearReadyVoters() {
   }
 }
 
+// Sync auto-advance toggle from setup section
+async function syncSetupAutoAdvance() {
+  const setupToggle = document.getElementById('setupAutoAdvanceToggle');
+  const votingToggle = document.getElementById('autoAdvanceToggle');
+
+  if (setupToggle) {
+    const isOn = setupToggle.checked;
+
+    // Sync to voting section toggle
+    if (votingToggle) {
+      votingToggle.checked = isOn;
+    }
+
+    // Sync to server
+    try {
+      await fetch(`/api/session/${sessionId}/auto-advance-state`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          autoAdvanceOn: isOn,
+          countdownStarted: false
+        })
+      });
+    } catch (error) {
+      console.error('Error syncing auto-advance state:', error);
+    }
+  }
+}
+
+// Restart session from setup section (before starting)
+async function restartSessionFromSetup() {
+  if (!confirm('Restart the session? This will clear all votes and reset to Poll 1.')) {
+    return;
+  }
+
+  try {
+    // Clear all votes
+    await fetch(`/api/session/${sessionId}/clear-votes`, {
+      method: 'POST'
+    });
+
+    // Reset session status
+    await fetch(`/api/session/${sessionId}/resume`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ restart: true })
+    });
+
+    alert('Session has been reset! All votes cleared. Ready to start from Poll 1.');
+
+    // Hide clear votes button since votes are now cleared
+    document.getElementById('clearVotesBtn').style.display = 'none';
+  } catch (error) {
+    console.error('Error restarting session:', error);
+    alert('Error restarting session: ' + error.message);
+  }
+}
+
+// Load auto-advance state on page load
+async function loadAutoAdvanceState() {
+  try {
+    const response = await fetch(`/api/session/${sessionId}/auto-advance-state`);
+    const data = await response.json();
+
+    const setupToggle = document.getElementById('setupAutoAdvanceToggle');
+    const votingToggle = document.getElementById('autoAdvanceToggle');
+
+    if (setupToggle) {
+      setupToggle.checked = data.autoAdvanceOn || false;
+    }
+    if (votingToggle) {
+      votingToggle.checked = data.autoAdvanceOn || false;
+    }
+  } catch (error) {
+    console.error('Error loading auto-advance state:', error);
+  }
+}
+
+// Load auto-advance state on page load
+loadAutoAdvanceState();
+
 // Check active session on page load
 checkActiveSession();
 
@@ -1392,6 +1473,12 @@ function stopVideoEndTimeout() {
 
 function handleToggleChange(event) {
   const isEnabled = event.target.checked;
+
+  // Sync with setup toggle
+  const setupToggle = document.getElementById('setupAutoAdvanceToggle');
+  if (setupToggle) {
+    setupToggle.checked = isEnabled;
+  }
 
   if (!isEnabled) {
     // Toggle turned off - stop all auto-advance features
