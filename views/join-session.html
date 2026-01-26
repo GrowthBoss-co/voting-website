@@ -10,17 +10,19 @@
     <div class="container">
       <div class="welcome-card">
         <h1>Join Session</h1>
-        <p>Enter your email and session ID to join</p>
+        <p>Select your name and enter the session ID to join</p>
 
         <form id="joinForm" class="login-form">
           <div class="form-group">
-            <label for="email">Your Email:</label>
+            <label for="voterName">Your Name:</label>
+            <select id="voterName" required style="width: 100%;">
+              <option value="">Select your name...</option>
+            </select>
             <input
-              type="email"
-              id="email"
-              required
-              placeholder="you@example.com"
-              autocomplete="email"
+              type="text"
+              id="customName"
+              placeholder="Enter your name"
+              style="display: none; margin-top: 8px;"
             />
           </div>
           <div class="form-group">

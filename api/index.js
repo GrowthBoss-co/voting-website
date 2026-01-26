@@ -561,7 +561,8 @@ app.get('/api/session/:sessionId', async (req, res) => {
     currentPollIndex: session.currentPollIndex,
     status: session.status,
     pausedAtPollIndex: session.pausedAtPollIndex,
-    totalVoters: session.voters.size
+    totalVoters: session.voters.size,
+    expectedAttendance: session.expectedAttendance || 0
   });
 });
 
@@ -941,6 +942,149 @@ app.delete('/api/host/companies/:name', checkHostAuth, async (req, res) => {
   } catch (error) {
     console.error('Error deleting company:', error);
     res.status(500).json({ error: 'Failed to delete company' });
+  }
+});
+
+// Get voter names list
+app.get('/api/host/voters', checkHostAuth, async (req, res) => {
+  try {
+    const defaultVoters = [
+      'Karol Trojanowski',
+      'Leonardo Urnauer',
+      'Amanda Foster',
+      'Cesar Batista',
+      'Yasmin Vieira',
+      'Isaac Brito',
+      'Adrielle Silva',
+      'Crizan Leone',
+      'Henry Dutra',
+      'Thamires Martins',
+      'Vinicius Freitas'
+    ];
+    const voters = (await redis.get('host:voter-names')) || defaultVoters;
+    res.json({ voters });
+  } catch (error) {
+    console.error('Error fetching voter names:', error);
+    res.status(500).json({ error: 'Failed to fetch voter names' });
+  }
+});
+
+// Get voter names list (public - for join session page)
+app.get('/api/voter-names', async (req, res) => {
+  try {
+    const defaultVoters = [
+      'Karol Trojanowski',
+      'Leonardo Urnauer',
+      'Amanda Foster',
+      'Cesar Batista',
+      'Yasmin Vieira',
+      'Isaac Brito',
+      'Adrielle Silva',
+      'Crizan Leone',
+      'Henry Dutra',
+      'Thamires Martins',
+      'Vinicius Freitas'
+    ];
+    const voters = (await redis.get('host:voter-names')) || defaultVoters;
+    res.json({ voters });
+  } catch (error) {
+    console.error('Error fetching voter names:', error);
+    res.status(500).json({ error: 'Failed to fetch voter names' });
+  }
+});
+
+// Add voter name
+app.post('/api/host/voters', checkHostAuth, async (req, res) => {
+  try {
+    const { name } = req.body;
+
+    if (!name || name.trim() === '') {
+      return res.status(400).json({ error: 'Voter name is required' });
+    }
+
+    const defaultVoters = [
+      'Karol Trojanowski',
+      'Leonardo Urnauer',
+      'Amanda Foster',
+      'Cesar Batista',
+      'Yasmin Vieira',
+      'Isaac Brito',
+      'Adrielle Silva',
+      'Crizan Leone',
+      'Henry Dutra',
+      'Thamires Martins',
+      'Vinicius Freitas'
+    ];
+    const voters = (await redis.get('host:voter-names')) || defaultVoters;
+
+    const trimmedName = name.trim();
+
+    // Check if already exists (case-insensitive)
+    if (voters.some(v => v.toLowerCase() === trimmedName.toLowerCase())) {
+      return res.status(400).json({ error: 'Voter name already exists' });
+    }
+
+    voters.push(trimmedName);
+    await redis.set('host:voter-names', voters);
+
+    res.json({ success: true, voters });
+  } catch (error) {
+    console.error('Error adding voter name:', error);
+    res.status(500).json({ error: 'Failed to add voter name' });
+  }
+});
+
+// Delete voter name
+app.delete('/api/host/voters/:name', checkHostAuth, async (req, res) => {
+  try {
+    const { name } = req.params;
+    const defaultVoters = [
+      'Karol Trojanowski',
+      'Leonardo Urnauer',
+      'Amanda Foster',
+      'Cesar Batista',
+      'Yasmin Vieira',
+      'Isaac Brito',
+      'Adrielle Silva',
+      'Crizan Leone',
+      'Henry Dutra',
+      'Thamires Martins',
+      'Vinicius Freitas'
+    ];
+    const voters = (await redis.get('host:voter-names')) || defaultVoters;
+
+    const filtered = voters.filter(v => v !== decodeURIComponent(name));
+
+    if (filtered.length === voters.length) {
+      return res.status(404).json({ error: 'Voter name not found' });
+    }
+
+    await redis.set('host:voter-names', filtered);
+    res.json({ success: true, voters: filtered });
+  } catch (error) {
+    console.error('Error deleting voter name:', error);
+    res.status(500).json({ error: 'Failed to delete voter name' });
+  }
+});
+
+// Update session attendance
+app.put('/api/session/:sessionId/attendance', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { attendance } = req.body;
+    const session = await getSession(sessionId);
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    session.expectedAttendance = parseInt(attendance) || 0;
+    await saveSession(sessionId, session);
+
+    res.json({ success: true, attendance: session.expectedAttendance });
+  } catch (error) {
+    console.error('Error updating attendance:', error);
+    res.status(500).json({ error: 'Failed to update attendance' });
   }
 });
 

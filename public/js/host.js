@@ -14,6 +14,8 @@ let totalVotersInSession = 0;
 let hasReachedThreshold = false;
 let autoCarouselInterval = null;
 let videoEndTimeout = null;
+let voterNames = [];
+let expectedAttendance = 0;
 
 document.getElementById('sessionId').textContent = sessionId;
 
@@ -246,6 +248,108 @@ async function deleteCompany(name) {
 
 // Load lists on page load
 loadLists();
+
+// Load voter names list
+async function loadVoterNames() {
+  try {
+    const token = localStorage.getItem('hostToken');
+    const response = await fetch('/api/host/voters', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      voterNames = data.voters;
+      updateVoterNamesList();
+    }
+  } catch (error) {
+    console.error('Error loading voter names:', error);
+  }
+}
+
+// Update voter names list display
+function updateVoterNamesList() {
+  const listContainer = document.getElementById('voterNamesList');
+  if (!listContainer) return;
+
+  listContainer.innerHTML = voterNames
+    .map(
+      name => `
+    <div style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; background: white; border-radius: 4px; font-size: 13px; border: 1px solid #e2e8f0;">
+      <span>${name}</span>
+      <button type="button" onclick="deleteVoterName('${name.replace(/'/g, "\\'")}')" style="background: none; border: none; color: #e53e3e; cursor: pointer; padding: 0 4px; font-size: 16px; line-height: 1;" title="Delete">&times;</button>
+    </div>
+  `
+    )
+    .join('');
+}
+
+// Show add voter dialog
+function showAddVoterDialog() {
+  const name = prompt('Enter voter name:');
+  if (name && name.trim()) {
+    addVoterName(name.trim());
+  }
+}
+
+// Add voter name
+async function addVoterName(name) {
+  try {
+    const token = localStorage.getItem('hostToken');
+    const response = await fetch('/api/host/voters', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ name })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      alert('Error: ' + (data.error || 'Failed to add voter'));
+      return;
+    }
+
+    voterNames = data.voters;
+    updateVoterNamesList();
+  } catch (error) {
+    console.error('Error adding voter:', error);
+    alert('Error adding voter: ' + error.message);
+  }
+}
+
+// Delete voter name
+async function deleteVoterName(name) {
+  if (!confirm(`Delete voter "${name}"?`)) {
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem('hostToken');
+    const response = await fetch(`/api/host/voters/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      alert('Error: ' + (data.error || 'Failed to delete voter'));
+      return;
+    }
+
+    voterNames = data.voters;
+    updateVoterNamesList();
+  } catch (error) {
+    console.error('Error deleting voter:', error);
+    alert('Error deleting voter: ' + error.message);
+  }
+}
+
+// Load voter names on page load
+loadVoterNames();
 
 // Load existing polls if in edit or present mode
 async function loadExistingPolls() {
@@ -647,25 +751,114 @@ document.getElementById('startVotingBtn').addEventListener('click', async () => 
         showResumeDialog(sessionData.pausedAtPollIndex);
         return;
       }
+
+      // Pre-fill attendance if already set
+      if (sessionData.expectedAttendance > 0) {
+        document.getElementById('attendanceInput').value = sessionData.expectedAttendance;
+      }
     }
   } catch (error) {
     console.error('Error checking session status:', error);
   }
 
-  // Get total number of voters for threshold calculation
-  try {
-    const sessionResponse = await fetch(`/api/session/${sessionId}`);
-    const sessionData = await sessionResponse.json();
-    totalVotersInSession = sessionData.totalVoters || 0;
-  } catch (error) {
-    console.error('Error getting session data:', error);
+  // Show attendance modal
+  showAttendanceModal();
+});
+
+// Show attendance modal
+function showAttendanceModal() {
+  const modal = document.getElementById('attendanceModal');
+  modal.classList.remove('hidden');
+  document.getElementById('attendanceInput').focus();
+}
+
+// Handle attendance modal confirm
+document.getElementById('confirmAttendanceBtn').addEventListener('click', async () => {
+  const attendance = parseInt(document.getElementById('attendanceInput').value) || 0;
+
+  if (attendance < 1) {
+    alert('Please enter a valid number of voters');
+    return;
   }
+
+  // Save attendance to session
+  try {
+    await fetch(`/api/session/${sessionId}/attendance`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ attendance })
+    });
+
+    expectedAttendance = attendance;
+    totalVotersInSession = attendance;
+
+    // Update attendance display
+    const attendanceDisplay = document.getElementById('currentAttendance');
+    if (attendanceDisplay) {
+      attendanceDisplay.textContent = attendance;
+    }
+  } catch (error) {
+    console.error('Error saving attendance:', error);
+  }
+
+  // Hide modal and start session
+  document.getElementById('attendanceModal').classList.add('hidden');
 
   // Normal start - hide setup, show voting
   document.getElementById('setupSection').classList.add('hidden');
   document.getElementById('votingSection').classList.remove('hidden');
 
   await startPoll(0);
+});
+
+// Handle attendance modal cancel
+document.getElementById('cancelAttendanceBtn').addEventListener('click', () => {
+  document.getElementById('attendanceModal').classList.add('hidden');
+});
+
+// Show update attendance dialog (during session)
+function showUpdateAttendanceDialog() {
+  const modal = document.getElementById('updateAttendanceModal');
+  document.getElementById('updateAttendanceInput').value = expectedAttendance || totalVotersInSession || '';
+  modal.classList.remove('hidden');
+  document.getElementById('updateAttendanceInput').focus();
+}
+
+// Handle update attendance confirm
+document.getElementById('confirmUpdateAttendanceBtn').addEventListener('click', async () => {
+  const attendance = parseInt(document.getElementById('updateAttendanceInput').value) || 0;
+
+  if (attendance < 1) {
+    alert('Please enter a valid number of voters');
+    return;
+  }
+
+  // Save attendance to session
+  try {
+    await fetch(`/api/session/${sessionId}/attendance`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ attendance })
+    });
+
+    expectedAttendance = attendance;
+    totalVotersInSession = attendance;
+
+    // Update attendance display
+    const attendanceDisplay = document.getElementById('currentAttendance');
+    if (attendanceDisplay) {
+      attendanceDisplay.textContent = attendance;
+    }
+  } catch (error) {
+    console.error('Error updating attendance:', error);
+  }
+
+  document.getElementById('updateAttendanceModal').classList.add('hidden');
+});
+
+// Handle update attendance cancel
+document.getElementById('closeUpdateAttendanceBtn').addEventListener('click', () => {
+  document.getElementById('updateAttendanceModal').classList.add('hidden');
 });
 
 let timerInterval = null;
@@ -1539,6 +1732,20 @@ async function resumeSession(restart, pausedAtPollIndex) {
 
     if (!response.ok) {
       throw new Error('Failed to resume session');
+    }
+
+    // Get session data to restore attendance
+    const sessionResponse = await fetch(`/api/session/${sessionId}`);
+    if (sessionResponse.ok) {
+      const sessionData = await sessionResponse.json();
+      expectedAttendance = sessionData.expectedAttendance || 0;
+      totalVotersInSession = expectedAttendance;
+
+      // Update attendance display
+      const attendanceDisplay = document.getElementById('currentAttendance');
+      if (attendanceDisplay) {
+        attendanceDisplay.textContent = expectedAttendance;
+      }
     }
 
     // Hide setup, show voting
