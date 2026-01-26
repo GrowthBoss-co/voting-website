@@ -1179,7 +1179,7 @@ async function startPoll(pollIndex) {
     document.getElementById('exposeStatus').style.background = '#e2e8f0';
 
     // Add toggle listener to stop carousel/video timeouts when turned off
-    const autoAdvanceToggle = document.getElementById('autoAdvanceToggle');
+    // (autoAdvanceToggle already declared above)
     if (autoAdvanceToggle) {
       // Remove any existing listener to avoid duplicates
       autoAdvanceToggle.removeEventListener('change', handleToggleChange);
