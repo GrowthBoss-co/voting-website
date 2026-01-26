@@ -606,6 +606,121 @@ async function loadAutoAdvanceState() {
   }
 }
 
+// Host Waiting Room functions
+let hostWaitingPollingInterval = null;
+let hostCountdownInterval = null;
+let hostCountdownValue = 10;
+
+function showHostWaitingRoom() {
+  document.getElementById('setupSection').classList.add('hidden');
+  document.getElementById('hostWaitingRoom').classList.remove('hidden');
+
+  // Update expected count from input
+  const expectedInput = document.getElementById('expectedAttendanceInput');
+  document.getElementById('hostExpectedCount').textContent = expectedInput ? expectedInput.value : '10';
+
+  // Start polling for ready status
+  startHostWaitingPolling();
+}
+
+function exitHostWaitingRoom() {
+  document.getElementById('hostWaitingRoom').classList.add('hidden');
+  document.getElementById('setupSection').classList.remove('hidden');
+
+  // Stop polling
+  if (hostWaitingPollingInterval) {
+    clearInterval(hostWaitingPollingInterval);
+    hostWaitingPollingInterval = null;
+  }
+  if (hostCountdownInterval) {
+    clearInterval(hostCountdownInterval);
+    hostCountdownInterval = null;
+  }
+}
+
+async function startHostWaitingPolling() {
+  // Initial fetch
+  await updateHostWaitingStatus();
+
+  // Poll every second
+  hostWaitingPollingInterval = setInterval(updateHostWaitingStatus, 1000);
+}
+
+async function updateHostWaitingStatus() {
+  try {
+    const response = await fetch(`/api/session/${sessionId}/ready-status`);
+    const data = await response.json();
+
+    document.getElementById('hostReadyCount').textContent = data.readyCount;
+    document.getElementById('hostExpectedCount').textContent = data.expectedAttendance;
+
+    const progressPercent = Math.min(100, (data.readyCount / data.expectedAttendance) * 100);
+    document.getElementById('hostProgressFill').style.width = `${progressPercent}%`;
+
+    // Update ready voters list
+    if (data.readyVoters) {
+      document.getElementById('hostReadyVotersList').innerHTML = data.readyVoters
+        .map(name => `<span style="display: inline-block; padding: 5px 12px; margin: 4px; background: #48bb78; color: white; border-radius: 20px; font-size: 14px;">${name}</span>`)
+        .join('');
+    }
+
+    // Check if threshold reached
+    if (data.thresholdReached || data.countdownStarted) {
+      document.getElementById('hostThresholdMessage').textContent = '80% threshold reached!';
+      document.getElementById('hostThresholdMessage').style.color = '#48bb78';
+
+      // Start countdown if not already started
+      if (!hostCountdownInterval) {
+        startHostCountdown();
+      }
+    }
+
+    // If session started (by voters countdown), go to presenting
+    if (data.sessionStatus === 'presenting') {
+      exitHostWaitingRoom();
+      startPoll(0);
+    }
+  } catch (error) {
+    console.error('Error polling ready status:', error);
+  }
+}
+
+function startHostCountdown() {
+  document.getElementById('hostCountdownContainer').classList.remove('hidden');
+  hostCountdownValue = 10;
+  document.getElementById('hostCountdownTimer').textContent = hostCountdownValue;
+
+  hostCountdownInterval = setInterval(() => {
+    hostCountdownValue--;
+    document.getElementById('hostCountdownTimer').textContent = hostCountdownValue;
+
+    if (hostCountdownValue <= 0) {
+      clearInterval(hostCountdownInterval);
+      hostCountdownInterval = null;
+      // Start the session
+      forceStartSession();
+    }
+  }, 1000);
+}
+
+async function forceStartSession() {
+  // Stop waiting room polling
+  if (hostWaitingPollingInterval) {
+    clearInterval(hostWaitingPollingInterval);
+    hostWaitingPollingInterval = null;
+  }
+  if (hostCountdownInterval) {
+    clearInterval(hostCountdownInterval);
+    hostCountdownInterval = null;
+  }
+
+  // Hide waiting room, show voting section
+  document.getElementById('hostWaitingRoom').classList.add('hidden');
+
+  // Start the first poll
+  await startPoll(0);
+}
+
 // Load auto-advance state on page load
 loadAutoAdvanceState();
 

@@ -197,6 +197,40 @@
 
           <div style="display: flex; gap: 10px; align-items: center; margin-top: 20px;">
             <button id="startVotingBtn" class="btn btn-success" disabled>Start Voting Session</button>
+            <button id="joinWaitingRoomBtn" class="btn" style="background: #667eea; color: white;" onclick="showHostWaitingRoom()">Join Waiting Room</button>
+          </div>
+        </div>
+
+        <!-- Host Waiting Room -->
+        <div class="waiting-room-section hidden" id="hostWaitingRoom">
+          <div style="text-align: center; padding: 40px 20px;">
+            <h2 style="color: #667eea; margin-bottom: 10px;">Waiting Room</h2>
+            <p style="color: #666; margin-bottom: 30px;">Waiting for voters to get ready...</p>
+
+            <div style="font-size: 48px; font-weight: bold; color: #667eea; margin: 20px 0;">
+              <span id="hostReadyCount" style="color: #48bb78;">0</span> / <span id="hostExpectedCount">10</span>
+            </div>
+
+            <div style="width: 100%; max-width: 400px; height: 20px; background: #e2e8f0; border-radius: 10px; overflow: hidden; margin: 20px auto;">
+              <div id="hostProgressFill" style="height: 100%; background: linear-gradient(90deg, #667eea, #48bb78); transition: width 0.5s ease; width: 0%;"></div>
+            </div>
+
+            <p id="hostThresholdMessage" style="color: #666; margin: 15px 0;">Waiting for 80% of voters to be ready...</p>
+
+            <div id="hostCountdownContainer" class="hidden" style="margin: 30px 0;">
+              <p style="font-size: 18px; color: #667eea; font-weight: 600;">Starting in...</p>
+              <div id="hostCountdownTimer" style="font-size: 72px; font-weight: bold; color: #e53e3e; animation: pulse 1s infinite;">10</div>
+            </div>
+
+            <div style="margin-top: 20px; padding: 15px; background: #f7fafc; border-radius: 8px; max-height: 200px; overflow-y: auto;">
+              <strong>Ready voters:</strong>
+              <div id="hostReadyVotersList" style="margin-top: 10px;"></div>
+            </div>
+
+            <div style="margin-top: 30px; display: flex; gap: 10px; justify-content: center;">
+              <button class="btn btn-primary" onclick="forceStartSession()">Start Now (Skip Waiting)</button>
+              <button class="btn btn-secondary" onclick="exitHostWaitingRoom()">Back to Setup</button>
+            </div>
           </div>
         </div>
 
