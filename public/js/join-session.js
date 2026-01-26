@@ -13,10 +13,8 @@ async function checkActiveSession() {
 
     if (data.active && data.sessionId) {
       activeSessionId = data.sessionId;
-      document.getElementById('noSessionMessage').classList.add('hidden');
-      document.getElementById('joinForm').style.display = 'block';
 
-      // If session already started, redirect directly
+      // If session already started, redirect directly if we have credentials
       if (data.session.status === 'presenting') {
         const savedVoterId = localStorage.getItem(`voterId_${activeSessionId}`);
         const savedVoterName = localStorage.getItem(`voterEmail_${activeSessionId}`);
@@ -25,15 +23,12 @@ async function checkActiveSession() {
           return;
         }
       }
-    } else {
-      document.getElementById('noSessionMessage').classList.remove('hidden');
-      document.getElementById('joinForm').style.display = 'none';
     }
+    // Don't show error message here - let user select name first
+    // Error will show when they try to click Ready without an active session
   } catch (error) {
     console.error('Error checking active session:', error);
-    document.getElementById('noSessionMessage').classList.remove('hidden');
-    document.getElementById('noSessionMessage').textContent = 'Error connecting to server. Please refresh the page.';
-    document.getElementById('joinForm').style.display = 'none';
+    // Don't block the form - let user try
   }
 }
 
@@ -83,11 +78,6 @@ document.getElementById('voterName').addEventListener('change', e => {
 document.getElementById('joinForm').addEventListener('submit', async e => {
   e.preventDefault();
 
-  if (!activeSessionId) {
-    alert('No active session available');
-    return;
-  }
-
   const voterNameSelect = document.getElementById('voterName').value;
   const customName = document.getElementById('customName').value.trim();
   const errorDiv = document.getElementById('errorMessage');
@@ -108,6 +98,26 @@ document.getElementById('joinForm').addEventListener('submit', async e => {
     errorDiv.textContent = 'Please select your name';
     errorDiv.classList.remove('hidden');
     return;
+  }
+
+  // Check for active session now (after name is selected)
+  if (!activeSessionId) {
+    try {
+      const sessionResponse = await fetch('/api/active-session');
+      const sessionData = await sessionResponse.json();
+
+      if (sessionData.active && sessionData.sessionId) {
+        activeSessionId = sessionData.sessionId;
+      } else {
+        document.getElementById('noSessionMessage').classList.remove('hidden');
+        errorDiv.classList.add('hidden');
+        return;
+      }
+    } catch (error) {
+      document.getElementById('noSessionMessage').classList.remove('hidden');
+      document.getElementById('noSessionMessage').textContent = 'Error connecting to server. Please try again.';
+      return;
+    }
   }
 
   try {
