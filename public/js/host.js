@@ -1458,7 +1458,7 @@ async function updateResults() {
       exposeStatus.style.color = '#4a5568';
     }
 
-    // Check for timer pause/skip from authorized voters
+    // Check for timer pause/skip and auto-advance changes from authorized voters
     const stateResponse = await fetch(`/api/session/${sessionId}/auto-advance-state`);
     const stateData = await stateResponse.json();
 
@@ -1477,6 +1477,26 @@ async function updateResults() {
       } else {
         pauseBtn.textContent = 'Pause';
         pauseBtn.style.background = '#ed8936';
+      }
+    }
+
+    // Check if auto-advance was changed by authorized voter
+    const autoAdvanceToggle = document.getElementById('autoAdvanceToggle');
+    if (autoAdvanceToggle && stateData.autoAdvanceOn !== autoAdvanceToggle.checked) {
+      autoAdvanceToggle.checked = stateData.autoAdvanceOn;
+      // Trigger the change handler to start/stop carousel
+      if (stateData.autoAdvanceOn) {
+        // Auto-advance turned ON by voter - start carousel for host
+        if (window.hostCarouselItems && window.hostCarouselItems.length > 1) {
+          const currentItem = window.hostCarouselItems[window.hostCarouselIndex];
+          if (currentItem && currentItem.type !== 'video') {
+            startAutoCarousel();
+          }
+        }
+      } else {
+        // Auto-advance turned OFF by voter - stop carousel
+        stopAutoCarousel();
+        stopVideoEndTimeout();
       }
     }
   } catch (error) {

@@ -8,8 +8,8 @@ let lastPollId = null;
 let timerInterval = null;
 let isVoterTimerPaused = false;
 
-// Authorized voters who can pause/skip
-const authorizedVoters = ['Karol Trojanowski', 'Adrielle Souza'];
+// Authorized voters who can pause/skip/toggle auto-advance
+const authorizedVoters = ['Karol Trojanowski', 'Adrielle Silva'];
 const isAuthorizedVoter = authorizedVoters.includes(voterName);
 
 if (!voterId) {
@@ -523,7 +523,7 @@ async function fetchExposeStatus() {
     const stateResponse = await fetch(`/api/session/${sessionId}/auto-advance-state`);
     const stateData = await stateResponse.json();
 
-    // Update pause button state for authorized voters
+    // Update pause button and auto-advance toggle state for authorized voters
     if (isAuthorizedVoter) {
       const pauseBtn = document.getElementById('voterPauseBtn');
       if (stateData.timerPaused !== isVoterTimerPaused) {
@@ -535,6 +535,12 @@ async function fetchExposeStatus() {
           pauseBtn.textContent = 'Pause';
           pauseBtn.style.background = '#ed8936';
         }
+      }
+
+      // Sync auto-advance toggle state
+      const autoAdvanceToggle = document.getElementById('voterAutoAdvanceToggle');
+      if (autoAdvanceToggle && autoAdvanceToggle.checked !== stateData.autoAdvanceOn) {
+        autoAdvanceToggle.checked = stateData.autoAdvanceOn;
       }
     }
 
@@ -734,5 +740,27 @@ async function voterSkipPoll() {
     // The host will handle the actual skip, voter just triggers it
   } catch (error) {
     console.error('Error skipping poll:', error);
+  }
+}
+
+// Voter toggle auto-advance (for authorized voters)
+// Note: This only syncs the state to server - carousel/video autoplay only happens on host
+async function voterToggleAutoAdvance() {
+  if (!isAuthorizedVoter) return;
+
+  const toggle = document.getElementById('voterAutoAdvanceToggle');
+  const isOn = toggle ? toggle.checked : false;
+
+  try {
+    await fetch(`/api/session/${sessionId}/auto-advance-state`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        autoAdvanceOn: isOn,
+        countdownStarted: false // Reset countdown when toggling
+      })
+    });
+  } catch (error) {
+    console.error('Error toggling auto-advance:', error);
   }
 }

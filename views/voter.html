@@ -24,13 +24,17 @@
             <div class="timer-display" id="timerDisplay">
               <span id="timerText">Time remaining: <strong id="timerValue">60</strong>s</span>
             </div>
-            <div id="adminControls" class="hidden" style="display: none; gap: 5px;">
+            <div id="adminControls" class="hidden" style="display: none; gap: 5px; align-items: center;">
               <button id="voterPauseBtn" onclick="voterTogglePause()" class="btn btn-small" style="background: #ed8936; color: white; padding: 5px 10px; font-size: 12px;">
                 Pause
               </button>
               <button id="voterSkipBtn" onclick="voterSkipPoll()" class="btn btn-small" style="background: #e53e3e; color: white; padding: 5px 10px; font-size: 12px;">
                 Skip
               </button>
+              <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 12px; background: #f0f8ff; padding: 5px 8px; border-radius: 4px; border: 1px solid #4a90e2;">
+                <input type="checkbox" id="voterAutoAdvanceToggle" onchange="voterToggleAutoAdvance()" style="width: auto; cursor: pointer;" />
+                <span style="color: #4a90e2; font-weight: 600;">Auto</span>
+              </label>
             </div>
           </div>
           <h2 id="pollTitle"></h2>
