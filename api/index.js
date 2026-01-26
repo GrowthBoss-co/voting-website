@@ -738,12 +738,21 @@ app.post('/api/session/:sessionId/vote', async (req, res) => {
   // Find the poll to check timer
   const poll = session.polls.find(p => p.id === pollId);
   if (poll && poll.timer && poll.startTime) {
-    const elapsed = Math.floor((Date.now() - poll.startTime) / 1000);
-    const timeLeft = Math.max(0, poll.timer - elapsed);
+    // Skip timer check if auto-advance is ON and countdown hasn't started
+    // In auto-advance mode, voting is open until the 10-second countdown finishes
+    const isAutoAdvanceOn = session.autoAdvanceOn || false;
+    const countdownStarted = session.countdownStarted || false;
 
-    if (timeLeft <= 0) {
-      return res.status(403).json({ error: 'Voting period has ended for this poll' });
+    if (!isAutoAdvanceOn || countdownStarted) {
+      // Normal mode or countdown has started - check timer
+      const elapsed = Math.floor((Date.now() - poll.startTime) / 1000);
+      const timeLeft = Math.max(0, poll.timer - elapsed);
+
+      if (timeLeft <= 0) {
+        return res.status(403).json({ error: 'Voting period has ended for this poll' });
+      }
     }
+    // If auto-advance is ON and countdown hasn't started, allow voting
   }
 
   const ratingValue = parseInt(rating);
