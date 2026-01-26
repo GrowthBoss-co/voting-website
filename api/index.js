@@ -700,6 +700,13 @@ app.post('/api/session/:sessionId/clear-votes', async (req, res) => {
 
   // Clear all votes
   session.votes = new Map();
+
+  // Clear expose votes too
+  session.exposeVotes = {};
+
+  // Reset countdown state
+  session.countdownStarted = false;
+
   await saveSession(sessionId, session);
 
   res.json({ success: true });
