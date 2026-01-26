@@ -922,6 +922,19 @@ function handleToggleChange(event) {
       if (currentItem && currentItem.type !== 'video') {
         startAutoCarousel();
       }
+      // If current item is a video, set up video end timeout
+      if (currentItem && currentItem.type === 'video') {
+        stopVideoEndTimeout(); // Clear any existing
+        const estimatedVideoDuration = 60000;
+        const bufferAfterVideo = 5000;
+        videoEndTimeout = setTimeout(() => {
+          const autoAdvanceToggle = document.getElementById('autoAdvanceToggle');
+          const isStillEnabled = autoAdvanceToggle ? autoAdvanceToggle.checked : false;
+          if (isStillEnabled) {
+            hostCarouselNext();
+          }
+        }, estimatedVideoDuration + bufferAfterVideo);
+      }
     }
   }
 }
@@ -1230,13 +1243,8 @@ function renderHostCarouselItem(index) {
 
         if (isStillEnabled) {
           hostCarouselNext();
-          // Restart auto-carousel for next item if it's not a video
-          if (window.hostCarouselIndex < window.hostCarouselItems.length - 1) {
-            const nextItem = window.hostCarouselItems[window.hostCarouselIndex];
-            if (nextItem.type !== 'video') {
-              startAutoCarousel();
-            }
-          }
+          // The renderHostCarouselItem function will handle restarting
+          // auto-carousel for images automatically
         }
       }, estimatedVideoDuration + bufferAfterVideo);
     }
@@ -1244,6 +1252,16 @@ function renderHostCarouselItem(index) {
     content.innerHTML = `
       <img src="${item.url}" alt="Poll media" style="max-width: 100%; max-height: 500px; display: block; margin: 0 auto; border-radius: 8px;">
     `;
+
+    // For images in auto-advance mode, ensure carousel keeps running
+    const autoAdvanceToggle = document.getElementById('autoAdvanceToggle');
+    const isAutoAdvanceEnabled = autoAdvanceToggle ? autoAdvanceToggle.checked : false;
+    if (isAutoAdvanceEnabled && window.hostCarouselItems && window.hostCarouselItems.length > 1) {
+      // Restart auto-carousel if it's not running (ensures continuous rotation)
+      if (!autoCarouselInterval) {
+        startAutoCarousel();
+      }
+    }
   }
 
   // Update indicators
