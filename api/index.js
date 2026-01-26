@@ -1234,6 +1234,48 @@ app.post('/api/session/:sessionId/start-countdown', async (req, res) => {
   }
 });
 
+// Update auto-advance state (called by host)
+app.post('/api/session/:sessionId/auto-advance-state', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { autoAdvanceOn, countdownStarted } = req.body;
+
+    const session = await getSession(sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    session.autoAdvanceOn = autoAdvanceOn || false;
+    session.countdownStarted = countdownStarted || false;
+    await saveSession(sessionId, session);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating auto-advance state:', error);
+    res.status(500).json({ error: 'Failed to update auto-advance state' });
+  }
+});
+
+// Get auto-advance state
+app.get('/api/session/:sessionId/auto-advance-state', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const session = await getSession(sessionId);
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    res.json({
+      autoAdvanceOn: session.autoAdvanceOn || false,
+      countdownStarted: session.countdownStarted || false
+    });
+  } catch (error) {
+    console.error('Error getting auto-advance state:', error);
+    res.status(500).json({ error: 'Failed to get auto-advance state' });
+  }
+});
+
 // Clear ready voters (for resetting)
 app.post('/api/session/:sessionId/clear-ready', async (req, res) => {
   try {
@@ -1304,7 +1346,7 @@ app.post('/api/session/:sessionId/vote-expose', async (req, res) => {
 app.get('/api/session/:sessionId/expose-status/:pollId', async (req, res) => {
   try {
     const { sessionId, pollId } = req.params;
-    const { voterId } = req.query;
+    const { voterId, autoAdvanceOn, countdownStarted } = req.query;
 
     const session = await getSession(sessionId);
     if (!session) {
@@ -1322,8 +1364,15 @@ app.get('/api/session/:sessionId/expose-status/:pollId', async (req, res) => {
     const pollVotes = session.votes.get(pollId);
     const totalVotes = pollVotes ? pollVotes.size : 0;
 
+    // Determine if we should reveal based on auto-advance state
+    // If auto-advance is ON: only reveal when 10-second countdown has started
+    // If auto-advance is OFF: reveal immediately when threshold reached
+    const isAutoAdvance = autoAdvanceOn === 'true';
+    const isCountdownStarted = countdownStarted === 'true';
+    const shouldReveal = thresholdReached && (!isAutoAdvance || isCountdownStarted);
+
     let exposedData = null;
-    if (thresholdReached) {
+    if (shouldReveal) {
       if (totalVotes >= expectedAttendance) {
         // Everyone voted - find last voter
         const poll = session.polls.find(p => p.id === pollId);
@@ -1354,6 +1403,7 @@ app.get('/api/session/:sessionId/expose-status/:pollId', async (req, res) => {
       thresholdReached,
       hasVotedToExpose,
       exposedData,
+      shouldReveal,
       totalVotes,
       expectedAttendance
     });

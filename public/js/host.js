@@ -19,6 +19,12 @@ let expectedAttendance = 0;
 let isActiveSession = false;
 let readyPollingInterval = null;
 
+// Timer state tracking
+let originalTimerDuration = 60;
+let savedTimeLeft = null;
+let isAutoAdvanceOn = false;
+let countdownStarted = false; // Track if 10-second countdown has started
+
 document.getElementById('sessionId').textContent = sessionId;
 
 // Load creator and company lists
@@ -1129,8 +1135,13 @@ function startTimer(duration) {
     clearInterval(timerInterval);
   }
 
+  // Store original duration for this poll
+  originalTimerDuration = duration;
   let timeLeft = duration;
   hasReachedThreshold = false;
+  countdownStarted = false;
+  savedTimeLeft = null;
+
   const timerValue = document.getElementById('timerValue');
   const timerDisplay = document.getElementById('timerDisplay');
   const timerText = document.getElementById('timerText');
@@ -1141,70 +1152,128 @@ function startTimer(duration) {
     return;
   }
 
-  timerValue.textContent = timeLeft;
-  timerDisplay.style.background = '#48bb78';
-  timerDisplay.style.color = 'white';
-  timerText.textContent = 'Time remaining: ';
+  // Check initial state of auto-advance
+  const autoAdvanceToggle = document.getElementById('autoAdvanceToggle');
+  isAutoAdvanceOn = autoAdvanceToggle ? autoAdvanceToggle.checked : false;
+
+  // Update display based on initial auto-advance state
+  if (isAutoAdvanceOn) {
+    timerDisplay.style.display = 'none';
+  } else {
+    timerDisplay.style.display = 'block';
+    timerValue.textContent = timeLeft;
+    timerDisplay.style.background = '#48bb78';
+    timerDisplay.style.color = 'white';
+    timerText.innerHTML = 'Time remaining: <strong id="timerValue">' + timeLeft + '</strong>s';
+  }
+
+  // Sync initial state to server
+  syncAutoAdvanceState();
 
   timerInterval = setInterval(() => {
-    // Check current state of auto-advance toggle (can be changed during poll)
+    // Check current state of auto-advance toggle
     const autoAdvanceToggle = document.getElementById('autoAdvanceToggle');
-    const isAutoAdvanceEnabled = autoAdvanceToggle ? autoAdvanceToggle.checked : false;
+    const currentAutoAdvance = autoAdvanceToggle ? autoAdvanceToggle.checked : false;
 
-    // Check if we've reached 70% threshold in auto-advance mode
-    if (isAutoAdvanceEnabled && !hasReachedThreshold && totalVotersInSession > 0) {
-      const totalVotesElement = document.getElementById('totalVotes');
-      const currentVotes = parseInt(totalVotesElement.textContent) || 0;
-      const threshold = Math.ceil(totalVotersInSession * 0.7);
-
-      if (currentVotes >= threshold) {
-        // Switch to 10-second countdown
-        hasReachedThreshold = true;
-        timeLeft = 10;
-        timerText.textContent = '70% voted! Auto-advancing in: ';
-        timerDisplay.style.background = '#667eea';
-        timerValue.textContent = timeLeft;
-        return; // Skip the rest of this interval
+    // Handle auto-advance toggle changes
+    if (currentAutoAdvance !== isAutoAdvanceOn) {
+      if (currentAutoAdvance) {
+        // Auto-advance was turned ON - save current time and hide timer
+        savedTimeLeft = timeLeft;
+        timerDisplay.style.display = 'none';
+      } else {
+        // Auto-advance was turned OFF - restore timer display
+        if (savedTimeLeft !== null) {
+          timeLeft = savedTimeLeft;
+        }
+        timerDisplay.style.display = 'block';
+        hasReachedThreshold = false;
+        countdownStarted = false;
+        timerText.innerHTML = 'Time remaining: <strong id="timerValue">' + timeLeft + '</strong>s';
+        updateTimerColor(timerDisplay, timeLeft);
       }
+      isAutoAdvanceOn = currentAutoAdvance;
+      syncAutoAdvanceState(); // Sync to server for voters
     }
 
-    if (!hasReachedThreshold) {
-      // Normal countdown
-      timeLeft--;
-      timerValue.textContent = timeLeft;
+    if (isAutoAdvanceOn) {
+      // Auto-advance mode: wait for 70% vote threshold
+      if (!hasReachedThreshold && totalVotersInSession > 0) {
+        const totalVotesElement = document.getElementById('totalVotes');
+        const currentVotes = parseInt(totalVotesElement.textContent) || 0;
+        const threshold = Math.ceil(totalVotersInSession * 0.7);
 
-      // Change color as time runs out
-      if (timeLeft <= 10) {
-        timerDisplay.style.background = '#e53e3e';
-      } else if (timeLeft <= 30) {
-        timerDisplay.style.background = '#ed8936';
+        if (currentVotes >= threshold) {
+          // Start 10-second countdown
+          hasReachedThreshold = true;
+          countdownStarted = true;
+          timeLeft = 10;
+          timerDisplay.style.display = 'block';
+          timerText.innerHTML = '70% voted! Auto-advancing in: <strong id="timerValue">' + timeLeft + '</strong>s';
+          timerDisplay.style.background = '#667eea';
+          syncAutoAdvanceState(); // Sync countdown started to server
+        }
+      } else if (hasReachedThreshold) {
+        // 10-second countdown
+        timeLeft--;
+        const timerValueEl = document.getElementById('timerValue');
+        if (timerValueEl) timerValueEl.textContent = timeLeft;
+        timerDisplay.style.background = '#667eea';
+
+        if (timeLeft <= 0) {
+          clearInterval(timerInterval);
+          timerDisplay.style.background = '#718096';
+          if (timerValueEl) timerValueEl.textContent = '0';
+
+          setTimeout(async () => {
+            const nextBtn = document.getElementById('nextPollBtn');
+            if (nextBtn) nextBtn.click();
+          }, 500);
+        }
       }
     } else {
-      // Threshold reached, 10-second countdown
+      // Normal mode: countdown timer
       timeLeft--;
-      timerValue.textContent = timeLeft;
-      timerDisplay.style.background = '#667eea';
-    }
+      savedTimeLeft = timeLeft; // Keep track for potential toggle
+      const timerValueEl = document.getElementById('timerValue');
+      if (timerValueEl) timerValueEl.textContent = timeLeft;
 
-    if (timeLeft <= 0) {
-      clearInterval(timerInterval);
-      timerDisplay.style.background = '#718096';
-      timerValue.textContent = '0';
+      updateTimerColor(timerDisplay, timeLeft);
 
-      // Auto-advance if enabled and threshold was reached
-      const autoAdvanceToggle = document.getElementById('autoAdvanceToggle');
-      const isAutoAdvanceEnabled = autoAdvanceToggle ? autoAdvanceToggle.checked : false;
-
-      if (isAutoAdvanceEnabled && hasReachedThreshold) {
-        setTimeout(async () => {
-          const nextBtn = document.getElementById('nextPollBtn');
-          if (nextBtn) {
-            nextBtn.click();
-          }
-        }, 500);
+      if (timeLeft <= 0) {
+        clearInterval(timerInterval);
+        timerDisplay.style.background = '#718096';
+        if (timerValueEl) timerValueEl.textContent = '0';
+        timerText.innerHTML = '⏱️ <strong>Voting Closed</strong> - Time expired';
       }
     }
   }, 1000);
+}
+
+function updateTimerColor(timerDisplay, timeLeft) {
+  if (timeLeft <= 10) {
+    timerDisplay.style.background = '#e53e3e';
+  } else if (timeLeft <= 30) {
+    timerDisplay.style.background = '#ed8936';
+  } else {
+    timerDisplay.style.background = '#48bb78';
+  }
+}
+
+// Sync auto-advance state to server for voters to check
+async function syncAutoAdvanceState() {
+  try {
+    await fetch(`/api/session/${sessionId}/auto-advance-state`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        autoAdvanceOn: isAutoAdvanceOn,
+        countdownStarted: countdownStarted
+      })
+    });
+  } catch (error) {
+    console.error('Error syncing auto-advance state:', error);
+  }
 }
 
 function stopTimer() {
@@ -1284,17 +1353,21 @@ async function updateResults() {
     ratingsList.innerHTML = '';
 
     // Fetch and update expose status
-    const exposeResponse = await fetch(`/api/session/${sessionId}/expose-status/${currentPoll.id}`);
+    const exposeResponse = await fetch(`/api/session/${sessionId}/expose-status/${currentPoll.id}?autoAdvanceOn=${isAutoAdvanceOn}&countdownStarted=${countdownStarted}`);
     const exposeData = await exposeResponse.json();
 
     document.getElementById('exposeVoteCount').textContent = exposeData.exposeVoteCount;
     document.getElementById('exposeVoteNeeded').textContent = exposeData.thresholdNeeded;
 
     const exposeStatus = document.getElementById('exposeStatus');
-    if (exposeData.thresholdReached) {
+    if (exposeData.shouldReveal) {
       exposeStatus.textContent = 'Revealed!';
       exposeStatus.style.background = '#f8d7da';
       exposeStatus.style.color = '#721c24';
+    } else if (exposeData.thresholdReached) {
+      exposeStatus.textContent = 'Waiting for countdown...';
+      exposeStatus.style.background = '#fff3cd';
+      exposeStatus.style.color = '#856404';
     } else {
       exposeStatus.textContent = 'Not triggered';
       exposeStatus.style.background = '#e2e8f0';

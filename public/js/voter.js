@@ -415,7 +415,11 @@ async function fetchExposeStatus() {
   if (!currentPoll) return;
 
   try {
-    const response = await fetch(`/api/session/${sessionId}/expose-status/${currentPoll.id}?voterId=${voterId}`);
+    // First get the auto-advance state from the server
+    const stateResponse = await fetch(`/api/session/${sessionId}/auto-advance-state`);
+    const stateData = await stateResponse.json();
+
+    const response = await fetch(`/api/session/${sessionId}/expose-status/${currentPoll.id}?voterId=${voterId}&autoAdvanceOn=${stateData.autoAdvanceOn}&countdownStarted=${stateData.countdownStarted}`);
     const data = await response.json();
 
     // Update vote counts
@@ -432,8 +436,8 @@ async function fetchExposeStatus() {
       exposeBtn.style.color = '#155724';
     }
 
-    // Show exposed result if threshold reached
-    if (data.thresholdReached && data.exposedData) {
+    // Show exposed result if shouldReveal is true
+    if (data.shouldReveal && data.exposedData) {
       const resultDiv = document.getElementById('exposedResult');
       const titleEl = document.getElementById('exposedTitle');
       const namesEl = document.getElementById('exposedNames');
@@ -451,6 +455,13 @@ async function fetchExposeStatus() {
           namesEl.textContent = 'Everyone has voted!';
         }
       }
+    } else if (data.thresholdReached && !data.shouldReveal) {
+      // Threshold reached but waiting for countdown
+      const resultDiv = document.getElementById('exposedResult');
+      resultDiv.classList.remove('hidden');
+      document.getElementById('exposedTitle').textContent = 'Threshold Reached!';
+      document.getElementById('exposedNames').textContent = 'Waiting for countdown to reveal...';
+      resultDiv.style.background = '#fff3cd';
     } else {
       document.getElementById('exposedResult').classList.add('hidden');
     }
@@ -504,7 +515,11 @@ function startExposePolling() {
   exposeBtn.disabled = false;
   exposeBtn.style.background = '#ffc107';
   exposeBtn.style.color = '#856404';
-  document.getElementById('exposedResult').classList.add('hidden');
+
+  // Reset exposed result
+  const resultDiv = document.getElementById('exposedResult');
+  resultDiv.classList.add('hidden');
+  resultDiv.style.background = '#f8d7da'; // Reset to default color
 
   // Initial fetch
   fetchExposeStatus();
