@@ -129,28 +129,12 @@ function displayPoll(poll, hasVoted = false, voterRating = null) {
     ratingSlider.value = 5;
     ratingInput.value = 5;
 
-    // Check if timer has expired
-    if (currentPoll.timer && currentPoll.startTime) {
-      const elapsed = Math.floor((Date.now() - currentPoll.startTime) / 1000);
-      const timeLeft = Math.max(0, currentPoll.timer - elapsed);
-
-      if (timeLeft <= 0) {
-        // Timer expired - disable voting
-        disableVotingControls();
-      } else {
-        // Timer still active - enable voting
-        ratingSlider.disabled = false;
-        ratingInput.disabled = false;
-        document.getElementById('submitMessage').classList.add('hidden');
-        document.getElementById('submitRatingBtn').disabled = false;
-      }
-    } else {
-      // No timer - enable voting
-      ratingSlider.disabled = false;
-      ratingInput.disabled = false;
-      document.getElementById('submitMessage').classList.add('hidden');
-      document.getElementById('submitRatingBtn').disabled = false;
-    }
+    // Always enable voting controls initially - the timer will handle disabling if needed
+    // This prevents issues with auto-advance mode where timer shouldn't disable voting
+    ratingSlider.disabled = false;
+    ratingInput.disabled = false;
+    document.getElementById('submitMessage').classList.add('hidden');
+    document.getElementById('submitRatingBtn').disabled = false;
   }
 }
 
@@ -226,15 +210,38 @@ document.getElementById('submitRatingBtn').addEventListener('click', async () =>
     return;
   }
 
-  // Check if timer has expired
+  // Check if timer has expired (but skip this check if auto-advance is on and countdown hasn't started)
   if (currentPoll.timer && currentPoll.startTime) {
-    const elapsed = Math.floor((Date.now() - currentPoll.startTime) / 1000);
-    const timeLeft = Math.max(0, currentPoll.timer - elapsed);
+    // First check auto-advance state
+    try {
+      const stateResponse = await fetch(`/api/session/${sessionId}/auto-advance-state`);
+      const stateData = await stateResponse.json();
 
-    if (timeLeft <= 0) {
-      alert('Voting period has ended for this poll');
-      disableVotingControls();
-      return;
+      // If auto-advance is ON and countdown hasn't started, allow voting
+      if (stateData.autoAdvanceOn && !stateData.countdownStarted) {
+        // Voting is allowed, skip timer check
+      } else {
+        // Check timer normally
+        const elapsed = Math.floor((Date.now() - currentPoll.startTime) / 1000);
+        const timeLeft = Math.max(0, currentPoll.timer - elapsed);
+
+        if (timeLeft <= 0) {
+          alert('Voting period has ended for this poll');
+          disableVotingControls();
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Error checking auto-advance state:', error);
+      // Fall back to timer check
+      const elapsed = Math.floor((Date.now() - currentPoll.startTime) / 1000);
+      const timeLeft = Math.max(0, currentPoll.timer - elapsed);
+
+      if (timeLeft <= 0) {
+        alert('Voting period has ended for this poll');
+        disableVotingControls();
+        return;
+      }
     }
   }
 
@@ -271,12 +278,36 @@ document.getElementById('submitRatingBtn').addEventListener('click', async () =>
   }
 });
 
-function startTimer(duration) {
+let voterSavedTimeLeft = null;
+let voterAutoAdvanceOn = false;
+let voterCountdownStarted = false;
+
+async function startTimer(duration) {
   let timeLeft = duration;
+  voterSavedTimeLeft = duration;
   const timerDisplay = document.getElementById('timerDisplay');
   const timerText = document.getElementById('timerText');
 
   if (!timerDisplay || !timerText) return;
+
+  // Check initial auto-advance state
+  try {
+    const stateResponse = await fetch(`/api/session/${sessionId}/auto-advance-state`);
+    const stateData = await stateResponse.json();
+    voterAutoAdvanceOn = stateData.autoAdvanceOn;
+    voterCountdownStarted = stateData.countdownStarted;
+  } catch (error) {
+    console.error('Error fetching auto-advance state:', error);
+  }
+
+  // If auto-advance is ON and countdown hasn't started, hide timer but keep polling
+  if (voterAutoAdvanceOn && !voterCountdownStarted) {
+    timerDisplay.style.display = 'none';
+    enableVotingControls();
+    // Don't return - we need to keep polling for when countdown starts
+  } else {
+    timerDisplay.style.display = 'block';
+  }
 
   // Update timer text with actual duration
   timerText.innerHTML = 'Time remaining: <strong id="timerValue">' + timeLeft + '</strong>s';
@@ -291,8 +322,11 @@ function startTimer(duration) {
   }
   timerDisplay.style.color = 'white';
 
-  // Enable voting controls at start (unless time is already 0)
-  if (timeLeft > 0) {
+  // Enable voting controls at start
+  // If auto-advance is ON, always enable voting (timer expiry doesn't apply)
+  if (voterAutoAdvanceOn && !voterCountdownStarted) {
+    enableVotingControls();
+  } else if (timeLeft > 0) {
     enableVotingControls();
   } else {
     disableVotingControls();
@@ -301,18 +335,73 @@ function startTimer(duration) {
     return; // Don't start interval if already expired
   }
 
-  timerInterval = setInterval(() => {
+  timerInterval = setInterval(async () => {
+    // Check for pause state and auto-advance changes
+    try {
+      const stateResponse = await fetch(`/api/session/${sessionId}/auto-advance-state`);
+      const stateData = await stateResponse.json();
+
+      // Handle pause
+      if (stateData.timerPaused) {
+        return; // Skip this tick if paused
+      }
+
+      // Handle auto-advance state changes
+      if (stateData.autoAdvanceOn !== voterAutoAdvanceOn) {
+        voterAutoAdvanceOn = stateData.autoAdvanceOn;
+        if (voterAutoAdvanceOn) {
+          // Auto-advance turned ON - hide timer, stop countdown
+          timerDisplay.style.display = 'none';
+          voterSavedTimeLeft = timeLeft;
+          enableVotingControls(); // Keep voting enabled
+          return;
+        } else {
+          // Auto-advance turned OFF - show timer, resume countdown
+          timerDisplay.style.display = 'block';
+          if (voterSavedTimeLeft !== null) {
+            timeLeft = voterSavedTimeLeft;
+          }
+          timerText.innerHTML = 'Time remaining: <strong id="timerValue">' + timeLeft + '</strong>s';
+        }
+      }
+
+      // If auto-advance is ON, check if countdown started
+      if (voterAutoAdvanceOn) {
+        if (stateData.countdownStarted && !voterCountdownStarted) {
+          // 10-second countdown started
+          voterCountdownStarted = true;
+          timeLeft = 10;
+          timerDisplay.style.display = 'block';
+          timerText.innerHTML = '70% voted! Auto-advancing in: <strong id="timerValue">' + timeLeft + '</strong>s';
+          timerDisplay.style.background = '#667eea';
+        } else if (!stateData.countdownStarted) {
+          // Still waiting for threshold
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Error checking state:', error);
+    }
+
+    // Skip countdown if auto-advance is on but countdown hasn't started
+    if (voterAutoAdvanceOn && !voterCountdownStarted) {
+      return;
+    }
+
     timeLeft--;
+    voterSavedTimeLeft = timeLeft;
     const currentTimerValue = document.getElementById('timerValue');
     if (currentTimerValue) {
       currentTimerValue.textContent = timeLeft;
     }
 
-    // Change color as time runs out
-    if (timeLeft <= 10) {
-      timerDisplay.style.background = '#e53e3e';
-    } else if (timeLeft <= 30) {
-      timerDisplay.style.background = '#ed8936';
+    // Change color as time runs out (only for normal mode)
+    if (!voterAutoAdvanceOn || !voterCountdownStarted) {
+      if (timeLeft <= 10) {
+        timerDisplay.style.background = '#e53e3e';
+      } else if (timeLeft <= 30) {
+        timerDisplay.style.background = '#ed8936';
+      }
     }
 
     if (timeLeft <= 0) {
