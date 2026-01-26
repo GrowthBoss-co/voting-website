@@ -210,21 +210,14 @@
               <div id="ratingsList" class="ratings-list"></div>
             </div>
 
-            <div style="margin: 15px 0; padding: 10px; background: #f8f9fa; border-radius: 8px;">
-              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 10px;">
-                <input type="checkbox" id="exposeThem" style="width: auto; cursor: pointer;" />
-                <span>Expose them 😎</span>
-              </label>
-              <small style="color: #666; display: block; margin-bottom: 15px">
-                Check this to reveal who was the last person to vote on this poll in the final results
-              </small>
-
-              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                <input type="checkbox" id="exposeThemV2" style="width: auto; cursor: pointer;" />
-                <span>Expose them v2 😎</span>
-              </label>
-              <small style="color: #666; display: block; margin-top: 5px">
-                Check this to reveal who did NOT vote on this poll in the final results
+            <div id="exposeStatusPanel" style="margin: 15px 0; padding: 10px; background: #f8f9fa; border-radius: 8px;">
+              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                <span style="font-weight: 600; color: #667eea;">Expose Vote:</span>
+                <span id="exposeVoteCount">0</span> / <span id="exposeVoteNeeded">0</span> votes
+                <span id="exposeStatus" style="margin-left: 10px; padding: 3px 8px; border-radius: 12px; font-size: 12px; background: #e2e8f0;">Not triggered</span>
+              </div>
+              <small style="color: #666; display: block;">
+                Voters can vote to reveal who hasn't voted yet. Requires 50% of attendance to trigger.
               </small>
             </div>
 

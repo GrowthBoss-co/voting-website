@@ -405,3 +405,124 @@ function preloadCarouselImages(mediaItems) {
     }
   });
 }
+
+// Expose voting functionality
+let hasVotedToExpose = false;
+let exposePollingInterval = null;
+
+// Fetch and update expose status
+async function fetchExposeStatus() {
+  if (!currentPoll) return;
+
+  try {
+    const response = await fetch(`/api/session/${sessionId}/expose-status/${currentPoll.id}?voterId=${voterId}`);
+    const data = await response.json();
+
+    // Update vote counts
+    document.getElementById('exposeVoteCount').textContent = data.exposeVoteCount;
+    document.getElementById('exposeVoteNeeded').textContent = data.thresholdNeeded;
+
+    // Update button state
+    hasVotedToExpose = data.hasVotedToExpose;
+    const exposeBtn = document.getElementById('voteExposeBtn');
+    if (hasVotedToExpose) {
+      exposeBtn.textContent = 'Voted';
+      exposeBtn.disabled = true;
+      exposeBtn.style.background = '#c3e6cb';
+      exposeBtn.style.color = '#155724';
+    }
+
+    // Show exposed result if threshold reached
+    if (data.thresholdReached && data.exposedData) {
+      const resultDiv = document.getElementById('exposedResult');
+      const titleEl = document.getElementById('exposedTitle');
+      const namesEl = document.getElementById('exposedNames');
+
+      resultDiv.classList.remove('hidden');
+
+      if (data.exposedData.type === 'lastVoter') {
+        titleEl.textContent = 'Last Voter Revealed!';
+        namesEl.textContent = data.exposedData.name;
+      } else if (data.exposedData.type === 'nonVoters') {
+        titleEl.textContent = 'Who Hasn\'t Voted Yet:';
+        if (data.exposedData.names.length > 0) {
+          namesEl.textContent = data.exposedData.names.join(', ');
+        } else {
+          namesEl.textContent = 'Everyone has voted!';
+        }
+      }
+    } else {
+      document.getElementById('exposedResult').classList.add('hidden');
+    }
+  } catch (error) {
+    console.error('Error fetching expose status:', error);
+  }
+}
+
+// Handle vote to expose button click
+document.getElementById('voteExposeBtn').addEventListener('click', async () => {
+  if (!currentPoll || hasVotedToExpose) return;
+
+  try {
+    const response = await fetch(`/api/session/${sessionId}/vote-expose`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        pollId: currentPoll.id,
+        voterId: voterId
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      hasVotedToExpose = true;
+      const exposeBtn = document.getElementById('voteExposeBtn');
+      exposeBtn.textContent = 'Voted';
+      exposeBtn.disabled = true;
+      exposeBtn.style.background = '#c3e6cb';
+      exposeBtn.style.color = '#155724';
+
+      // Update counts immediately
+      document.getElementById('exposeVoteCount').textContent = data.exposeVoteCount;
+    }
+  } catch (error) {
+    console.error('Error voting to expose:', error);
+  }
+});
+
+// Start expose polling when a poll is displayed
+function startExposePolling() {
+  if (exposePollingInterval) {
+    clearInterval(exposePollingInterval);
+  }
+
+  // Reset expose state for new poll
+  hasVotedToExpose = false;
+  const exposeBtn = document.getElementById('voteExposeBtn');
+  exposeBtn.textContent = 'Vote to Reveal';
+  exposeBtn.disabled = false;
+  exposeBtn.style.background = '#ffc107';
+  exposeBtn.style.color = '#856404';
+  document.getElementById('exposedResult').classList.add('hidden');
+
+  // Initial fetch
+  fetchExposeStatus();
+
+  // Poll every 2 seconds
+  exposePollingInterval = setInterval(fetchExposeStatus, 2000);
+}
+
+// Modify displayPoll to start expose polling
+const originalDisplayPoll = displayPoll;
+displayPoll = function(poll, hasVoted, voterRating) {
+  originalDisplayPoll(poll, hasVoted, voterRating);
+  startExposePolling();
+};
+
+// Clean up on page unload
+window.addEventListener('beforeunload', () => {
+  if (exposePollingInterval) {
+    clearInterval(exposePollingInterval);
+  }
+});

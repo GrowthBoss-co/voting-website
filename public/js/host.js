@@ -1069,16 +1069,11 @@ async function startPoll(pollIndex) {
     document.getElementById('pollProgress').textContent =
       `Poll ${pollIndex + 1} of ${polls.length}`;
 
-    // Reset the expose them checkboxes for this poll
-    const exposeThemCheckbox = document.getElementById('exposeThem');
-    if (exposeThemCheckbox) {
-      exposeThemCheckbox.checked = currentPoll.exposeThem || false;
-    }
-
-    const exposeThemV2Checkbox = document.getElementById('exposeThemV2');
-    if (exposeThemV2Checkbox) {
-      exposeThemV2Checkbox.checked = currentPoll.exposeThemV2 || false;
-    }
+    // Reset expose vote display for this poll
+    document.getElementById('exposeVoteCount').textContent = '0';
+    document.getElementById('exposeVoteNeeded').textContent = Math.ceil(expectedAttendance * 0.5);
+    document.getElementById('exposeStatus').textContent = 'Not triggered';
+    document.getElementById('exposeStatus').style.background = '#e2e8f0';
 
     // Add toggle listener to stop carousel/video timeouts when turned off
     const autoAdvanceToggle = document.getElementById('autoAdvanceToggle');
@@ -1287,6 +1282,24 @@ async function updateResults() {
     // Hide individual ratings during live voting
     const ratingsList = document.getElementById('ratingsList');
     ratingsList.innerHTML = '';
+
+    // Fetch and update expose status
+    const exposeResponse = await fetch(`/api/session/${sessionId}/expose-status/${currentPoll.id}`);
+    const exposeData = await exposeResponse.json();
+
+    document.getElementById('exposeVoteCount').textContent = exposeData.exposeVoteCount;
+    document.getElementById('exposeVoteNeeded').textContent = exposeData.thresholdNeeded;
+
+    const exposeStatus = document.getElementById('exposeStatus');
+    if (exposeData.thresholdReached) {
+      exposeStatus.textContent = 'Revealed!';
+      exposeStatus.style.background = '#f8d7da';
+      exposeStatus.style.color = '#721c24';
+    } else {
+      exposeStatus.textContent = 'Not triggered';
+      exposeStatus.style.background = '#e2e8f0';
+      exposeStatus.style.color = '#4a5568';
+    }
   } catch (error) {
     console.error('Error fetching results:', error);
   }
@@ -1300,37 +1313,6 @@ async function saveCompletedPoll() {
   stopVideoEndTimeout();
 
   try {
-    // Save the exposeThem and exposeThemV2 status from the checkboxes to the current poll
-    const exposeThemCheckbox = document.getElementById('exposeThem');
-    const exposeThemValue = exposeThemCheckbox ? exposeThemCheckbox.checked : false;
-
-    const exposeThemV2Checkbox = document.getElementById('exposeThemV2');
-    const exposeThemV2Value = exposeThemV2Checkbox ? exposeThemV2Checkbox.checked : false;
-
-    // Update the poll with exposeThem and exposeThemV2 status
-    const pollIndex = polls.findIndex(p => p.id === currentPoll.id);
-    if (pollIndex !== -1) {
-      const updateResponse = await fetch(`/api/session/${sessionId}/poll/${pollIndex}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          creator: currentPoll.creator,
-          company: currentPoll.company,
-          mediaItems: currentPoll.mediaItems,
-          timer: currentPoll.timer,
-          exposeThem: exposeThemValue,
-          exposeThemV2: exposeThemV2Value
-        })
-      });
-
-      if (updateResponse.ok) {
-        const updatedData = await updateResponse.json();
-        polls[pollIndex] = updatedData.poll;
-        currentPoll.exposeThem = exposeThemValue;
-        currentPoll.exposeThemV2 = exposeThemV2Value;
-      }
-    }
-
     const response = await fetch(`/api/session/${sessionId}/results/${currentPoll.id}`);
     const data = await response.json();
 

@@ -1256,6 +1256,113 @@ app.post('/api/session/:sessionId/clear-ready', async (req, res) => {
   }
 });
 
+// Vote to expose (voter wants to reveal who hasn't voted)
+app.post('/api/session/:sessionId/vote-expose', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { pollId, voterId } = req.body;
+
+    const session = await getSession(sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Initialize exposeVotes for this poll if not exists
+    if (!session.exposeVotes) {
+      session.exposeVotes = {};
+    }
+    if (!session.exposeVotes[pollId]) {
+      session.exposeVotes[pollId] = [];
+    }
+
+    // Add voter if not already voted to expose
+    if (!session.exposeVotes[pollId].includes(voterId)) {
+      session.exposeVotes[pollId].push(voterId);
+    }
+
+    await saveSession(sessionId, session);
+
+    // Calculate if threshold reached (50% of expected attendance)
+    const expectedAttendance = session.expectedAttendance || 10;
+    const exposeVoteCount = session.exposeVotes[pollId].length;
+    const thresholdNeeded = Math.ceil(expectedAttendance * 0.5);
+    const thresholdReached = exposeVoteCount >= thresholdNeeded;
+
+    res.json({
+      success: true,
+      exposeVoteCount,
+      thresholdNeeded,
+      thresholdReached
+    });
+  } catch (error) {
+    console.error('Error voting to expose:', error);
+    res.status(500).json({ error: 'Failed to vote to expose' });
+  }
+});
+
+// Get expose status for a poll
+app.get('/api/session/:sessionId/expose-status/:pollId', async (req, res) => {
+  try {
+    const { sessionId, pollId } = req.params;
+    const { voterId } = req.query;
+
+    const session = await getSession(sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const expectedAttendance = session.expectedAttendance || 10;
+    const exposeVotes = session.exposeVotes?.[pollId] || [];
+    const exposeVoteCount = exposeVotes.length;
+    const thresholdNeeded = Math.ceil(expectedAttendance * 0.5);
+    const thresholdReached = exposeVoteCount >= thresholdNeeded;
+    const hasVotedToExpose = voterId ? exposeVotes.includes(voterId) : false;
+
+    // Get poll votes to determine what to expose
+    const pollVotes = session.votes.get(pollId);
+    const totalVotes = pollVotes ? pollVotes.size : 0;
+
+    let exposedData = null;
+    if (thresholdReached) {
+      if (totalVotes >= expectedAttendance) {
+        // Everyone voted - find last voter
+        const poll = session.polls.find(p => p.id === pollId);
+        if (poll && poll.lastVoter) {
+          exposedData = {
+            type: 'lastVoter',
+            name: poll.lastVoter.email
+          };
+        }
+      } else {
+        // Not everyone voted - find who didn't vote
+        const voterIds = pollVotes ? Array.from(pollVotes.keys()) : [];
+        const allVoters = Array.from(session.voters.entries());
+        const nonVoters = allVoters
+          .filter(([vId]) => !voterIds.includes(vId))
+          .map(([, name]) => name);
+
+        exposedData = {
+          type: 'nonVoters',
+          names: nonVoters
+        };
+      }
+    }
+
+    res.json({
+      exposeVoteCount,
+      thresholdNeeded,
+      thresholdReached,
+      hasVotedToExpose,
+      exposedData,
+      totalVotes,
+      expectedAttendance
+    });
+  } catch (error) {
+    console.error('Error getting expose status:', error);
+    res.status(500).json({ error: 'Failed to get expose status' });
+  }
+});
+
 // Update session attendance
 app.put('/api/session/:sessionId/attendance', async (req, res) => {
   try {
