@@ -1120,12 +1120,11 @@ async function startPoll(pollIndex) {
       if (item.type === 'video') {
         let videoUrl = item.url;
         if (isAutoAdvanceEnabled) {
+          // Try autoplay without mute - may work if user has interacted with page
           if (videoUrl.includes('youtube.com/embed/')) {
-            videoUrl += (videoUrl.includes('?') ? '&' : '?') + 'autoplay=1&mute=1&enablejsapi=1';
-          }
-          if (videoUrl.includes('drive.google.com')) {
             videoUrl += (videoUrl.includes('?') ? '&' : '?') + 'autoplay=1';
           }
+          // Google Drive doesn't support autoplay parameter but we can try
         }
         mediaContainer.innerHTML = `
           <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
@@ -1133,7 +1132,6 @@ async function startPoll(pollIndex) {
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen>
             </iframe>
           </div>
-          ${isAutoAdvanceEnabled ? '<p style="text-align: center; color: #666; font-size: 12px; margin-top: 5px;">Video autoplays muted. Click video to unmute.</p>' : ''}
         `;
       } else {
         mediaContainer.innerHTML = `
@@ -1830,15 +1828,11 @@ function renderHostCarouselItem(index) {
     // Add autoplay parameter if auto-advance is enabled
     let videoUrl = item.url;
     if (isAutoAdvanceEnabled) {
-      // For YouTube embeds, add autoplay with mute (required by most browsers)
-      // Host can unmute manually after video starts
+      // Try autoplay without mute - may work if user has interacted with page
       if (videoUrl.includes('youtube.com/embed/')) {
-        videoUrl += (videoUrl.includes('?') ? '&' : '?') + 'autoplay=1&mute=1&enablejsapi=1';
-      }
-      // For Google Drive, try adding autoplay parameter
-      if (videoUrl.includes('drive.google.com')) {
         videoUrl += (videoUrl.includes('?') ? '&' : '?') + 'autoplay=1';
       }
+      // Google Drive doesn't reliably support autoplay
     }
 
     content.innerHTML = `
@@ -1847,7 +1841,6 @@ function renderHostCarouselItem(index) {
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen>
         </iframe>
       </div>
-      ${isAutoAdvanceEnabled ? '<p style="text-align: center; color: #666; font-size: 12px; margin-top: 5px;">Video autoplays muted. Click video to unmute.</p>' : ''}
     `;
 
     // In auto-advance mode with video carousel, pause auto-carousel

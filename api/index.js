@@ -770,11 +770,11 @@ app.post('/api/session/:sessionId/vote', async (req, res) => {
   pollVotes.set(voterId, ratingValue);
   session.votes.set(pollId, pollVotes);
 
-  // If exposeThem is true for this poll, track the last voter
-  if (poll && poll.exposeThem) {
+  // Always track the last voter for the reveal feature
+  if (poll) {
     const voterEmail = session.voters.get(voterId);
     poll.lastVoter = {
-      email: voterEmail,
+      email: voterEmail || 'Unknown',
       timestamp: Date.now()
     };
   }
