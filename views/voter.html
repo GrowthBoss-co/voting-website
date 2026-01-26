@@ -20,8 +20,18 @@
         </div>
 
         <div id="votingScreen" class="voting-screen hidden">
-          <div class="timer-display" id="timerDisplay">
-            <span id="timerText">Time remaining: <strong id="timerValue">60</strong>s</span>
+          <div style="display: flex; align-items: center; gap: 10px; justify-content: center; flex-wrap: wrap;">
+            <div class="timer-display" id="timerDisplay">
+              <span id="timerText">Time remaining: <strong id="timerValue">60</strong>s</span>
+            </div>
+            <div id="adminControls" class="hidden" style="display: none; gap: 5px;">
+              <button id="voterPauseBtn" onclick="voterTogglePause()" class="btn btn-small" style="background: #ed8936; color: white; padding: 5px 10px; font-size: 12px;">
+                Pause
+              </button>
+              <button id="voterSkipBtn" onclick="voterSkipPoll()" class="btn btn-small" style="background: #e53e3e; color: white; padding: 5px 10px; font-size: 12px;">
+                Skip
+              </button>
+            </div>
           </div>
           <h2 id="pollTitle"></h2>
           <div id="pollMedia" class="media-container"></div>

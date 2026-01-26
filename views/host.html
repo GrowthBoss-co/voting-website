@@ -185,8 +185,18 @@
         <div class="voting-section hidden" id="votingSection">
           <div class="current-poll">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-              <div class="timer-display" id="timerDisplay" style="margin-bottom: 0;">
-                <span id="timerText">Time remaining: <strong id="timerValue">60</strong>s</span>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div class="timer-display" id="timerDisplay" style="margin-bottom: 0;">
+                  <span id="timerText">Time remaining: <strong id="timerValue">60</strong>s</span>
+                </div>
+                <div id="timerControls" style="display: flex; gap: 5px;">
+                  <button id="pauseTimerBtn" onclick="togglePauseTimer()" class="btn btn-small" style="background: #ed8936; color: white; padding: 5px 10px;">
+                    Pause
+                  </button>
+                  <button id="skipPollBtn" onclick="skipToNextPoll()" class="btn btn-small" style="background: #e53e3e; color: white; padding: 5px 10px;">
+                    Skip
+                  </button>
+                </div>
               </div>
               <div class="attendance-display" style="background: #667eea; color: white; padding: 8px 15px; border-radius: 20px; font-weight: 600; cursor: pointer;" onclick="showUpdateAttendanceDialog()" title="Click to update">
                 Attendance: <span id="currentAttendance">0</span>

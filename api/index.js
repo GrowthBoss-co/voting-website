@@ -1268,11 +1268,117 @@ app.get('/api/session/:sessionId/auto-advance-state', async (req, res) => {
 
     res.json({
       autoAdvanceOn: session.autoAdvanceOn || false,
-      countdownStarted: session.countdownStarted || false
+      countdownStarted: session.countdownStarted || false,
+      timerPaused: session.timerPaused || false,
+      pausedTimeLeft: session.pausedTimeLeft || null
     });
   } catch (error) {
     console.error('Error getting auto-advance state:', error);
     res.status(500).json({ error: 'Failed to get auto-advance state' });
+  }
+});
+
+// Pause timer (host or authorized voters)
+app.post('/api/session/:sessionId/pause-timer', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { voterName, timeLeft } = req.body;
+
+    // Check if voter is authorized (host doesn't need voterName)
+    const authorizedVoters = ['Karol Trojanowski', 'Adrielle Souza'];
+    if (voterName && !authorizedVoters.includes(voterName)) {
+      return res.status(403).json({ error: 'Not authorized to pause timer' });
+    }
+
+    const session = await getSession(sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    session.timerPaused = true;
+    session.pausedTimeLeft = timeLeft;
+    await saveSession(sessionId, session);
+
+    res.json({ success: true, timerPaused: true });
+  } catch (error) {
+    console.error('Error pausing timer:', error);
+    res.status(500).json({ error: 'Failed to pause timer' });
+  }
+});
+
+// Resume timer (host or authorized voters)
+app.post('/api/session/:sessionId/resume-timer', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { voterName } = req.body;
+
+    // Check if voter is authorized
+    const authorizedVoters = ['Karol Trojanowski', 'Adrielle Souza'];
+    if (voterName && !authorizedVoters.includes(voterName)) {
+      return res.status(403).json({ error: 'Not authorized to resume timer' });
+    }
+
+    const session = await getSession(sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    session.timerPaused = false;
+    await saveSession(sessionId, session);
+
+    res.json({ success: true, timerPaused: false, timeLeft: session.pausedTimeLeft });
+  } catch (error) {
+    console.error('Error resuming timer:', error);
+    res.status(500).json({ error: 'Failed to resume timer' });
+  }
+});
+
+// Skip to next poll (host or authorized voters)
+app.post('/api/session/:sessionId/skip-poll', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { voterName } = req.body;
+
+    // Check if voter is authorized
+    const authorizedVoters = ['Karol Trojanowski', 'Adrielle Souza'];
+    if (voterName && !authorizedVoters.includes(voterName)) {
+      return res.status(403).json({ error: 'Not authorized to skip poll' });
+    }
+
+    const session = await getSession(sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Signal that skip was requested
+    session.skipRequested = true;
+    session.timerPaused = false;
+    await saveSession(sessionId, session);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error skipping poll:', error);
+    res.status(500).json({ error: 'Failed to skip poll' });
+  }
+});
+
+// Clear skip request
+app.post('/api/session/:sessionId/clear-skip', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const session = await getSession(sessionId);
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    session.skipRequested = false;
+    await saveSession(sessionId, session);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error clearing skip:', error);
+    res.status(500).json({ error: 'Failed to clear skip' });
   }
 });
 

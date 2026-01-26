@@ -2,12 +2,27 @@ const sessionId = window.location.pathname.split('/')[2];
 
 let currentPoll = null;
 const voterId = localStorage.getItem(`voterId_${sessionId}`);
+const voterName = localStorage.getItem(`voterEmail_${sessionId}`);
 let pollingInterval = null;
 let lastPollId = null;
 let timerInterval = null;
+let isVoterTimerPaused = false;
+
+// Authorized voters who can pause/skip
+const authorizedVoters = ['Karol Trojanowski', 'Adrielle Souza'];
+const isAuthorizedVoter = authorizedVoters.includes(voterName);
 
 if (!voterId) {
   window.location.href = '/join-session';
+}
+
+// Show admin controls for authorized voters
+if (isAuthorizedVoter) {
+  const adminControls = document.getElementById('adminControls');
+  if (adminControls) {
+    adminControls.classList.remove('hidden');
+    adminControls.style.display = 'flex';
+  }
 }
 
 const ratingSlider = document.getElementById('ratingSlider');
@@ -419,6 +434,32 @@ async function fetchExposeStatus() {
     const stateResponse = await fetch(`/api/session/${sessionId}/auto-advance-state`);
     const stateData = await stateResponse.json();
 
+    // Update pause button state for authorized voters
+    if (isAuthorizedVoter) {
+      const pauseBtn = document.getElementById('voterPauseBtn');
+      if (stateData.timerPaused !== isVoterTimerPaused) {
+        isVoterTimerPaused = stateData.timerPaused;
+        if (isVoterTimerPaused) {
+          pauseBtn.textContent = 'Resume';
+          pauseBtn.style.background = '#48bb78';
+        } else {
+          pauseBtn.textContent = 'Pause';
+          pauseBtn.style.background = '#ed8936';
+        }
+      }
+    }
+
+    // Update timer display if paused
+    const timerText = document.getElementById('timerText');
+    const timerDisplay = document.getElementById('timerDisplay');
+    if (stateData.timerPaused && timerText && timerDisplay) {
+      if (!timerText.innerHTML.includes('PAUSED')) {
+        const currentTime = stateData.pausedTimeLeft || document.getElementById('timerValue')?.textContent || '0';
+        timerText.innerHTML = '⏸️ PAUSED - <strong id="timerValue">' + currentTime + '</strong>s';
+        timerDisplay.style.background = '#718096';
+      }
+    }
+
     const response = await fetch(`/api/session/${sessionId}/expose-status/${currentPoll.id}?voterId=${voterId}&autoAdvanceOn=${stateData.autoAdvanceOn}&countdownStarted=${stateData.countdownStarted}`);
     const data = await response.json();
 
@@ -541,3 +582,68 @@ window.addEventListener('beforeunload', () => {
     clearInterval(exposePollingInterval);
   }
 });
+
+// Voter pause/resume timer (for authorized voters)
+async function voterTogglePause() {
+  if (!isAuthorizedVoter) return;
+
+  const pauseBtn = document.getElementById('voterPauseBtn');
+
+  if (isVoterTimerPaused) {
+    // Resume timer
+    try {
+      const response = await fetch(`/api/session/${sessionId}/resume-timer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voterName })
+      });
+
+      if (response.ok) {
+        isVoterTimerPaused = false;
+        pauseBtn.textContent = 'Pause';
+        pauseBtn.style.background = '#ed8936';
+      }
+    } catch (error) {
+      console.error('Error resuming timer:', error);
+    }
+  } else {
+    // Pause timer - get current time from display
+    const timerValue = document.getElementById('timerValue');
+    const currentTime = timerValue ? parseInt(timerValue.textContent) : 0;
+
+    try {
+      const response = await fetch(`/api/session/${sessionId}/pause-timer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voterName, timeLeft: currentTime })
+      });
+
+      if (response.ok) {
+        isVoterTimerPaused = true;
+        pauseBtn.textContent = 'Resume';
+        pauseBtn.style.background = '#48bb78';
+      }
+    } catch (error) {
+      console.error('Error pausing timer:', error);
+    }
+  }
+}
+
+// Voter skip poll (for authorized voters)
+async function voterSkipPoll() {
+  if (!isAuthorizedVoter) return;
+
+  if (!confirm('Skip to the next poll?')) return;
+
+  try {
+    await fetch(`/api/session/${sessionId}/skip-poll`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ voterName })
+    });
+
+    // The host will handle the actual skip, voter just triggers it
+  } catch (error) {
+    console.error('Error skipping poll:', error);
+  }
+}

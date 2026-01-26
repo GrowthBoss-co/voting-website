@@ -24,6 +24,8 @@ let originalTimerDuration = 60;
 let savedTimeLeft = null;
 let isAutoAdvanceOn = false;
 let countdownStarted = false; // Track if 10-second countdown has started
+let isTimerPaused = false;
+let currentTimeLeft = 0;
 
 document.getElementById('sessionId').textContent = sessionId;
 
@@ -1141,6 +1143,15 @@ function startTimer(duration) {
   hasReachedThreshold = false;
   countdownStarted = false;
   savedTimeLeft = null;
+  isTimerPaused = false;
+  currentTimeLeft = duration;
+
+  // Reset pause button
+  const pauseBtn = document.getElementById('pauseTimerBtn');
+  if (pauseBtn) {
+    pauseBtn.textContent = 'Pause';
+    pauseBtn.style.background = '#ed8936';
+  }
 
   const timerValue = document.getElementById('timerValue');
   const timerDisplay = document.getElementById('timerDisplay');
@@ -1196,6 +1207,14 @@ function startTimer(duration) {
       syncAutoAdvanceState(); // Sync to server for voters
     }
 
+    // Skip if timer is paused
+    if (isTimerPaused) {
+      return;
+    }
+
+    // Track current time for pause functionality
+    currentTimeLeft = timeLeft;
+
     if (isAutoAdvanceOn) {
       // Auto-advance mode: wait for 70% vote threshold
       if (!hasReachedThreshold && totalVotersInSession > 0) {
@@ -1208,6 +1227,7 @@ function startTimer(duration) {
           hasReachedThreshold = true;
           countdownStarted = true;
           timeLeft = 10;
+          currentTimeLeft = timeLeft;
           timerDisplay.style.display = 'block';
           timerText.innerHTML = '70% voted! Auto-advancing in: <strong id="timerValue">' + timeLeft + '</strong>s';
           timerDisplay.style.background = '#667eea';
@@ -1216,6 +1236,7 @@ function startTimer(duration) {
       } else if (hasReachedThreshold) {
         // 10-second countdown
         timeLeft--;
+        currentTimeLeft = timeLeft;
         const timerValueEl = document.getElementById('timerValue');
         if (timerValueEl) timerValueEl.textContent = timeLeft;
         timerDisplay.style.background = '#667eea';
@@ -1234,6 +1255,7 @@ function startTimer(duration) {
     } else {
       // Normal mode: countdown timer
       timeLeft--;
+      currentTimeLeft = timeLeft;
       savedTimeLeft = timeLeft; // Keep track for potential toggle
       const timerValueEl = document.getElementById('timerValue');
       if (timerValueEl) timerValueEl.textContent = timeLeft;
@@ -1273,6 +1295,68 @@ async function syncAutoAdvanceState() {
     });
   } catch (error) {
     console.error('Error syncing auto-advance state:', error);
+  }
+}
+
+// Toggle pause/resume timer
+async function togglePauseTimer() {
+  const pauseBtn = document.getElementById('pauseTimerBtn');
+
+  if (isTimerPaused) {
+    // Resume timer
+    try {
+      const response = await fetch(`/api/session/${sessionId}/resume-timer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+
+      if (response.ok) {
+        isTimerPaused = false;
+        pauseBtn.textContent = 'Pause';
+        pauseBtn.style.background = '#ed8936';
+      }
+    } catch (error) {
+      console.error('Error resuming timer:', error);
+    }
+  } else {
+    // Pause timer
+    try {
+      const response = await fetch(`/api/session/${sessionId}/pause-timer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ timeLeft: currentTimeLeft })
+      });
+
+      if (response.ok) {
+        isTimerPaused = true;
+        pauseBtn.textContent = 'Resume';
+        pauseBtn.style.background = '#48bb78';
+      }
+    } catch (error) {
+      console.error('Error pausing timer:', error);
+    }
+  }
+}
+
+// Skip to next poll
+async function skipToNextPoll() {
+  if (!confirm('Skip to the next poll?')) return;
+
+  try {
+    await fetch(`/api/session/${sessionId}/skip-poll`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+
+    // Trigger the next button click
+    const nextBtn = document.getElementById('nextPollBtn');
+    if (nextBtn) {
+      nextBtn.click();
+    }
+  } catch (error) {
+    console.error('Error skipping poll:', error);
   }
 }
 
@@ -1372,6 +1456,28 @@ async function updateResults() {
       exposeStatus.textContent = 'Not triggered';
       exposeStatus.style.background = '#e2e8f0';
       exposeStatus.style.color = '#4a5568';
+    }
+
+    // Check for timer pause/skip from authorized voters
+    const stateResponse = await fetch(`/api/session/${sessionId}/auto-advance-state`);
+    const stateData = await stateResponse.json();
+
+    // Update pause button state if changed by voter
+    const pauseBtn = document.getElementById('pauseTimerBtn');
+    if (stateData.timerPaused !== isTimerPaused) {
+      isTimerPaused = stateData.timerPaused;
+      if (isTimerPaused) {
+        pauseBtn.textContent = 'Resume';
+        pauseBtn.style.background = '#48bb78';
+        // Update timer display to show paused
+        const timerText = document.getElementById('timerText');
+        if (timerText && !timerText.innerHTML.includes('PAUSED')) {
+          timerText.innerHTML = '⏸️ PAUSED - <strong id="timerValue">' + currentTimeLeft + '</strong>s';
+        }
+      } else {
+        pauseBtn.textContent = 'Pause';
+        pauseBtn.style.background = '#ed8936';
+      }
     }
   } catch (error) {
     console.error('Error fetching results:', error);
