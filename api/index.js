@@ -837,11 +837,13 @@ app.get('/api/session/:sessionId/results/:pollId', async (req, res) => {
 // Get creator and company lists
 app.get('/api/host/lists', checkHostAuth, async (req, res) => {
   try {
-    const creators = (await redis.get('host:creators')) || [
+    const defaultCreators = [
       'Crizan Leone',
       'Isaac Brito',
       'Vinicius Freitas'
     ];
+    const storedCreators = await redis.get('host:creators');
+    const creators = (storedCreators && storedCreators.length > 0) ? storedCreators : defaultCreators;
     const companies = (await redis.get('host:companies')) || [];
 
     res.json({ creators, companies });
@@ -860,11 +862,13 @@ app.post('/api/host/creators', checkHostAuth, async (req, res) => {
       return res.status(400).json({ error: 'Creator name is required' });
     }
 
-    const creators = (await redis.get('host:creators')) || [
+    const defaultCreators = [
       'Crizan Leone',
       'Isaac Brito',
       'Vinicius Freitas'
     ];
+    const storedCreators = await redis.get('host:creators');
+    const creators = (storedCreators && storedCreators.length > 0) ? storedCreators : defaultCreators;
 
     const trimmedName = name.trim();
 
@@ -887,11 +891,13 @@ app.post('/api/host/creators', checkHostAuth, async (req, res) => {
 app.delete('/api/host/creators/:name', checkHostAuth, async (req, res) => {
   try {
     const { name } = req.params;
-    const creators = (await redis.get('host:creators')) || [
+    const defaultCreators = [
       'Crizan Leone',
       'Isaac Brito',
       'Vinicius Freitas'
     ];
+    const storedCreators = await redis.get('host:creators');
+    const creators = (storedCreators && storedCreators.length > 0) ? storedCreators : defaultCreators;
 
     const filtered = creators.filter(c => c !== decodeURIComponent(name));
 
@@ -977,7 +983,8 @@ app.get('/api/host/voters', checkHostAuth, async (req, res) => {
       'Thamires Martins',
       'Vinicius Freitas'
     ];
-    const voters = (await redis.get('host:voter-names')) || defaultVoters;
+    const storedVoters = await redis.get('host:voter-names');
+    const voters = (storedVoters && storedVoters.length > 0) ? storedVoters : defaultVoters;
     res.json({ voters });
   } catch (error) {
     console.error('Error fetching voter names:', error);
@@ -1001,7 +1008,8 @@ app.get('/api/voter-names', async (req, res) => {
       'Thamires Martins',
       'Vinicius Freitas'
     ];
-    const voters = (await redis.get('host:voter-names')) || defaultVoters;
+    const storedVoters = await redis.get('host:voter-names');
+    const voters = (storedVoters && storedVoters.length > 0) ? storedVoters : defaultVoters;
     res.json({ voters });
   } catch (error) {
     console.error('Error fetching voter names:', error);
@@ -1031,7 +1039,8 @@ app.post('/api/host/voters', checkHostAuth, async (req, res) => {
       'Thamires Martins',
       'Vinicius Freitas'
     ];
-    const voters = (await redis.get('host:voter-names')) || defaultVoters;
+    const storedVoters = await redis.get('host:voter-names');
+    const voters = (storedVoters && storedVoters.length > 0) ? storedVoters : defaultVoters;
 
     const trimmedName = name.trim();
 
@@ -1067,7 +1076,8 @@ app.delete('/api/host/voters/:name', checkHostAuth, async (req, res) => {
       'Thamires Martins',
       'Vinicius Freitas'
     ];
-    const voters = (await redis.get('host:voter-names')) || defaultVoters;
+    const storedVoters = await redis.get('host:voter-names');
+    const voters = (storedVoters && storedVoters.length > 0) ? storedVoters : defaultVoters;
 
     const filtered = voters.filter(v => v !== decodeURIComponent(name));
 
