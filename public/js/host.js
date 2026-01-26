@@ -1729,9 +1729,10 @@ function renderHostCarouselItem(index) {
     // Add autoplay parameter if auto-advance is enabled
     let videoUrl = item.url;
     if (isAutoAdvanceEnabled) {
-      // For YouTube embeds, add autoplay parameter (mute=1 required for autoplay to work)
+      // For YouTube embeds, add autoplay parameter
+      // Try unmuted first - should work since host has interacted with the page
       if (videoUrl.includes('youtube.com/embed/')) {
-        videoUrl += (videoUrl.includes('?') ? '&' : '?') + 'autoplay=1&mute=1';
+        videoUrl += (videoUrl.includes('?') ? '&' : '?') + 'autoplay=1';
       }
       // For Google Drive, try adding autoplay parameter
       if (videoUrl.includes('drive.google.com')) {
