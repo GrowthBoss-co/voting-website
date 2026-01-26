@@ -363,8 +363,43 @@ app.post('/api/automation/add-poll', async (req, res) => {
       return res.status(404).json({ error: 'Session not found' });
     }
 
-    // Process Google Drive links into mediaItems
+    // Process links into mediaItems (supports Google Drive, YouTube, and image URLs)
     const mediaItems = linksArray.map(link => {
+      // Check for YouTube embed URL
+      if (link.includes('youtube.com/embed/')) {
+        return {
+          url: link,
+          type: 'video'
+        };
+      }
+
+      // Check for YouTube watch URL - convert to embed
+      const ytWatchMatch = link.match(/youtube\.com\/watch\?v=([^&]+)/);
+      if (ytWatchMatch) {
+        return {
+          url: `https://www.youtube.com/embed/${ytWatchMatch[1]}`,
+          type: 'video'
+        };
+      }
+
+      // Check for YouTube short URL - convert to embed
+      const ytShortMatch = link.match(/youtu\.be\/([^?]+)/);
+      if (ytShortMatch) {
+        return {
+          url: `https://www.youtube.com/embed/${ytShortMatch[1]}`,
+          type: 'video'
+        };
+      }
+
+      // Check for image URLs (imgur, etc.)
+      if (link.match(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i) || link.includes('i.imgur.com')) {
+        return {
+          url: link,
+          type: 'image'
+        };
+      }
+
+      // Handle Google Drive URLs
       let fileId = null;
 
       // Extract file ID from various Google Drive URL formats
@@ -380,13 +415,18 @@ app.post('/api/automation/add-poll', async (req, res) => {
         fileId = match2[1];
       }
 
-      if (!fileId) {
-        throw new Error(`Could not extract Google Drive file ID from: ${link}`);
+      if (fileId) {
+        return {
+          url: `https://drive.google.com/file/d/${fileId}/preview`,
+          type: 'video'
+        };
       }
 
+      // If no pattern matched, assume it's a direct URL and try to detect type
+      const isVideo = link.match(/\.(mp4|mov|avi|webm|mkv)(\?|$)/i);
       return {
-        url: `https://drive.google.com/file/d/${fileId}/preview`,
-        type: 'video'
+        url: link,
+        type: isVideo ? 'video' : 'image'
       };
     });
 
