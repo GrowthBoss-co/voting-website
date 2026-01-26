@@ -1935,19 +1935,19 @@ function renderHostCarouselItem(index) {
 
   stopVideoEndTimeout(); // Clear any existing timeout
 
-  if (item.type === 'video') {
-    // Check if auto-advance is currently enabled
-    const autoAdvanceToggle = document.getElementById('autoAdvanceToggle');
-    const isAutoAdvanceEnabled = autoAdvanceToggle ? autoAdvanceToggle.checked : false;
+  // Check if auto-advance is currently enabled
+  const autoAdvanceToggle = document.getElementById('autoAdvanceToggle');
+  const isAutoAdvanceEnabled = autoAdvanceToggle ? autoAdvanceToggle.checked : false;
 
-    // Add autoplay parameter if auto-advance is enabled
+  // Check if this is a real YouTube video (not Google Drive which uses 'video' type for everything)
+  const isYouTubeVideo = item.url.includes('youtube.com/embed/');
+  const isGoogleDrive = item.url.includes('drive.google.com');
+
+  if (item.type === 'video' && !isGoogleDrive) {
+    // Real video (YouTube) - handle with autoplay and video timeout
     let videoUrl = item.url;
-    if (isAutoAdvanceEnabled) {
-      // Try autoplay without mute - may work if user has interacted with page
-      if (videoUrl.includes('youtube.com/embed/')) {
-        videoUrl += (videoUrl.includes('?') ? '&' : '?') + 'autoplay=1';
-      }
-      // Google Drive doesn't reliably support autoplay
+    if (isAutoAdvanceEnabled && isYouTubeVideo) {
+      videoUrl += (videoUrl.includes('?') ? '&' : '?') + 'autoplay=1';
     }
 
     content.innerHTML = `
@@ -1958,35 +1958,46 @@ function renderHostCarouselItem(index) {
       </div>
     `;
 
-    // In auto-advance mode with video carousel, pause auto-carousel
-    // and estimate video duration (60 seconds) + 5 second buffer
-    if (isAutoAdvanceEnabled && window.hostCarouselItems.length > 1) {
+    // For YouTube videos in auto-advance mode, pause carousel and wait for video
+    if (isAutoAdvanceEnabled && isYouTubeVideo && window.hostCarouselItems.length > 1) {
       stopAutoCarousel(); // Stop auto-rotation while video plays
       const estimatedVideoDuration = 60000; // 60 seconds (1 minute)
       const bufferAfterVideo = 5000; // 5 seconds after video ends
 
       videoEndTimeout = setTimeout(() => {
-        // Check if auto-advance is still enabled before advancing
         const autoAdvanceToggle = document.getElementById('autoAdvanceToggle');
         const isStillEnabled = autoAdvanceToggle ? autoAdvanceToggle.checked : false;
 
         if (isStillEnabled) {
           hostCarouselNext();
-          // The renderHostCarouselItem function will handle restarting
-          // auto-carousel for images automatically
         }
       }, estimatedVideoDuration + bufferAfterVideo);
+    } else if (isAutoAdvanceEnabled && window.hostCarouselItems.length > 1) {
+      // Non-YouTube video (like Google Drive) - keep carousel rotating
+      if (!autoCarouselInterval) {
+        startAutoCarousel();
+      }
     }
   } else {
-    content.innerHTML = `
-      <img src="${item.url}" alt="Poll media" style="max-width: 100%; max-height: 500px; display: block; margin: 0 auto; border-radius: 8px;">
-    `;
+    // Image or Google Drive content - display as image/iframe and keep carousel rotating
+    if (isGoogleDrive) {
+      // Google Drive - use iframe preview
+      content.innerHTML = `
+        <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
+          <iframe src="${item.url}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen>
+          </iframe>
+        </div>
+      `;
+    } else {
+      // Regular image
+      content.innerHTML = `
+        <img src="${item.url}" alt="Poll media" style="max-width: 100%; max-height: 500px; display: block; margin: 0 auto; border-radius: 8px;">
+      `;
+    }
 
-    // For images in auto-advance mode, ensure carousel keeps running
-    const autoAdvanceToggle = document.getElementById('autoAdvanceToggle');
-    const isAutoAdvanceEnabled = autoAdvanceToggle ? autoAdvanceToggle.checked : false;
+    // For images/Google Drive in auto-advance mode, ensure carousel keeps running every 5 seconds
     if (isAutoAdvanceEnabled && window.hostCarouselItems && window.hostCarouselItems.length > 1) {
-      // Restart auto-carousel if it's not running (ensures continuous rotation)
       if (!autoCarouselInterval) {
         startAutoCarousel();
       }
