@@ -1461,7 +1461,7 @@ app.post('/api/session/:sessionId/vote-expose', async (req, res) => {
 app.get('/api/session/:sessionId/expose-status/:pollId', async (req, res) => {
   try {
     const { sessionId, pollId } = req.params;
-    const { voterId, autoAdvanceOn, countdownStarted } = req.query;
+    const { voterId } = req.query;
 
     const session = await getSession(sessionId);
     if (!session) {
@@ -1479,11 +1479,13 @@ app.get('/api/session/:sessionId/expose-status/:pollId', async (req, res) => {
     const pollVotes = session.votes.get(pollId);
     const totalVotes = pollVotes ? pollVotes.size : 0;
 
+    // Use server-stored state for auto-advance (more reliable than client params)
+    const isAutoAdvance = session.autoAdvanceOn || false;
+    const isCountdownStarted = session.countdownStarted || false;
+
     // Determine if we should reveal based on auto-advance state
     // If auto-advance is ON: only reveal when 10-second countdown has started
     // If auto-advance is OFF: reveal immediately when threshold reached
-    const isAutoAdvance = autoAdvanceOn === 'true';
-    const isCountdownStarted = countdownStarted === 'true';
     const shouldReveal = thresholdReached && (!isAutoAdvance || isCountdownStarted);
 
     let exposedData = null;

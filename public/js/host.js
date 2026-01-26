@@ -1729,12 +1729,14 @@ function renderHostCarouselItem(index) {
     // Add autoplay parameter if auto-advance is enabled
     let videoUrl = item.url;
     if (isAutoAdvanceEnabled) {
-      // For YouTube embeds, add autoplay parameter
+      // For YouTube embeds, add autoplay parameter (mute=1 required for autoplay to work)
       if (videoUrl.includes('youtube.com/embed/')) {
-        videoUrl += (videoUrl.includes('?') ? '&' : '?') + 'autoplay=1&mute=0';
+        videoUrl += (videoUrl.includes('?') ? '&' : '?') + 'autoplay=1&mute=1';
       }
-      // For Google Drive, we can't directly control autoplay via URL
-      // The user will need to click play, but we estimate video length
+      // For Google Drive, try adding autoplay parameter
+      if (videoUrl.includes('drive.google.com')) {
+        videoUrl += (videoUrl.includes('?') ? '&' : '?') + 'autoplay=1';
+      }
     }
 
     content.innerHTML = `
