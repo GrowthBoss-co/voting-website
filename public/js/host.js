@@ -1947,7 +1947,13 @@ function renderHostCarouselItem(index) {
     // Real video (YouTube) - handle with autoplay and video timeout
     let videoUrl = item.url;
     if (isAutoAdvanceEnabled && isYouTubeVideo) {
-      videoUrl += (videoUrl.includes('?') ? '&' : '?') + 'autoplay=1';
+      // Extract video ID for loop parameter (YouTube requires playlist=VIDEO_ID for loop to work)
+      const videoIdMatch = item.url.match(/youtube\.com\/embed\/([^?&]+)/);
+      const videoId = videoIdMatch ? videoIdMatch[1] : '';
+      videoUrl += (videoUrl.includes('?') ? '&' : '?') + 'autoplay=1&loop=1';
+      if (videoId) {
+        videoUrl += '&playlist=' + videoId;
+      }
     }
 
     content.innerHTML = `
