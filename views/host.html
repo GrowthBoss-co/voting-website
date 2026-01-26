@@ -19,10 +19,43 @@
                 <button onclick="copySessionId()" class="btn btn-small">Copy ID</button>
               </div>
             </div>
+            <div style="margin-top: 10px;">
+              <button id="setActiveSessionBtn" onclick="setAsActiveSession()" class="btn btn-primary" style="background: #48bb78;">
+                Set as This Week's Session
+              </button>
+              <button id="clearActiveSessionBtn" onclick="clearActiveSession()" class="btn btn-secondary hidden" style="background: #e53e3e; color: white;">
+                Remove as Active
+              </button>
+              <span id="activeSessionBadge" class="hidden" style="margin-left: 10px; padding: 5px 12px; background: #48bb78; color: white; border-radius: 20px; font-size: 14px; font-weight: 600;">
+                This Week's Session
+              </span>
+            </div>
           </div>
         </div>
 
         <div class="setup-section" id="setupSection">
+          <!-- Expected Attendance Section -->
+          <div style="margin-bottom: 30px; padding: 20px; background: #e8f5e9; border-radius: 8px; border-left: 4px solid #48bb78;">
+            <h3 style="margin-top: 0; margin-bottom: 15px; color: #48bb78;">Session Attendance</h3>
+            <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+              <div>
+                <label for="expectedAttendanceInput" style="font-weight: 600; margin-right: 10px;">Expected Voters:</label>
+                <input type="number" id="expectedAttendanceInput" min="1" max="100" value="10"
+                       style="width: 80px; padding: 8px; font-size: 16px; border: 2px solid #48bb78; border-radius: 6px;"
+                       onchange="updateExpectedAttendance()" />
+              </div>
+              <div id="readyVotersDisplay" style="padding: 10px 15px; background: white; border-radius: 8px; border: 2px solid #667eea;">
+                <strong style="color: #667eea;">Ready: <span id="readyVotersCount">0</span> / <span id="expectedVotersCount">10</span></strong>
+              </div>
+              <button type="button" onclick="clearReadyVoters()" class="btn btn-small btn-secondary">
+                Reset Ready
+              </button>
+            </div>
+            <p style="color: #666; margin-top: 10px; margin-bottom: 0; font-size: 14px;">
+              Session will auto-start when 80% of expected voters click "Ready"
+            </p>
+          </div>
+
           <!-- Voter Names Management Section -->
           <div style="margin-bottom: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #667eea;">
             <h3 style="margin-top: 0; margin-bottom: 15px; color: #667eea;">Manage Voter Names</h3>
@@ -223,21 +256,6 @@
         <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center;">
           <button id="resumeFromPauseBtn" class="btn btn-primary">Resume from Poll <span id="pausedPollNumber"></span></button>
           <button id="restartSessionBtn" class="btn btn-secondary">Restart from Beginning</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Attendance Modal -->
-    <div id="attendanceModal" class="modal hidden">
-      <div class="modal-content" style="max-width: 400px;">
-        <h2>Set Attendance</h2>
-        <p>How many voters are in this session?</p>
-        <div style="margin: 20px 0;">
-          <input type="number" id="attendanceInput" min="1" max="100" value="10" style="width: 100%; padding: 12px; font-size: 18px; text-align: center; border: 2px solid #667eea; border-radius: 8px;" />
-        </div>
-        <div style="display: flex; gap: 10px; justify-content: center;">
-          <button id="confirmAttendanceBtn" class="btn btn-primary">Start Session</button>
-          <button id="cancelAttendanceBtn" class="btn btn-secondary">Cancel</button>
         </div>
       </div>
     </div>

@@ -1067,6 +1067,195 @@ app.delete('/api/host/voters/:name', checkHostAuth, async (req, res) => {
   }
 });
 
+// Set session as "This Week's Session"
+app.post('/api/host/set-active-session', checkHostAuth, async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+
+    if (!sessionId) {
+      return res.status(400).json({ error: 'sessionId is required' });
+    }
+
+    // Verify session exists
+    const session = await getSession(sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Store the active session ID
+    await redis.set('host:active-session', sessionId);
+
+    res.json({ success: true, sessionId });
+  } catch (error) {
+    console.error('Error setting active session:', error);
+    res.status(500).json({ error: 'Failed to set active session' });
+  }
+});
+
+// Get "This Week's Session" (active session)
+app.get('/api/active-session', async (req, res) => {
+  try {
+    const activeSessionId = await redis.get('host:active-session');
+
+    if (!activeSessionId) {
+      return res.json({ active: false, session: null });
+    }
+
+    const session = await getSession(activeSessionId);
+    if (!session) {
+      return res.json({ active: false, session: null });
+    }
+
+    res.json({
+      active: true,
+      sessionId: activeSessionId,
+      session: {
+        id: session.id,
+        name: session.name,
+        expectedAttendance: session.expectedAttendance || 0,
+        readyVoters: session.readyVoters || [],
+        status: session.status
+      }
+    });
+  } catch (error) {
+    console.error('Error getting active session:', error);
+    res.status(500).json({ error: 'Failed to get active session' });
+  }
+});
+
+// Clear active session
+app.post('/api/host/clear-active-session', checkHostAuth, async (req, res) => {
+  try {
+    await redis.del('host:active-session');
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error clearing active session:', error);
+    res.status(500).json({ error: 'Failed to clear active session' });
+  }
+});
+
+// Voter marks themselves as ready
+app.post('/api/session/:sessionId/ready', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { voterName } = req.body;
+
+    if (!voterName) {
+      return res.status(400).json({ error: 'voterName is required' });
+    }
+
+    const session = await getSession(sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Initialize readyVoters if not exists
+    if (!session.readyVoters) {
+      session.readyVoters = [];
+    }
+
+    // Add voter if not already ready
+    if (!session.readyVoters.includes(voterName)) {
+      session.readyVoters.push(voterName);
+    }
+
+    // Generate voter ID and store
+    const voterId = uuidv4();
+    session.voters.set(voterId, voterName);
+
+    await saveSession(sessionId, session);
+
+    // Check if threshold reached (80%)
+    const expectedAttendance = session.expectedAttendance || 10;
+    const readyCount = session.readyVoters.length;
+    const thresholdReached = readyCount >= Math.ceil(expectedAttendance * 0.8);
+
+    res.json({
+      success: true,
+      voterId,
+      readyCount,
+      expectedAttendance,
+      thresholdReached,
+      sessionStatus: session.status
+    });
+  } catch (error) {
+    console.error('Error marking voter ready:', error);
+    res.status(500).json({ error: 'Failed to mark voter ready' });
+  }
+});
+
+// Get ready status for a session
+app.get('/api/session/:sessionId/ready-status', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const session = await getSession(sessionId);
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const expectedAttendance = session.expectedAttendance || 10;
+    const readyVoters = session.readyVoters || [];
+    const readyCount = readyVoters.length;
+    const thresholdReached = readyCount >= Math.ceil(expectedAttendance * 0.8);
+
+    res.json({
+      readyCount,
+      expectedAttendance,
+      thresholdReached,
+      readyVoters,
+      sessionStatus: session.status,
+      countdownStarted: session.countdownStarted || false
+    });
+  } catch (error) {
+    console.error('Error getting ready status:', error);
+    res.status(500).json({ error: 'Failed to get ready status' });
+  }
+});
+
+// Start countdown (called by host or auto when threshold reached)
+app.post('/api/session/:sessionId/start-countdown', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const session = await getSession(sessionId);
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    session.countdownStarted = true;
+    session.countdownStartTime = Date.now();
+    await saveSession(sessionId, session);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error starting countdown:', error);
+    res.status(500).json({ error: 'Failed to start countdown' });
+  }
+});
+
+// Clear ready voters (for resetting)
+app.post('/api/session/:sessionId/clear-ready', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const session = await getSession(sessionId);
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    session.readyVoters = [];
+    session.countdownStarted = false;
+    session.countdownStartTime = null;
+    await saveSession(sessionId, session);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error clearing ready voters:', error);
+    res.status(500).json({ error: 'Failed to clear ready voters' });
+  }
+});
+
 // Update session attendance
 app.put('/api/session/:sessionId/attendance', async (req, res) => {
   try {

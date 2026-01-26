@@ -16,6 +16,8 @@ let autoCarouselInterval = null;
 let videoEndTimeout = null;
 let voterNames = [];
 let expectedAttendance = 0;
+let isActiveSession = false;
+let readyPollingInterval = null;
 
 document.getElementById('sessionId').textContent = sessionId;
 
@@ -350,6 +352,176 @@ async function deleteVoterName(name) {
 
 // Load voter names on page load
 loadVoterNames();
+
+// Check if this session is the active session
+async function checkActiveSession() {
+  try {
+    const response = await fetch('/api/active-session');
+    const data = await response.json();
+
+    if (data.active && data.sessionId === sessionId) {
+      isActiveSession = true;
+      document.getElementById('setActiveSessionBtn').classList.add('hidden');
+      document.getElementById('clearActiveSessionBtn').classList.remove('hidden');
+      document.getElementById('activeSessionBadge').classList.remove('hidden');
+
+      // Load expected attendance from session
+      if (data.session.expectedAttendance) {
+        expectedAttendance = data.session.expectedAttendance;
+        document.getElementById('expectedAttendanceInput').value = expectedAttendance;
+        document.getElementById('expectedVotersCount').textContent = expectedAttendance;
+      }
+
+      // Start polling for ready voters
+      startReadyPolling();
+    } else {
+      isActiveSession = false;
+      document.getElementById('setActiveSessionBtn').classList.remove('hidden');
+      document.getElementById('clearActiveSessionBtn').classList.add('hidden');
+      document.getElementById('activeSessionBadge').classList.add('hidden');
+    }
+  } catch (error) {
+    console.error('Error checking active session:', error);
+  }
+}
+
+// Set this session as the active session
+async function setAsActiveSession() {
+  try {
+    const token = localStorage.getItem('hostToken');
+    const response = await fetch('/api/host/set-active-session', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ sessionId })
+    });
+
+    if (response.ok) {
+      isActiveSession = true;
+      document.getElementById('setActiveSessionBtn').classList.add('hidden');
+      document.getElementById('clearActiveSessionBtn').classList.remove('hidden');
+      document.getElementById('activeSessionBadge').classList.remove('hidden');
+
+      // Save expected attendance
+      await updateExpectedAttendance();
+
+      // Start polling for ready voters
+      startReadyPolling();
+
+      alert('This session is now set as This Week\'s Session! Voters can now join.');
+    } else {
+      const data = await response.json();
+      alert('Error: ' + (data.error || 'Failed to set active session'));
+    }
+  } catch (error) {
+    console.error('Error setting active session:', error);
+    alert('Error setting active session: ' + error.message);
+  }
+}
+
+// Clear this session as the active session
+async function clearActiveSession() {
+  if (!confirm('Remove this session as the active session? Voters will no longer be able to join.')) {
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem('hostToken');
+    const response = await fetch('/api/host/clear-active-session', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (response.ok) {
+      isActiveSession = false;
+      document.getElementById('setActiveSessionBtn').classList.remove('hidden');
+      document.getElementById('clearActiveSessionBtn').classList.add('hidden');
+      document.getElementById('activeSessionBadge').classList.add('hidden');
+
+      // Stop polling
+      if (readyPollingInterval) {
+        clearInterval(readyPollingInterval);
+        readyPollingInterval = null;
+      }
+    }
+  } catch (error) {
+    console.error('Error clearing active session:', error);
+  }
+}
+
+// Update expected attendance
+async function updateExpectedAttendance() {
+  expectedAttendance = parseInt(document.getElementById('expectedAttendanceInput').value) || 10;
+  document.getElementById('expectedVotersCount').textContent = expectedAttendance;
+
+  try {
+    await fetch(`/api/session/${sessionId}/attendance`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ attendance: expectedAttendance })
+    });
+
+    // Update attendance display if in voting section
+    const attendanceDisplay = document.getElementById('currentAttendance');
+    if (attendanceDisplay) {
+      attendanceDisplay.textContent = expectedAttendance;
+    }
+
+    totalVotersInSession = expectedAttendance;
+  } catch (error) {
+    console.error('Error updating attendance:', error);
+  }
+}
+
+// Start polling for ready voters
+function startReadyPolling() {
+  if (readyPollingInterval) {
+    clearInterval(readyPollingInterval);
+  }
+
+  // Initial fetch
+  fetchReadyStatus();
+
+  readyPollingInterval = setInterval(fetchReadyStatus, 2000);
+}
+
+// Fetch ready status
+async function fetchReadyStatus() {
+  try {
+    const response = await fetch(`/api/session/${sessionId}/ready-status`);
+    const data = await response.json();
+
+    document.getElementById('readyVotersCount').textContent = data.readyCount;
+    document.getElementById('expectedVotersCount').textContent = data.expectedAttendance;
+
+    // Check if threshold reached and countdown started
+    if (data.thresholdReached && !data.countdownStarted && data.sessionStatus !== 'presenting') {
+      // Auto-start countdown
+      await fetch(`/api/session/${sessionId}/start-countdown`, { method: 'POST' });
+    }
+  } catch (error) {
+    console.error('Error fetching ready status:', error);
+  }
+}
+
+// Clear ready voters
+async function clearReadyVoters() {
+  if (!confirm('Reset all ready voters? They will need to click Ready again.')) {
+    return;
+  }
+
+  try {
+    await fetch(`/api/session/${sessionId}/clear-ready`, { method: 'POST' });
+    document.getElementById('readyVotersCount').textContent = '0';
+  } catch (error) {
+    console.error('Error clearing ready voters:', error);
+  }
+}
+
+// Check active session on page load
+checkActiveSession();
 
 // Load existing polls if in edit or present mode
 async function loadExistingPolls() {
@@ -751,69 +923,39 @@ document.getElementById('startVotingBtn').addEventListener('click', async () => 
         showResumeDialog(sessionData.pausedAtPollIndex);
         return;
       }
-
-      // Pre-fill attendance if already set
-      if (sessionData.expectedAttendance > 0) {
-        document.getElementById('attendanceInput').value = sessionData.expectedAttendance;
-      }
     }
   } catch (error) {
     console.error('Error checking session status:', error);
   }
 
-  // Show attendance modal
-  showAttendanceModal();
-});
+  // Use the pre-set attendance from setup section
+  expectedAttendance = parseInt(document.getElementById('expectedAttendanceInput').value) || 10;
+  totalVotersInSession = expectedAttendance;
 
-// Show attendance modal
-function showAttendanceModal() {
-  const modal = document.getElementById('attendanceModal');
-  modal.classList.remove('hidden');
-  document.getElementById('attendanceInput').focus();
-}
-
-// Handle attendance modal confirm
-document.getElementById('confirmAttendanceBtn').addEventListener('click', async () => {
-  const attendance = parseInt(document.getElementById('attendanceInput').value) || 0;
-
-  if (attendance < 1) {
-    alert('Please enter a valid number of voters');
-    return;
+  // Update attendance display
+  const attendanceDisplay = document.getElementById('currentAttendance');
+  if (attendanceDisplay) {
+    attendanceDisplay.textContent = expectedAttendance;
   }
 
   // Save attendance to session
-  try {
-    await fetch(`/api/session/${sessionId}/attendance`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ attendance })
-    });
+  await fetch(`/api/session/${sessionId}/attendance`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ attendance: expectedAttendance })
+  });
 
-    expectedAttendance = attendance;
-    totalVotersInSession = attendance;
-
-    // Update attendance display
-    const attendanceDisplay = document.getElementById('currentAttendance');
-    if (attendanceDisplay) {
-      attendanceDisplay.textContent = attendance;
-    }
-  } catch (error) {
-    console.error('Error saving attendance:', error);
+  // Stop ready polling when starting session
+  if (readyPollingInterval) {
+    clearInterval(readyPollingInterval);
+    readyPollingInterval = null;
   }
 
-  // Hide modal and start session
-  document.getElementById('attendanceModal').classList.add('hidden');
-
-  // Normal start - hide setup, show voting
+  // Start session - hide setup, show voting
   document.getElementById('setupSection').classList.add('hidden');
   document.getElementById('votingSection').classList.remove('hidden');
 
   await startPoll(0);
-});
-
-// Handle attendance modal cancel
-document.getElementById('cancelAttendanceBtn').addEventListener('click', () => {
-  document.getElementById('attendanceModal').classList.add('hidden');
 });
 
 // Show update attendance dialog (during session)

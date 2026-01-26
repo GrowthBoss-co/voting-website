@@ -5,40 +5,124 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Join Session</title>
     <link rel="stylesheet" href="/css/style.css" />
+    <style>
+      .waiting-room {
+        text-align: center;
+        padding: 40px 20px;
+      }
+      .ready-count {
+        font-size: 48px;
+        font-weight: bold;
+        color: #667eea;
+        margin: 20px 0;
+      }
+      .ready-count span {
+        color: #48bb78;
+      }
+      .progress-bar {
+        width: 100%;
+        height: 20px;
+        background: #e2e8f0;
+        border-radius: 10px;
+        overflow: hidden;
+        margin: 20px 0;
+      }
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #667eea, #48bb78);
+        transition: width 0.5s ease;
+      }
+      .countdown {
+        font-size: 72px;
+        font-weight: bold;
+        color: #e53e3e;
+        animation: pulse 1s infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+      }
+      .voter-list {
+        margin-top: 20px;
+        padding: 15px;
+        background: #f7fafc;
+        border-radius: 8px;
+        max-height: 200px;
+        overflow-y: auto;
+      }
+      .voter-chip {
+        display: inline-block;
+        padding: 5px 12px;
+        margin: 4px;
+        background: #48bb78;
+        color: white;
+        border-radius: 20px;
+        font-size: 14px;
+      }
+      .no-session {
+        color: #e53e3e;
+        padding: 20px;
+        background: #fed7d7;
+        border-radius: 8px;
+      }
+    </style>
   </head>
   <body>
     <div class="container">
       <div class="welcome-card">
-        <h1>Join Session</h1>
-        <p>Select your name and enter the session ID to join</p>
+        <!-- Initial Join Screen -->
+        <div id="joinScreen">
+          <h1>Join This Week's Session</h1>
+          <p>Select your name and click Ready to join</p>
 
-        <form id="joinForm" class="login-form">
-          <div class="form-group">
-            <label for="voterName">Your Name:</label>
-            <select id="voterName" required style="width: 100%;">
-              <option value="">Select your name...</option>
-            </select>
-            <input
-              type="text"
-              id="customName"
-              placeholder="Enter your name"
-              style="display: none; margin-top: 8px;"
-            />
+          <div id="noSessionMessage" class="no-session hidden">
+            No active session at the moment. Please wait for the host to start one.
           </div>
-          <div class="form-group">
-            <label for="sessionId">Session ID:</label>
-            <input
-              type="text"
-              id="sessionId"
-              required
-              placeholder="Enter session ID"
-              autocomplete="off"
-            />
+
+          <form id="joinForm" class="login-form">
+            <div class="form-group">
+              <label for="voterName">Your Name:</label>
+              <select id="voterName" required style="width: 100%;">
+                <option value="">Select your name...</option>
+              </select>
+              <input
+                type="text"
+                id="customName"
+                placeholder="Enter your name"
+                style="display: none; margin-top: 8px;"
+              />
+            </div>
+            <div id="errorMessage" class="error-message hidden"></div>
+            <button type="submit" class="btn btn-primary btn-large" style="width: 100%; padding: 15px; font-size: 18px;">Ready</button>
+            <button type="button" id="backBtn" class="btn btn-secondary" style="margin-top: 10px;">Back</button>
+          </form>
+        </div>
+
+        <!-- Waiting Room Screen -->
+        <div id="waitingRoom" class="waiting-room hidden">
+          <h1>Waiting Room</h1>
+          <p>Waiting for everyone to join...</p>
+
+          <div class="ready-count">
+            <span id="readyCount">0</span> / <span id="expectedCount">10</span>
           </div>
-          <div id="errorMessage" class="error-message hidden"></div>
-          <button type="submit" class="btn btn-primary">Join Session</button>
-          <button type="button" id="backBtn" class="btn btn-secondary">Back</button>
-        </form>
+
+          <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+          </div>
+
+          <p id="thresholdMessage" style="color: #666;">Waiting for 80% of voters to be ready...</p>
+
+          <div id="countdownContainer" class="hidden">
+            <p style="font-size: 18px; color: #667eea; font-weight: 600;">Starting in...</p>
+            <div class="countdown" id="countdownTimer">10</div>
+          </div>
+
+          <div class="voter-list">
+            <strong>Ready voters:</strong>
+            <div id="readyVotersList"></div>
+          </div>
+        </div>
       </div>
     </div>
 

@@ -1,3 +1,42 @@
+let activeSessionId = null;
+let voterId = null;
+let voterName = null;
+let pollingInterval = null;
+let countdownInterval = null;
+let countdownValue = 10;
+
+// Check for active session on page load
+async function checkActiveSession() {
+  try {
+    const response = await fetch('/api/active-session');
+    const data = await response.json();
+
+    if (data.active && data.sessionId) {
+      activeSessionId = data.sessionId;
+      document.getElementById('noSessionMessage').classList.add('hidden');
+      document.getElementById('joinForm').style.display = 'block';
+
+      // If session already started, redirect directly
+      if (data.session.status === 'presenting') {
+        const savedVoterId = localStorage.getItem(`voterId_${activeSessionId}`);
+        const savedVoterName = localStorage.getItem(`voterEmail_${activeSessionId}`);
+        if (savedVoterId && savedVoterName) {
+          window.location.href = `/vote/${activeSessionId}`;
+          return;
+        }
+      }
+    } else {
+      document.getElementById('noSessionMessage').classList.remove('hidden');
+      document.getElementById('joinForm').style.display = 'none';
+    }
+  } catch (error) {
+    console.error('Error checking active session:', error);
+    document.getElementById('noSessionMessage').classList.remove('hidden');
+    document.getElementById('noSessionMessage').textContent = 'Error connecting to server. Please refresh the page.';
+    document.getElementById('joinForm').style.display = 'none';
+  }
+}
+
 // Load voter names on page load
 async function loadVoterNames() {
   try {
@@ -40,16 +79,20 @@ document.getElementById('voterName').addEventListener('change', e => {
   }
 });
 
+// Handle form submission (Ready button)
 document.getElementById('joinForm').addEventListener('submit', async e => {
   e.preventDefault();
 
+  if (!activeSessionId) {
+    alert('No active session available');
+    return;
+  }
+
   const voterNameSelect = document.getElementById('voterName').value;
   const customName = document.getElementById('customName').value.trim();
-  const sessionId = document.getElementById('sessionId').value.trim();
   const errorDiv = document.getElementById('errorMessage');
 
   // Get the actual name to use
-  let voterName;
   if (voterNameSelect === '__other__') {
     if (!customName) {
       errorDiv.textContent = 'Please enter your name';
@@ -61,21 +104,44 @@ document.getElementById('joinForm').addEventListener('submit', async e => {
     voterName = voterNameSelect;
   }
 
+  if (!voterName) {
+    errorDiv.textContent = 'Please select your name';
+    errorDiv.classList.remove('hidden');
+    return;
+  }
+
   try {
-    const response = await fetch('/api/session/verify', {
+    // Mark as ready
+    const response = await fetch(`/api/session/${activeSessionId}/ready`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId, email: voterName })
+      body: JSON.stringify({ voterName })
     });
 
     const data = await response.json();
 
     if (data.success) {
-      localStorage.setItem(`voterId_${sessionId}`, data.voterId);
-      localStorage.setItem(`voterEmail_${sessionId}`, voterName);
-      window.location.href = `/vote/${sessionId}`;
+      voterId = data.voterId;
+      localStorage.setItem(`voterId_${activeSessionId}`, voterId);
+      localStorage.setItem(`voterEmail_${activeSessionId}`, voterName);
+
+      // If session already presenting, go directly
+      if (data.sessionStatus === 'presenting') {
+        window.location.href = `/vote/${activeSessionId}`;
+        return;
+      }
+
+      // Show waiting room
+      document.getElementById('joinScreen').classList.add('hidden');
+      document.getElementById('waitingRoom').classList.remove('hidden');
+
+      // Update initial counts
+      updateReadyStatus(data);
+
+      // Start polling for updates
+      startPolling();
     } else {
-      errorDiv.textContent = data.error || 'Invalid session ID';
+      errorDiv.textContent = data.error || 'Failed to join session';
       errorDiv.classList.remove('hidden');
     }
   } catch (error) {
@@ -84,9 +150,91 @@ document.getElementById('joinForm').addEventListener('submit', async e => {
   }
 });
 
+// Update the waiting room display
+function updateReadyStatus(data) {
+  document.getElementById('readyCount').textContent = data.readyCount;
+  document.getElementById('expectedCount').textContent = data.expectedAttendance;
+
+  const progressPercent = Math.min(100, (data.readyCount / data.expectedAttendance) * 100);
+  document.getElementById('progressFill').style.width = `${progressPercent}%`;
+
+  // Update ready voters list
+  if (data.readyVoters) {
+    const votersList = document.getElementById('readyVotersList');
+    votersList.innerHTML = data.readyVoters
+      .map(name => `<span class="voter-chip">${name}</span>`)
+      .join('');
+  }
+
+  // Check if threshold reached
+  if (data.thresholdReached || data.countdownStarted) {
+    document.getElementById('thresholdMessage').textContent = '80% threshold reached!';
+    document.getElementById('thresholdMessage').style.color = '#48bb78';
+
+    // Start countdown if not already started
+    if (!countdownInterval) {
+      startCountdown();
+    }
+  }
+
+  // If session started, redirect
+  if (data.sessionStatus === 'presenting') {
+    window.location.href = `/vote/${activeSessionId}`;
+  }
+}
+
+// Poll for ready status updates
+function startPolling() {
+  if (pollingInterval) {
+    clearInterval(pollingInterval);
+  }
+
+  pollingInterval = setInterval(async () => {
+    try {
+      const response = await fetch(`/api/session/${activeSessionId}/ready-status`);
+      const data = await response.json();
+      updateReadyStatus(data);
+    } catch (error) {
+      console.error('Error polling ready status:', error);
+    }
+  }, 1000); // Poll every second
+}
+
+// Start the countdown
+function startCountdown() {
+  document.getElementById('countdownContainer').classList.remove('hidden');
+  countdownValue = 10;
+  document.getElementById('countdownTimer').textContent = countdownValue;
+
+  // Trigger countdown on server
+  fetch(`/api/session/${activeSessionId}/start-countdown`, { method: 'POST' });
+
+  countdownInterval = setInterval(() => {
+    countdownValue--;
+    document.getElementById('countdownTimer').textContent = countdownValue;
+
+    if (countdownValue <= 0) {
+      clearInterval(countdownInterval);
+      // Redirect to voting
+      window.location.href = `/vote/${activeSessionId}`;
+    }
+  }, 1000);
+}
+
 document.getElementById('backBtn').addEventListener('click', () => {
   window.location.href = '/';
 });
 
-// Load voter names on page load
+// Initialize on page load
+checkActiveSession();
 loadVoterNames();
+
+// Clean up on page unload
+window.addEventListener('beforeunload', () => {
+  if (pollingInterval) {
+    clearInterval(pollingInterval);
+  }
+  if (countdownInterval) {
+    clearInterval(countdownInterval);
+  }
+});
