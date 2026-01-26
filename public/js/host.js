@@ -2002,6 +2002,46 @@ async function savePollOrder() {
   }
 }
 
+// Restart session from voting section (during presenting)
+async function restartSessionFromVoting() {
+  if (!confirm('Restart the session from the beginning? This will clear all votes and start from Poll 1.')) {
+    return;
+  }
+
+  try {
+    // Stop current polling and timer
+    stopPolling();
+    stopTimer();
+    stopAutoCarousel();
+    stopVideoEndTimeout();
+
+    // Clear all votes via API
+    await fetch(`/api/session/${sessionId}/clear-votes`, {
+      method: 'POST'
+    });
+
+    // Reset session status to draft
+    await fetch(`/api/session/${sessionId}/resume`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ restart: true })
+    });
+
+    // Reset local state
+    currentPollIndex = -1;
+    currentPoll = null;
+    hasReachedThreshold = false;
+    countdownStarted = false;
+    completedPolls.length = 0;
+
+    // Start from poll 0
+    await startPoll(0);
+  } catch (error) {
+    console.error('Error restarting session:', error);
+    alert('Error restarting session: ' + error.message);
+  }
+}
+
 // Show resume/restart dialog
 function showResumeDialog(pausedAtPollIndex) {
   const modal = document.getElementById('resumeModal');

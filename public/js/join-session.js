@@ -13,16 +13,10 @@ async function checkActiveSession() {
 
     if (data.active && data.sessionId) {
       activeSessionId = data.sessionId;
-
-      // If session already started, redirect directly if we have credentials
-      if (data.session.status === 'presenting') {
-        const savedVoterId = localStorage.getItem(`voterId_${activeSessionId}`);
-        const savedVoterName = localStorage.getItem(`voterEmail_${activeSessionId}`);
-        if (savedVoterId && savedVoterName) {
-          window.location.href = `/vote/${activeSessionId}`;
-          return;
-        }
-      }
+      // Clear any saved credentials so user must pick their name again
+      // This ensures users always go through the name selection
+      localStorage.removeItem(`voterId_${activeSessionId}`);
+      localStorage.removeItem(`voterEmail_${activeSessionId}`);
     }
     // Don't show error message here - let user select name first
     // Error will show when they try to click Ready without an active session
