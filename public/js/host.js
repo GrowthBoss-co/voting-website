@@ -1234,20 +1234,31 @@ async function startPoll(pollIndex) {
       const item = currentPoll.mediaItems[0];
       if (item.type === 'video') {
         let videoUrl = item.url;
-        if (isAutoAdvanceEnabled) {
-          // Try autoplay without mute - may work if user has interacted with page
-          if (videoUrl.includes('youtube.com/embed/')) {
+        const isYouTubeVideo = videoUrl.includes('youtube.com/embed/');
+        const videoIdMatch = videoUrl.match(/youtube\.com\/embed\/([^?&\/]+)/);
+        const videoId = videoIdMatch ? videoIdMatch[1] : '';
+
+        if (isAutoAdvanceEnabled && isYouTubeVideo && videoId) {
+          // Use YouTube API for looping
+          mediaContainer.innerHTML = `
+            <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
+              <div id="ytLoopPlayer" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
+            </div>
+          `;
+          initYouTubeLoopPlayer(videoId);
+        } else {
+          // Non-auto-advance or non-YouTube - use regular iframe
+          if (isAutoAdvanceEnabled && isYouTubeVideo) {
             videoUrl += (videoUrl.includes('?') ? '&' : '?') + 'autoplay=1';
           }
-          // Google Drive doesn't support autoplay parameter but we can try
+          mediaContainer.innerHTML = `
+            <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
+              <iframe src="${videoUrl}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen>
+              </iframe>
+            </div>
+          `;
         }
-        mediaContainer.innerHTML = `
-          <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
-            <iframe src="${videoUrl}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen>
-            </iframe>
-          </div>
-        `;
       } else {
         mediaContainer.innerHTML = `
           <img src="${item.url}" alt="Poll media" style="max-width: 100%; max-height: 500px; display: block; margin: 0 auto; border-radius: 8px;">
