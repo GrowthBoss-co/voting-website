@@ -1598,86 +1598,116 @@ function stopVideoEndTimeout() {
   }
 }
 
-// YouTube player instance for host
-let hostYouTubePlayer = null;
-let youtubeLoopInterval = null;
-let currentYouTubeVideoId = null;
+// YouTube looping player
+let ytLoopPlayer = null;
+let ytLoopCheckInterval = null;
+let ytApiReady = false;
 
-function createHostYouTubePlayer(videoId) {
-  // Clear any existing loop interval
-  if (youtubeLoopInterval) {
-    clearInterval(youtubeLoopInterval);
-    youtubeLoopInterval = null;
+// Load YouTube API script once
+function loadYouTubeAPI() {
+  if (document.getElementById('youtube-api-script')) {
+    return; // Already loaded
   }
-
-  // Destroy existing player if any
-  if (hostYouTubePlayer) {
-    try {
-      hostYouTubePlayer.destroy();
-    } catch (e) {
-      // Ignore errors from destroying
-    }
-    hostYouTubePlayer = null;
-  }
-
-  currentYouTubeVideoId = videoId;
-
-  hostYouTubePlayer = new YT.Player('hostYouTubePlayer', {
-    videoId: videoId,
-    playerVars: {
-      autoplay: 1,
-      modestbranding: 1,
-      rel: 0,
-      enablejsapi: 1
-    },
-    events: {
-      onReady: function(event) {
-        event.target.playVideo();
-        // Start polling to check for video end
-        startYouTubeLoopCheck();
-      },
-      onError: function(event) {
-        console.error('YouTube player error:', event.data);
-      }
-    }
-  });
+  const tag = document.createElement('script');
+  tag.id = 'youtube-api-script';
+  tag.src = 'https://www.youtube.com/iframe_api';
+  document.head.appendChild(tag);
 }
 
-function startYouTubeLoopCheck() {
-  // Clear any existing interval
-  if (youtubeLoopInterval) {
-    clearInterval(youtubeLoopInterval);
+// Called automatically by YouTube API when ready
+window.onYouTubeIframeAPIReady = function() {
+  console.log('YouTube API ready');
+  ytApiReady = true;
+};
+
+function initYouTubeLoopPlayer(videoId) {
+  console.log('Initializing YouTube loop player for:', videoId);
+
+  // Clean up existing player
+  destroyYouTubeLoopPlayer();
+
+  // Load API if needed
+  loadYouTubeAPI();
+
+  // Wait for API to be ready
+  const tryCreatePlayer = () => {
+    if (window.YT && window.YT.Player) {
+      console.log('Creating YouTube player');
+      try {
+        ytLoopPlayer = new YT.Player('ytLoopPlayer', {
+          videoId: videoId,
+          playerVars: {
+            autoplay: 1,
+            rel: 0,
+            modestbranding: 1
+          },
+          events: {
+            onReady: function(event) {
+              console.log('YouTube player ready, starting playback');
+              event.target.playVideo();
+              startLoopCheck();
+            },
+            onStateChange: function(event) {
+              console.log('YouTube player state:', event.data);
+              // 0 = ended
+              if (event.data === 0) {
+                console.log('Video ended, restarting');
+                event.target.seekTo(0);
+                event.target.playVideo();
+              }
+            },
+            onError: function(event) {
+              console.error('YouTube player error:', event.data);
+            }
+          }
+        });
+      } catch (e) {
+        console.error('Error creating YouTube player:', e);
+      }
+    } else {
+      console.log('Waiting for YouTube API...');
+      setTimeout(tryCreatePlayer, 200);
+    }
+  };
+
+  tryCreatePlayer();
+}
+
+function startLoopCheck() {
+  if (ytLoopCheckInterval) {
+    clearInterval(ytLoopCheckInterval);
   }
 
-  // Poll every 500ms to check if video ended
-  youtubeLoopInterval = setInterval(() => {
-    if (hostYouTubePlayer && typeof hostYouTubePlayer.getPlayerState === 'function') {
-      const state = hostYouTubePlayer.getPlayerState();
-      // 0 = ended
-      if (state === 0) {
-        hostYouTubePlayer.seekTo(0);
-        hostYouTubePlayer.playVideo();
+  ytLoopCheckInterval = setInterval(() => {
+    if (ytLoopPlayer && typeof ytLoopPlayer.getPlayerState === 'function') {
+      try {
+        const state = ytLoopPlayer.getPlayerState();
+        if (state === 0) { // Ended
+          console.log('Loop check: video ended, restarting');
+          ytLoopPlayer.seekTo(0);
+          ytLoopPlayer.playVideo();
+        }
+      } catch (e) {
+        // Player might be destroyed
       }
     }
   }, 500);
 }
 
-function destroyHostYouTubePlayer() {
-  // Clear loop interval
-  if (youtubeLoopInterval) {
-    clearInterval(youtubeLoopInterval);
-    youtubeLoopInterval = null;
+function destroyYouTubeLoopPlayer() {
+  if (ytLoopCheckInterval) {
+    clearInterval(ytLoopCheckInterval);
+    ytLoopCheckInterval = null;
   }
 
-  if (hostYouTubePlayer) {
+  if (ytLoopPlayer) {
     try {
-      hostYouTubePlayer.destroy();
+      ytLoopPlayer.destroy();
     } catch (e) {
-      // Ignore errors
+      // Ignore
     }
-    hostYouTubePlayer = null;
+    ytLoopPlayer = null;
   }
-  currentYouTubeVideoId = null;
 }
 
 function handleToggleChange(event) {
@@ -2016,7 +2046,7 @@ function renderHostCarouselItem(index) {
   const content = document.getElementById('hostCarouselContent');
 
   stopVideoEndTimeout(); // Clear any existing timeout
-  destroyHostYouTubePlayer(); // Clean up any existing YouTube player
+  destroyYouTubeLoopPlayer(); // Clean up any existing YouTube player
 
   // Check if auto-advance is currently enabled
   const autoAdvanceToggle = document.getElementById('autoAdvanceToggle');
@@ -2035,15 +2065,15 @@ function renderHostCarouselItem(index) {
     const videoId = videoIdMatch ? videoIdMatch[1] : '';
 
     if (isAutoAdvanceEnabled && isYouTubeVideo && videoId) {
-      // Use iframe with loop parameters - build URL with autoplay and loop
-      const loopUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&loop=1&playlist=${videoId}&rel=0&modestbranding=1`;
+      // Use YouTube API for looping
       content.innerHTML = `
         <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
-          <iframe id="hostVideoFrame" src="${loopUrl}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen>
-          </iframe>
+          <div id="ytLoopPlayer" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
         </div>
       `;
+
+      // Initialize YouTube player with API
+      initYouTubeLoopPlayer(videoId);
     } else {
       // Non-auto-advance mode or no video ID - use regular iframe
       content.innerHTML = `
