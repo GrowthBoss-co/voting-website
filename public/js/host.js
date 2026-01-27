@@ -1598,6 +1598,55 @@ function stopVideoEndTimeout() {
   }
 }
 
+// YouTube player instance for host
+let hostYouTubePlayer = null;
+
+function createHostYouTubePlayer(videoId) {
+  // Destroy existing player if any
+  if (hostYouTubePlayer) {
+    try {
+      hostYouTubePlayer.destroy();
+    } catch (e) {
+      // Ignore errors from destroying
+    }
+    hostYouTubePlayer = null;
+  }
+
+  hostYouTubePlayer = new YT.Player('hostYouTubePlayer', {
+    videoId: videoId,
+    playerVars: {
+      autoplay: 1,
+      loop: 1,
+      playlist: videoId, // Required for loop to work
+      modestbranding: 1,
+      rel: 0
+    },
+    events: {
+      onStateChange: function(event) {
+        // YT.PlayerState.ENDED = 0
+        if (event.data === 0) {
+          // Video ended, replay it
+          event.target.playVideo();
+        }
+      },
+      onError: function(event) {
+        console.error('YouTube player error:', event.data);
+      }
+    }
+  });
+}
+
+function destroyHostYouTubePlayer() {
+  if (hostYouTubePlayer) {
+    try {
+      hostYouTubePlayer.destroy();
+    } catch (e) {
+      // Ignore errors
+    }
+    hostYouTubePlayer = null;
+  }
+}
+
 function handleToggleChange(event) {
   const isEnabled = event.target.checked;
 
@@ -1934,6 +1983,7 @@ function renderHostCarouselItem(index) {
   const content = document.getElementById('hostCarouselContent');
 
   stopVideoEndTimeout(); // Clear any existing timeout
+  destroyHostYouTubePlayer(); // Clean up any existing YouTube player
 
   // Check if auto-advance is currently enabled
   const autoAdvanceToggle = document.getElementById('autoAdvanceToggle');
@@ -1946,23 +1996,44 @@ function renderHostCarouselItem(index) {
   if (item.type === 'video' && !isGoogleDrive) {
     // Real video (YouTube) - handle with autoplay and video timeout
     let videoUrl = item.url;
-    if (isAutoAdvanceEnabled && isYouTubeVideo) {
-      // Extract video ID for loop parameter (YouTube requires playlist=VIDEO_ID for loop to work)
-      const videoIdMatch = item.url.match(/youtube\.com\/embed\/([^?&]+)/);
-      const videoId = videoIdMatch ? videoIdMatch[1] : '';
-      videoUrl += (videoUrl.includes('?') ? '&' : '?') + 'autoplay=1&loop=1';
-      if (videoId) {
-        videoUrl += '&playlist=' + videoId;
-      }
-    }
 
-    content.innerHTML = `
-      <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
-        <iframe id="hostVideoFrame" src="${videoUrl}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen>
-        </iframe>
-      </div>
-    `;
+    // Extract video ID for YouTube API
+    const videoIdMatch = item.url.match(/youtube\.com\/embed\/([^?&\/]+)/);
+    const videoId = videoIdMatch ? videoIdMatch[1] : '';
+
+    if (isAutoAdvanceEnabled && isYouTubeVideo && videoId) {
+      // Use YouTube IFrame Player API for reliable looping
+      content.innerHTML = `
+        <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
+          <div id="hostYouTubePlayer" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
+        </div>
+      `;
+
+      // Load YouTube IFrame API if not already loaded
+      if (!window.YT) {
+        const tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        // Wait for API to load then create player
+        window.onYouTubeIframeAPIReady = function() {
+          createHostYouTubePlayer(videoId);
+        };
+      } else {
+        // API already loaded, create player immediately
+        createHostYouTubePlayer(videoId);
+      }
+    } else {
+      // Non-auto-advance mode or no video ID - use regular iframe
+      content.innerHTML = `
+        <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
+          <iframe id="hostVideoFrame" src="${videoUrl}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen>
+          </iframe>
+        </div>
+      `;
+    }
 
     // For YouTube videos in auto-advance mode, pause carousel and wait for video
     if (isAutoAdvanceEnabled && isYouTubeVideo && window.hostCarouselItems.length > 1) {
