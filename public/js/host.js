@@ -2035,29 +2035,15 @@ function renderHostCarouselItem(index) {
     const videoId = videoIdMatch ? videoIdMatch[1] : '';
 
     if (isAutoAdvanceEnabled && isYouTubeVideo && videoId) {
-      // Use YouTube IFrame Player API for reliable looping
+      // Use iframe with loop parameters - build URL with autoplay and loop
+      const loopUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&loop=1&playlist=${videoId}&rel=0&modestbranding=1`;
       content.innerHTML = `
         <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
-          <div id="hostYouTubePlayer" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
+          <iframe id="hostVideoFrame" src="${loopUrl}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen>
+          </iframe>
         </div>
       `;
-
-      // Load YouTube IFrame API if not already loaded
-      if (!window.YT || !window.YT.Player) {
-        const tag = document.createElement('script');
-        tag.src = 'https://www.youtube.com/iframe_api';
-        const firstScriptTag = document.getElementsByTagName('script')[0];
-        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-
-        // Wait for API to load then create player
-        window.onYouTubeIframeAPIReady = function() {
-          createHostYouTubePlayer(videoId);
-        };
-      } else {
-        // API already loaded, create player immediately
-        // Use setTimeout to ensure DOM is ready
-        setTimeout(() => createHostYouTubePlayer(videoId), 100);
-      }
     } else {
       // Non-auto-advance mode or no video ID - use regular iframe
       content.innerHTML = `
