@@ -1616,12 +1616,26 @@ function createHostYouTubePlayer(videoId) {
     videoId: videoId,
     playerVars: {
       autoplay: 1,
+      mute: 1, // Required for autoplay to work in most browsers
       loop: 1,
       playlist: videoId, // Required for loop to work
       modestbranding: 1,
       rel: 0
     },
     events: {
+      onReady: function(event) {
+        // Ensure video plays
+        event.target.playVideo();
+        // Try to unmute after a short delay (may work if user has interacted with page)
+        setTimeout(() => {
+          try {
+            event.target.unMute();
+            event.target.setVolume(100);
+          } catch (e) {
+            // Unmuting may fail due to browser policy, that's okay
+          }
+        }, 1000);
+      },
       onStateChange: function(event) {
         // YT.PlayerState.ENDED = 0
         if (event.data === 0) {
