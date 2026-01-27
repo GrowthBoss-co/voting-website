@@ -2064,6 +2064,14 @@ function renderHostCarouselItem(index) {
     const videoIdMatch = item.url.match(/youtube\.com\/embed\/([^?&\/]+)/);
     const videoId = videoIdMatch ? videoIdMatch[1] : '';
 
+    console.log('Video render debug:', {
+      isAutoAdvanceEnabled,
+      isYouTubeVideo,
+      videoId,
+      toggleElement: autoAdvanceToggle,
+      toggleChecked: autoAdvanceToggle ? autoAdvanceToggle.checked : 'no toggle'
+    });
+
     if (isAutoAdvanceEnabled && isYouTubeVideo && videoId) {
       // Use YouTube API for looping
       content.innerHTML = `
