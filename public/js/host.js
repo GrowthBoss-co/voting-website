@@ -1600,8 +1600,16 @@ function stopVideoEndTimeout() {
 
 // YouTube player instance for host
 let hostYouTubePlayer = null;
+let youtubeLoopInterval = null;
+let currentYouTubeVideoId = null;
 
 function createHostYouTubePlayer(videoId) {
+  // Clear any existing loop interval
+  if (youtubeLoopInterval) {
+    clearInterval(youtubeLoopInterval);
+    youtubeLoopInterval = null;
+  }
+
   // Destroy existing player if any
   if (hostYouTubePlayer) {
     try {
@@ -1611,6 +1619,8 @@ function createHostYouTubePlayer(videoId) {
     }
     hostYouTubePlayer = null;
   }
+
+  currentYouTubeVideoId = videoId;
 
   hostYouTubePlayer = new YT.Player('hostYouTubePlayer', {
     videoId: videoId,
@@ -1623,13 +1633,8 @@ function createHostYouTubePlayer(videoId) {
     events: {
       onReady: function(event) {
         event.target.playVideo();
-      },
-      onStateChange: function(event) {
-        // YT.PlayerState.ENDED = 0 - restart video when it ends
-        if (event.data === YT.PlayerState.ENDED) {
-          event.target.seekTo(0);
-          event.target.playVideo();
-        }
+        // Start polling to check for video end
+        startYouTubeLoopCheck();
       },
       onError: function(event) {
         console.error('YouTube player error:', event.data);
@@ -1638,7 +1643,32 @@ function createHostYouTubePlayer(videoId) {
   });
 }
 
+function startYouTubeLoopCheck() {
+  // Clear any existing interval
+  if (youtubeLoopInterval) {
+    clearInterval(youtubeLoopInterval);
+  }
+
+  // Poll every 500ms to check if video ended
+  youtubeLoopInterval = setInterval(() => {
+    if (hostYouTubePlayer && typeof hostYouTubePlayer.getPlayerState === 'function') {
+      const state = hostYouTubePlayer.getPlayerState();
+      // 0 = ended
+      if (state === 0) {
+        hostYouTubePlayer.seekTo(0);
+        hostYouTubePlayer.playVideo();
+      }
+    }
+  }, 500);
+}
+
 function destroyHostYouTubePlayer() {
+  // Clear loop interval
+  if (youtubeLoopInterval) {
+    clearInterval(youtubeLoopInterval);
+    youtubeLoopInterval = null;
+  }
+
   if (hostYouTubePlayer) {
     try {
       hostYouTubePlayer.destroy();
@@ -1647,6 +1677,7 @@ function destroyHostYouTubePlayer() {
     }
     hostYouTubePlayer = null;
   }
+  currentYouTubeVideoId = null;
 }
 
 function handleToggleChange(event) {
