@@ -1622,10 +1622,15 @@ function createHostYouTubePlayer(videoId) {
       rel: 0
     },
     events: {
+      onReady: function(event) {
+        // Ensure video starts playing
+        event.target.playVideo();
+      },
       onStateChange: function(event) {
         // YT.PlayerState.ENDED = 0
         if (event.data === 0) {
-          // Video ended, replay it
+          // Video ended, seek to beginning and play again
+          event.target.seekTo(0);
           event.target.playVideo();
         }
       },
@@ -2010,7 +2015,7 @@ function renderHostCarouselItem(index) {
       `;
 
       // Load YouTube IFrame API if not already loaded
-      if (!window.YT) {
+      if (!window.YT || !window.YT.Player) {
         const tag = document.createElement('script');
         tag.src = 'https://www.youtube.com/iframe_api';
         const firstScriptTag = document.getElementsByTagName('script')[0];
@@ -2022,7 +2027,8 @@ function renderHostCarouselItem(index) {
         };
       } else {
         // API already loaded, create player immediately
-        createHostYouTubePlayer(videoId);
+        // Use setTimeout to ensure DOM is ready
+        setTimeout(() => createHostYouTubePlayer(videoId), 100);
       }
     } else {
       // Non-auto-advance mode or no video ID - use regular iframe
