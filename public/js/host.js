@@ -677,8 +677,7 @@ async function updateHostWaitingStatus() {
 
     // If session started (by voters countdown), go to presenting
     if (data.sessionStatus === 'presenting') {
-      exitHostWaitingRoom();
-      startPoll(0);
+      forceStartSession();
     }
   } catch (error) {
     console.error('Error polling ready status:', error);
@@ -704,6 +703,8 @@ function startHostCountdown() {
 }
 
 async function forceStartSession() {
+  console.log('[forceStartSession] Starting...');
+
   // Stop waiting room polling
   if (hostWaitingPollingInterval) {
     clearInterval(hostWaitingPollingInterval);
@@ -714,11 +715,26 @@ async function forceStartSession() {
     hostCountdownInterval = null;
   }
 
-  // Hide waiting room, show voting section
+  // Hide waiting room and setup, show voting section
+  console.log('[forceStartSession] Hiding waiting room and setup, showing voting section');
   document.getElementById('hostWaitingRoom').classList.add('hidden');
+  document.getElementById('setupSection').classList.add('hidden');
+  document.getElementById('votingSection').classList.remove('hidden');
+
+  console.log('[forceStartSession] votingSection hidden?', document.getElementById('votingSection').classList.contains('hidden'));
+
+  // Ensure polls are loaded before starting
+  console.log('[forceStartSession] polls.length before load:', polls.length);
+  if (polls.length === 0) {
+    console.log('[forceStartSession] Loading polls...');
+    await loadExistingPolls();
+    console.log('[forceStartSession] polls.length after load:', polls.length);
+  }
 
   // Start the first poll
+  console.log('[forceStartSession] Starting poll 0');
   await startPoll(0);
+  console.log('[forceStartSession] Done');
 }
 
 // Load auto-advance state on page load
