@@ -731,6 +731,19 @@ async function forceStartSession() {
     console.log('[forceStartSession] polls.length after load:', polls.length);
   }
 
+  // Fetch session data to get expected attendance
+  try {
+    const sessionResponse = await fetch(`/api/session/${sessionId}`);
+    const sessionData = await sessionResponse.json();
+    if (sessionData.expectedAttendance) {
+      expectedAttendance = sessionData.expectedAttendance;
+      totalVotersInSession = sessionData.expectedAttendance;
+      console.log('[forceStartSession] Set totalVotersInSession:', totalVotersInSession);
+    }
+  } catch (error) {
+    console.error('[forceStartSession] Error fetching session data:', error);
+  }
+
   // Start the first poll
   console.log('[forceStartSession] Starting poll 0');
   await startPoll(0);
