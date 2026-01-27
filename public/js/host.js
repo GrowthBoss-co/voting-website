@@ -1616,20 +1616,17 @@ function createHostYouTubePlayer(videoId) {
     videoId: videoId,
     playerVars: {
       autoplay: 1,
-      loop: 1,
-      playlist: videoId, // Required for loop to work
       modestbranding: 1,
-      rel: 0
+      rel: 0,
+      enablejsapi: 1
     },
     events: {
       onReady: function(event) {
-        // Ensure video starts playing
         event.target.playVideo();
       },
       onStateChange: function(event) {
-        // YT.PlayerState.ENDED = 0
-        if (event.data === 0) {
-          // Video ended, seek to beginning and play again
+        // YT.PlayerState.ENDED = 0 - restart video when it ends
+        if (event.data === YT.PlayerState.ENDED) {
           event.target.seekTo(0);
           event.target.playVideo();
         }
