@@ -616,6 +616,16 @@ app.get('/api/session/:sessionId/current-poll', async (req, res) => {
     return res.status(404).json({ error: 'Session not found' });
   }
 
+  // Check if session is completed - return null poll so voters see end screen
+  if (session.status === 'completed') {
+    return res.json({
+      currentPoll: null,
+      sessionStarted: true,
+      totalPolls: session.polls.length,
+      status: 'completed'
+    });
+  }
+
   // Check if session is paused
   if (session.status === 'paused') {
     return res.json({
@@ -1607,5 +1617,133 @@ app.put('/api/session/:sessionId/attendance', async (req, res) => {
     res.status(500).json({ error: 'Failed to update attendance' });
   }
 });
+
+// Submit anonymous feedback and create ClickUp task
+app.post('/api/session/:sessionId/feedback', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { feedbackData } = req.body;
+
+    // Validate session exists
+    const session = await getSession(sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Validate feedback data structure
+    if (!feedbackData || typeof feedbackData !== 'object') {
+      return res.status(400).json({ error: 'Invalid feedback data' });
+    }
+
+    // Build task description from feedback
+    const taskDescription = buildFeedbackDescription(feedbackData, session.name);
+
+    // Create ClickUp task
+    const clickupResult = await createClickUpFeedbackTask(
+      session.name,
+      taskDescription,
+      feedbackData
+    );
+
+    // Track feedback count in session (for analytics)
+    session.feedbackCount = (session.feedbackCount || 0) + 1;
+    await saveSession(sessionId, session);
+
+    res.json({
+      success: true,
+      message: 'Feedback submitted successfully',
+      taskId: clickupResult.id
+    });
+
+  } catch (error) {
+    console.error('Error submitting feedback:', error);
+    res.status(500).json({ error: 'Failed to submit feedback' });
+  }
+});
+
+// Helper function to build feedback description
+function buildFeedbackDescription(feedbackData, sessionName) {
+  const lines = [
+    `**Session:** ${sessionName || 'Content Team Roundtable'}`,
+    `**Date:** ${new Date().toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })}`,
+    '',
+    '---',
+    ''
+  ];
+
+  if (feedbackData.rating) {
+    const stars = '⭐'.repeat(feedbackData.rating);
+    lines.push(`**Rating:** ${stars} (${feedbackData.rating}/5)`);
+    lines.push('');
+  }
+
+  if (feedbackData.mostValuable) {
+    lines.push(`**What was most valuable:**`);
+    lines.push(feedbackData.mostValuable);
+    lines.push('');
+  }
+
+  if (feedbackData.improvements) {
+    lines.push(`**Suggested improvements:**`);
+    lines.push(feedbackData.improvements);
+    lines.push('');
+  }
+
+  if (feedbackData.meetingLengthAppropriate) {
+    lines.push(`**Meeting length appropriate:** ${feedbackData.meetingLengthAppropriate}`);
+    lines.push('');
+  }
+
+  if (feedbackData.additionalComments) {
+    lines.push(`**Additional comments:**`);
+    lines.push(feedbackData.additionalComments);
+  }
+
+  return lines.join('\n');
+}
+
+// ClickUp API integration for feedback
+async function createClickUpFeedbackTask(sessionName, description, feedbackData) {
+  const CLICKUP_API_TOKEN = 'pk_89331356_M4MCB2W1V5ZVIW1ZKI403ZZZOI06D31N';
+  const CLICKUP_LIST_ID = '901710068500';
+
+  // Build task name with date
+  const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const taskName = `Session Feedback - ${dateStr}`;
+
+  // Add tags based on feedback content
+  const tags = ['feedback'];
+  if (feedbackData.improvements) {
+    tags.push('has-suggestions');
+  }
+  if (feedbackData.rating && feedbackData.rating <= 2) {
+    tags.push('needs-attention');
+  }
+
+  const response = await fetch(`https://api.clickup.com/api/v2/list/${CLICKUP_LIST_ID}/task`, {
+    method: 'POST',
+    headers: {
+      'Authorization': CLICKUP_API_TOKEN,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      name: taskName,
+      description: description,
+      tags: tags
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`ClickUp API error: ${response.status} - ${errorText}`);
+  }
+
+  return await response.json();
+}
 
 module.exports = app;

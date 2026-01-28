@@ -72,8 +72,71 @@
 
         <div id="endScreen" class="end-screen hidden">
           <div class="end-message">
-            <h2 style="font-size: 2.5em; margin-bottom: 20px;">🎉 Thank you for joining us and voting! 🎉</h2>
+            <h2 style="font-size: 2.5em; margin-bottom: 20px;">Thank you for joining us and voting!</h2>
             <p style="font-size: 1.5em; color: #555;">See you next Friday!!</p>
+          </div>
+
+          <!-- Feedback Form -->
+          <div id="feedbackSection" class="feedback-section">
+            <h3>We'd love your feedback!</h3>
+
+            <!-- Question 1: Rating -->
+            <div class="feedback-question">
+              <label>How would you rate this week's Content Team Roundtable?</label>
+              <div class="star-rating" id="contentRating">
+                <span class="star" data-value="1">&#9733;</span>
+                <span class="star" data-value="2">&#9733;</span>
+                <span class="star" data-value="3">&#9733;</span>
+                <span class="star" data-value="4">&#9733;</span>
+                <span class="star" data-value="5">&#9733;</span>
+              </div>
+            </div>
+
+            <!-- Question 2: Most valuable -->
+            <div class="feedback-question">
+              <label>What did you find most valuable about this meeting?</label>
+              <textarea id="mostValuable" placeholder="Share what you found valuable..."></textarea>
+            </div>
+
+            <!-- Question 3: Improvements -->
+            <div class="feedback-question">
+              <label>What could be improved for future meetings?</label>
+              <textarea id="improvements" placeholder="Share your suggestions for improvement..."></textarea>
+            </div>
+
+            <!-- Question 4: Meeting length -->
+            <div class="feedback-question">
+              <label>Was the meeting length appropriate?</label>
+              <div class="option-buttons" id="meetingLengthOptions">
+                <button type="button" class="option-btn" data-value="Yes">Yes</button>
+                <button type="button" class="option-btn" data-value="No">No</button>
+              </div>
+            </div>
+
+            <!-- Question 5: Additional comments -->
+            <div class="feedback-question">
+              <label>Any additional comments or suggestions? (Optional)</label>
+              <textarea id="additionalComments" placeholder="Any other thoughts..."></textarea>
+            </div>
+
+            <p class="feedback-privacy">Your feedback is anonymous and helps us improve future sessions.</p>
+
+            <button id="submitFeedbackBtn" class="btn btn-primary btn-large">
+              Submit Feedback
+            </button>
+
+            <p id="feedbackMessage" class="submit-message hidden"></p>
+
+            <button id="skipFeedbackBtn" class="btn btn-secondary" style="margin-top: 10px;">
+              Skip Feedback
+            </button>
+          </div>
+
+          <!-- Thank You Message (shown after submission) -->
+          <div id="feedbackThanks" class="hidden">
+            <p style="font-size: 1.3em; color: #48bb78; margin-top: 20px;">
+              Thank you for your feedback!
+            </p>
           </div>
         </div>
       </div>

@@ -864,11 +864,129 @@ h3 {
   transform: scale(1.3);
 }
 
+/* Feedback Section Styles */
+.feedback-section {
+  background: #f7fafc;
+  padding: 30px;
+  border-radius: 12px;
+  margin-top: 30px;
+  text-align: left;
+}
+
+.feedback-section h3 {
+  color: #333;
+  margin-bottom: 25px;
+  text-align: center;
+}
+
+.feedback-question {
+  margin-bottom: 25px;
+}
+
+.feedback-question label {
+  display: block;
+  margin-bottom: 12px;
+  color: #333;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+/* Star Rating */
+.star-rating {
+  display: flex;
+  gap: 8px;
+}
+
+.star-rating .star {
+  font-size: 32px;
+  color: #cbd5e0;
+  cursor: pointer;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.star-rating .star:hover,
+.star-rating .star.active {
+  color: #f6ad55;
+  transform: scale(1.1);
+}
+
+/* Option Buttons */
+.option-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.option-btn {
+  padding: 10px 20px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  color: #555;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.option-btn:hover {
+  border-color: #667eea;
+  background: #f0f5ff;
+}
+
+.option-btn.selected {
+  border-color: #667eea;
+  background: #667eea;
+  color: white;
+}
+
+/* Feedback Textarea */
+.feedback-section textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 80px;
+}
+
+.feedback-section textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.feedback-privacy {
+  font-size: 12px;
+  color: #888;
+  margin: 20px 0;
+  text-align: center;
+}
+
 @media (max-width: 768px) {
   .welcome-card,
   .host-dashboard,
   .voter-view {
     padding: 20px;
+  }
+
+  .feedback-section {
+    padding: 20px;
+  }
+
+  .star-rating .star {
+    font-size: 28px;
+  }
+
+  .option-buttons {
+    flex-direction: column;
+  }
+
+  .option-btn {
+    width: 100%;
+    text-align: center;
   }
 
   h1 {

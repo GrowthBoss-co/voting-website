@@ -148,6 +148,7 @@ async function checkForPoll() {
     }
 
     const data = await response.json();
+    console.log('checkForPoll response:', data.status, 'currentPoll:', !!data.currentPoll);
 
     if (data.currentPoll) {
       if (lastPollId !== data.currentPoll.id) {
@@ -161,6 +162,7 @@ async function checkForPoll() {
 
       // Check if session is completed
       if (data.status === 'completed') {
+        console.log('Session completed - showing end screen');
         showEndScreen();
       } else if (data.status === 'paused') {
         showWaitingScreen(
@@ -764,3 +766,140 @@ async function voterToggleAutoAdvance() {
     console.error('Error toggling auto-advance:', error);
   }
 }
+
+// ========================================
+// Feedback Form Logic
+// ========================================
+
+let feedbackData = {
+  rating: null,
+  mostValuable: '',
+  improvements: '',
+  meetingLengthAppropriate: null,
+  additionalComments: ''
+};
+
+let feedbackInitialized = false;
+
+function initializeFeedbackForm() {
+  if (feedbackInitialized) return;
+  feedbackInitialized = true;
+
+  // Star rating interaction
+  const stars = document.querySelectorAll('.star-rating .star');
+  stars.forEach(star => {
+    star.addEventListener('click', () => {
+      const value = parseInt(star.dataset.value);
+      feedbackData.rating = value;
+
+      // Update visual state
+      stars.forEach(s => {
+        if (parseInt(s.dataset.value) <= value) {
+          s.classList.add('active');
+        } else {
+          s.classList.remove('active');
+        }
+      });
+    });
+
+    star.addEventListener('mouseenter', () => {
+      const value = parseInt(star.dataset.value);
+      stars.forEach(s => {
+        if (parseInt(s.dataset.value) <= value) {
+          s.style.color = '#f6ad55';
+        }
+      });
+    });
+
+    star.addEventListener('mouseleave', () => {
+      stars.forEach(s => {
+        if (!s.classList.contains('active')) {
+          s.style.color = '#cbd5e0';
+        } else {
+          s.style.color = '#f6ad55';
+        }
+      });
+    });
+  });
+
+  // Meeting length option buttons
+  document.querySelectorAll('#meetingLengthOptions .option-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#meetingLengthOptions .option-btn').forEach(b =>
+        b.classList.remove('selected'));
+      btn.classList.add('selected');
+      feedbackData.meetingLengthAppropriate = btn.dataset.value;
+    });
+  });
+
+  // Submit feedback handler
+  const submitBtn = document.getElementById('submitFeedbackBtn');
+  if (submitBtn) {
+    submitBtn.addEventListener('click', submitFeedback);
+  }
+
+  // Skip feedback handler
+  const skipBtn = document.getElementById('skipFeedbackBtn');
+  if (skipBtn) {
+    skipBtn.addEventListener('click', () => {
+      document.getElementById('feedbackSection').classList.add('hidden');
+      const thanksDiv = document.getElementById('feedbackThanks');
+      thanksDiv.classList.remove('hidden');
+      thanksDiv.innerHTML = '<p style="font-size: 1.3em; color: #666; margin-top: 20px;">No problem! See you next time!</p>';
+    });
+  }
+}
+
+async function submitFeedback() {
+  const submitBtn = document.getElementById('submitFeedbackBtn');
+  const messageDiv = document.getElementById('feedbackMessage');
+
+  // Collect form data
+  feedbackData.mostValuable = document.getElementById('mostValuable')?.value || '';
+  feedbackData.improvements = document.getElementById('improvements')?.value || '';
+  feedbackData.additionalComments = document.getElementById('additionalComments')?.value || '';
+
+  // Validate at least one field is filled
+  if (!feedbackData.rating && !feedbackData.mostValuable && !feedbackData.improvements && !feedbackData.meetingLengthAppropriate) {
+    messageDiv.textContent = 'Please provide at least one piece of feedback.';
+    messageDiv.className = 'submit-message error';
+    messageDiv.classList.remove('hidden');
+    return;
+  }
+
+  // Disable button during submission
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Submitting...';
+
+  try {
+    const response = await fetch(`/api/session/${sessionId}/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ feedbackData })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to submit feedback');
+    }
+
+    // Show success message
+    document.getElementById('feedbackSection').classList.add('hidden');
+    document.getElementById('feedbackThanks').classList.remove('hidden');
+
+  } catch (error) {
+    console.error('Error submitting feedback:', error);
+    messageDiv.textContent = 'Failed to submit feedback. Please try again.';
+    messageDiv.className = 'submit-message error';
+    messageDiv.classList.remove('hidden');
+
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Submit Feedback';
+  }
+}
+
+// Modify showEndScreen to initialize feedback form
+const originalShowEndScreen = showEndScreen;
+showEndScreen = function() {
+  originalShowEndScreen();
+  initializeFeedbackForm();
+};
