@@ -1696,6 +1696,14 @@ function buildFeedbackDescription(feedbackData, sessionName) {
 
   if (feedbackData.meetingLengthAppropriate) {
     lines.push(`**Meeting length appropriate:** ${feedbackData.meetingLengthAppropriate}`);
+    if (feedbackData.meetingLengthAppropriate === 'No') {
+      if (feedbackData.meetingLengthReason) {
+        lines.push(`**Reason:** ${feedbackData.meetingLengthReason}`);
+      }
+      if (feedbackData.meetingLengthSuggestion) {
+        lines.push(`**Suggestion:** ${feedbackData.meetingLengthSuggestion}`);
+      }
+    }
     lines.push('');
   }
 

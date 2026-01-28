@@ -111,6 +111,19 @@
                 <button type="button" class="option-btn" data-value="Yes">Yes</button>
                 <button type="button" class="option-btn" data-value="No">No</button>
               </div>
+
+              <!-- Expanded options when "No" is selected -->
+              <div id="meetingLengthDetails" class="hidden" style="margin-top: 15px; padding: 15px; background: #fff; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <label style="margin-bottom: 10px;">Was it:</label>
+                <div class="option-buttons" id="meetingLengthReason">
+                  <button type="button" class="option-btn" data-value="Too short">Too short</button>
+                  <button type="button" class="option-btn" data-value="Too long">Too long</button>
+                </div>
+                <div style="margin-top: 15px;">
+                  <label>Do you have a suggestion to make it more appropriate? (Optional)</label>
+                  <textarea id="meetingLengthSuggestion" placeholder="Share your suggestion..."></textarea>
+                </div>
+              </div>
             </div>
 
             <!-- Question 5: Additional comments -->

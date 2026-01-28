@@ -776,6 +776,8 @@ let feedbackData = {
   mostValuable: '',
   improvements: '',
   meetingLengthAppropriate: null,
+  meetingLengthReason: null,
+  meetingLengthSuggestion: '',
   additionalComments: ''
 };
 
@@ -829,6 +831,31 @@ function initializeFeedbackForm() {
         b.classList.remove('selected'));
       btn.classList.add('selected');
       feedbackData.meetingLengthAppropriate = btn.dataset.value;
+
+      // Show/hide expanded options based on selection
+      const detailsDiv = document.getElementById('meetingLengthDetails');
+      if (btn.dataset.value === 'No') {
+        detailsDiv.classList.remove('hidden');
+      } else {
+        detailsDiv.classList.add('hidden');
+        // Reset the expanded options when "Yes" is selected
+        feedbackData.meetingLengthReason = null;
+        feedbackData.meetingLengthSuggestion = '';
+        document.querySelectorAll('#meetingLengthReason .option-btn').forEach(b =>
+          b.classList.remove('selected'));
+        const suggestionInput = document.getElementById('meetingLengthSuggestion');
+        if (suggestionInput) suggestionInput.value = '';
+      }
+    });
+  });
+
+  // Meeting length reason buttons (too short / too long)
+  document.querySelectorAll('#meetingLengthReason .option-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#meetingLengthReason .option-btn').forEach(b =>
+        b.classList.remove('selected'));
+      btn.classList.add('selected');
+      feedbackData.meetingLengthReason = btn.dataset.value;
     });
   });
 
@@ -857,6 +884,7 @@ async function submitFeedback() {
   // Collect form data
   feedbackData.mostValuable = document.getElementById('mostValuable')?.value || '';
   feedbackData.improvements = document.getElementById('improvements')?.value || '';
+  feedbackData.meetingLengthSuggestion = document.getElementById('meetingLengthSuggestion')?.value || '';
   feedbackData.additionalComments = document.getElementById('additionalComments')?.value || '';
 
   // Validate at least one field is filled
