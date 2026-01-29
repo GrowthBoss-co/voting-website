@@ -1089,45 +1089,192 @@ document.getElementById('pollForm').addEventListener('submit', async e => {
   }
 });
 
+// Track the current view mode for polls list
+let pollsViewMode = 'preview'; // 'compact' or 'preview'
+
+// Generate thumbnail URL for a media item
+function getThumbnailUrl(mediaItem) {
+  const url = mediaItem.url;
+
+  // YouTube - use thumbnail API
+  if (url.includes('youtube.com/embed/')) {
+    const videoId = url.split('/embed/')[1].split('?')[0];
+    return `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+  }
+
+  // Images - use the URL directly
+  if (mediaItem.type === 'image') {
+    return url;
+  }
+
+  // Google Drive - return null (will use placeholder)
+  return null;
+}
+
+// Generate thumbnail HTML for a media item
+function generateThumbnailHtml(mediaItem, pollIndex, itemIndex) {
+  const thumbnailUrl = getThumbnailUrl(mediaItem);
+  const isYouTube = mediaItem.url.includes('youtube.com/embed/');
+  const isGoogleDrive = mediaItem.url.includes('drive.google.com');
+
+  if (thumbnailUrl) {
+    const typeLabel = isYouTube ? 'YouTube' : 'Image';
+    return `
+      <div class="poll-thumbnail" onclick="showThumbnailPreview('${mediaItem.url}', '${mediaItem.type}')" title="Click to preview">
+        <img src="${thumbnailUrl}" alt="Media ${itemIndex + 1}" onerror="this.parentElement.innerHTML='<div class=\\'poll-thumbnail-video\\'><div class=\\'play-icon\\'>📷</div>Failed to load</div>'">
+        ${isYouTube ? '<div class="poll-thumbnail-overlay">▶ YouTube</div>' : ''}
+      </div>
+    `;
+  } else if (isGoogleDrive) {
+    return `
+      <div class="poll-thumbnail poll-thumbnail-video" onclick="showThumbnailPreview('${mediaItem.url}', '${mediaItem.type}')" title="Click to preview">
+        <div>
+          <div class="play-icon">📁</div>
+          <div>Google Drive</div>
+        </div>
+      </div>
+    `;
+  } else {
+    return `
+      <div class="poll-thumbnail poll-thumbnail-video" onclick="showThumbnailPreview('${mediaItem.url}', '${mediaItem.type}')" title="Click to preview">
+        <div>
+          <div class="play-icon">🎬</div>
+          <div>Video</div>
+        </div>
+      </div>
+    `;
+  }
+}
+
+// Show full preview modal when clicking a thumbnail
+function showThumbnailPreview(url, type) {
+  const modal = document.createElement('div');
+  modal.className = 'thumbnail-modal';
+  modal.onclick = () => modal.remove();
+
+  if (type === 'image') {
+    modal.innerHTML = `<img src="${url}" onclick="event.stopPropagation()">`;
+  } else {
+    modal.innerHTML = `<iframe src="${url}" frameborder="0" allowfullscreen onclick="event.stopPropagation()"></iframe>`;
+  }
+
+  document.body.appendChild(modal);
+
+  // Close on escape key
+  const closeOnEscape = (e) => {
+    if (e.key === 'Escape') {
+      modal.remove();
+      document.removeEventListener('keydown', closeOnEscape);
+    }
+  };
+  document.addEventListener('keydown', closeOnEscape);
+}
+
+// Check for potential duplicate polls based on media URLs
+function findDuplicatePolls() {
+  const urlMap = new Map();
+  const duplicates = new Set();
+
+  polls.forEach((poll, index) => {
+    poll.mediaItems.forEach(item => {
+      const key = item.url;
+      if (urlMap.has(key)) {
+        duplicates.add(index);
+        duplicates.add(urlMap.get(key));
+      } else {
+        urlMap.set(key, index);
+      }
+    });
+  });
+
+  return duplicates;
+}
+
+// Toggle between compact and preview view
+function togglePollsView(mode) {
+  pollsViewMode = mode;
+  updatePollsList();
+}
+
 function updatePollsList() {
   const container = document.getElementById('pollsContainer');
-  container.innerHTML = polls
-    .map(
-      (poll, index) => `
-    <div class="poll-item" draggable="true" data-index="${index}">
-      <div class="drag-handle" title="Drag to reorder">
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" style="color: #718096;">
-          <circle cx="7" cy="5" r="1.5"/>
-          <circle cx="13" cy="5" r="1.5"/>
-          <circle cx="7" cy="10" r="1.5"/>
-          <circle cx="13" cy="10" r="1.5"/>
-          <circle cx="7" cy="15" r="1.5"/>
-          <circle cx="13" cy="15" r="1.5"/>
-        </svg>
-      </div>
-      <div style="flex: 1;">
-        <strong>Poll ${index + 1}:</strong> ${poll.creator} - ${poll.company}
-        <span style="margin-left: 10px; color: #666;">(${poll.mediaItems.length} media item${poll.mediaItems.length > 1 ? 's' : ''}, ${poll.timer}s timer)</span>
-      </div>
-      <div style="display: flex; gap: 8px;">
-        <button onclick="editPoll(${index})" class="btn btn-small btn-secondary">Edit</button>
-        <button onclick="deletePoll(${index})" class="btn btn-small btn-danger">Delete</button>
-      </div>
-    </div>
-  `
-    )
-    .join('');
+  const duplicates = findDuplicatePolls();
 
-  // Add drag and drop event listeners
-  const pollItems = container.querySelectorAll('.poll-item');
-  pollItems.forEach(item => {
-    item.addEventListener('dragstart', handleDragStart);
-    item.addEventListener('dragover', handleDragOver);
-    item.addEventListener('drop', handleDrop);
-    item.addEventListener('dragenter', handleDragEnter);
-    item.addEventListener('dragleave', handleDragLeave);
-    item.addEventListener('dragend', handleDragEnd);
-  });
+  // Add view toggle buttons
+  const viewToggleHtml = `
+    <div style="display: flex; gap: 8px; margin-bottom: 15px;">
+      <button class="view-toggle-btn ${pollsViewMode === 'preview' ? 'active' : ''}" onclick="togglePollsView('preview')">
+        🖼️ Preview View
+      </button>
+      <button class="view-toggle-btn ${pollsViewMode === 'compact' ? 'active' : ''}" onclick="togglePollsView('compact')">
+        📋 Compact View
+      </button>
+      ${duplicates.size > 0 ? `<span style="color: #e53e3e; font-weight: 600; padding: 6px 12px; background: #fff5f5; border-radius: 6px;">⚠️ ${duplicates.size} potential duplicate(s) found</span>` : ''}
+    </div>
+  `;
+
+  if (pollsViewMode === 'preview') {
+    // Grid view with thumbnails
+    container.innerHTML = viewToggleHtml + `
+      <div class="poll-preview-grid">
+        ${polls.map((poll, index) => `
+          <div class="poll-preview-card ${duplicates.has(index) ? 'duplicate-warning' : ''}" data-index="${index}">
+            <div class="poll-preview-header">
+              <h4>Poll ${index + 1}: ${poll.creator} - ${poll.company}</h4>
+              <span class="poll-meta">${poll.mediaItems.length} item${poll.mediaItems.length > 1 ? 's' : ''} · ${poll.timer}s</span>
+            </div>
+            <div class="poll-preview-media">
+              ${poll.mediaItems.map((item, itemIndex) => generateThumbnailHtml(item, index, itemIndex)).join('')}
+            </div>
+            <div class="poll-preview-actions">
+              <button onclick="editPoll(${index})" class="btn btn-small btn-secondary">Edit</button>
+              <button onclick="deletePoll(${index})" class="btn btn-small btn-danger">Delete</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } else {
+    // Compact list view (original)
+    container.innerHTML = viewToggleHtml + polls
+      .map(
+        (poll, index) => `
+      <div class="poll-item ${duplicates.has(index) ? 'duplicate-warning' : ''}" draggable="true" data-index="${index}" style="${duplicates.has(index) ? 'border-left: 4px solid #e53e3e; background: #fff5f5;' : ''}">
+        <div class="drag-handle" title="Drag to reorder">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" style="color: #718096;">
+            <circle cx="7" cy="5" r="1.5"/>
+            <circle cx="13" cy="5" r="1.5"/>
+            <circle cx="7" cy="10" r="1.5"/>
+            <circle cx="13" cy="10" r="1.5"/>
+            <circle cx="7" cy="15" r="1.5"/>
+            <circle cx="13" cy="15" r="1.5"/>
+          </svg>
+        </div>
+        <div style="flex: 1;">
+          <strong>Poll ${index + 1}:</strong> ${poll.creator} - ${poll.company}
+          <span style="margin-left: 10px; color: #666;">(${poll.mediaItems.length} media item${poll.mediaItems.length > 1 ? 's' : ''}, ${poll.timer}s timer)</span>
+          ${duplicates.has(index) ? '<span style="margin-left: 10px; color: #e53e3e; font-weight: 600;">⚠️ Duplicate</span>' : ''}
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button onclick="editPoll(${index})" class="btn btn-small btn-secondary">Edit</button>
+          <button onclick="deletePoll(${index})" class="btn btn-small btn-danger">Delete</button>
+        </div>
+      </div>
+    `
+      )
+      .join('');
+
+    // Add drag and drop event listeners for compact view
+    const pollItems = container.querySelectorAll('.poll-item');
+    pollItems.forEach(item => {
+      item.addEventListener('dragstart', handleDragStart);
+      item.addEventListener('dragover', handleDragOver);
+      item.addEventListener('drop', handleDrop);
+      item.addEventListener('dragenter', handleDragEnter);
+      item.addEventListener('dragleave', handleDragLeave);
+      item.addEventListener('dragend', handleDragEnd);
+    });
+  }
 }
 
 document.getElementById('startVotingBtn').addEventListener('click', async () => {
