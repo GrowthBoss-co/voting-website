@@ -1102,12 +1102,21 @@ function getThumbnailUrl(mediaItem) {
     return `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
   }
 
+  // Google Drive - use thumbnail API (works for images and video previews)
+  if (url.includes('drive.google.com')) {
+    const fileIdMatch = url.match(/\/file\/d\/([^\/]+)/);
+    if (fileIdMatch) {
+      const fileId = fileIdMatch[1];
+      return `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`;
+    }
+  }
+
   // Images - use the URL directly
   if (mediaItem.type === 'image') {
     return url;
   }
 
-  // Google Drive - return null (will use placeholder)
+  // Other - return null (will use placeholder)
   return null;
 }
 
@@ -1118,20 +1127,17 @@ function generateThumbnailHtml(mediaItem, pollIndex, itemIndex) {
   const isGoogleDrive = mediaItem.url.includes('drive.google.com');
 
   if (thumbnailUrl) {
-    const typeLabel = isYouTube ? 'YouTube' : 'Image';
+    let overlayLabel = '';
+    if (isYouTube) {
+      overlayLabel = '<div class="poll-thumbnail-overlay">▶ YouTube</div>';
+    } else if (isGoogleDrive) {
+      overlayLabel = '<div class="poll-thumbnail-overlay">Google Drive</div>';
+    }
+
     return `
       <div class="poll-thumbnail" onclick="showThumbnailPreview('${mediaItem.url}', '${mediaItem.type}')" title="Click to preview">
-        <img src="${thumbnailUrl}" alt="Media ${itemIndex + 1}" onerror="this.parentElement.innerHTML='<div class=\\'poll-thumbnail-video\\'><div class=\\'play-icon\\'>📷</div>Failed to load</div>'">
-        ${isYouTube ? '<div class="poll-thumbnail-overlay">▶ YouTube</div>' : ''}
-      </div>
-    `;
-  } else if (isGoogleDrive) {
-    return `
-      <div class="poll-thumbnail poll-thumbnail-video" onclick="showThumbnailPreview('${mediaItem.url}', '${mediaItem.type}')" title="Click to preview">
-        <div>
-          <div class="play-icon">📁</div>
-          <div>Google Drive</div>
-        </div>
+        <img src="${thumbnailUrl}" alt="Media ${itemIndex + 1}" onerror="this.parentElement.innerHTML='<div class=\\'poll-thumbnail-video\\'><div class=\\'play-icon\\'>📁</div>Failed to load</div>'">
+        ${overlayLabel}
       </div>
     `;
   } else {
