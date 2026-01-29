@@ -4,6 +4,345 @@
   box-sizing: border-box;
 }
 
+/* Dark Mode Toggle Button */
+.dark-mode-toggle {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid #667eea;
+  border-radius: 50px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #667eea;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dark-mode-toggle:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+}
+
+/* Dark Mode Styles */
+body.dark-mode {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  background-image: none;
+}
+
+body.dark-mode .dark-mode-toggle {
+  background: rgba(30, 30, 50, 0.9);
+  border-color: #a78bfa;
+  color: #a78bfa;
+}
+
+body.dark-mode .welcome-card,
+body.dark-mode .host-dashboard,
+body.dark-mode .voter-view {
+  background: #1e1e2e;
+  color: #e2e8f0;
+}
+
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4 {
+  color: #e2e8f0;
+}
+
+body.dark-mode p,
+body.dark-mode label,
+body.dark-mode span,
+body.dark-mode small {
+  color: #a0aec0;
+}
+
+body.dark-mode strong {
+  color: #e2e8f0;
+}
+
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea {
+  background: #2d2d3f;
+  border-color: #4a5568;
+  color: #e2e8f0;
+}
+
+body.dark-mode input::placeholder,
+body.dark-mode textarea::placeholder {
+  color: #718096;
+}
+
+body.dark-mode input:focus,
+body.dark-mode select:focus,
+body.dark-mode textarea:focus {
+  border-color: #667eea;
+  outline: none;
+}
+
+body.dark-mode .btn-secondary {
+  background: #4a5568;
+  color: #e2e8f0;
+}
+
+body.dark-mode .btn-secondary:hover {
+  background: #5a6578;
+}
+
+body.dark-mode .modal-content {
+  background: #1e1e2e;
+  color: #e2e8f0;
+}
+
+body.dark-mode .modal-content h2 {
+  color: #e2e8f0;
+}
+
+body.dark-mode .modal-content p {
+  color: #a0aec0;
+}
+
+/* Dark mode for setup sections */
+body.dark-mode .setup-section > div[style*="background: #e8f5e9"],
+body.dark-mode .setup-section > div[style*="background: #f8f9fa"],
+body.dark-mode .setup-section > div[style*="background: #f0f4f8"] {
+  background: #2d2d3f !important;
+}
+
+body.dark-mode [style*="background: #f7fafc"],
+body.dark-mode [style*="background: #f8f9fa"],
+body.dark-mode [style*="background: #f0f8ff"],
+body.dark-mode [style*="background: #e8f5e9"],
+body.dark-mode [style*="background: #f0f4f8"] {
+  background: #2d2d3f !important;
+}
+
+body.dark-mode [style*="background: white"] {
+  background: #252535 !important;
+}
+
+/* Dark mode for poll items */
+body.dark-mode .poll-item {
+  background: #2d2d3f;
+  border-color: #4a5568;
+}
+
+body.dark-mode .poll-preview-card {
+  background: #1e1e2e;
+  border-color: #4a5568;
+}
+
+body.dark-mode .poll-preview-card:hover {
+  border-color: #667eea;
+}
+
+body.dark-mode .poll-preview-header {
+  background: #252535;
+  border-color: #4a5568;
+}
+
+body.dark-mode .poll-preview-actions {
+  border-color: #4a5568;
+}
+
+body.dark-mode .poll-thumbnails {
+  background: #252535;
+}
+
+body.dark-mode .poll-thumbnail {
+  background: #3d3d4f;
+}
+
+/* Dark mode for results panel */
+body.dark-mode .results-panel {
+  background: #2d2d3f;
+}
+
+body.dark-mode .stat-box {
+  background: #252535;
+}
+
+body.dark-mode .ratings-list {
+  background: #252535;
+}
+
+/* Dark mode for view toggles */
+body.dark-mode .view-toggle-btn {
+  background: #2d2d3f;
+  border-color: #667eea;
+  color: #a78bfa;
+}
+
+body.dark-mode .view-toggle-btn:hover,
+body.dark-mode .view-toggle-btn.active {
+  background: #667eea;
+  color: white;
+}
+
+body.dark-mode .expand-btn {
+  background: #2d2d3f;
+  border-color: #48bb78;
+  color: #68d391;
+}
+
+body.dark-mode .expand-btn:hover,
+body.dark-mode .expand-btn.active {
+  background: #48bb78;
+  color: white;
+}
+
+/* Dark mode expanded view */
+body.dark-mode .polls-expanded {
+  background: #1a1a2e;
+}
+
+body.dark-mode .expanded-header {
+  border-color: #4a5568;
+}
+
+body.dark-mode .expanded-header h2 {
+  color: #e2e8f0;
+}
+
+/* Dark mode thumbnail modal */
+body.dark-mode .thumbnail-modal {
+  background: rgba(0, 0, 0, 0.95);
+}
+
+/* Dark mode for voter name tags */
+body.dark-mode [style*="background: #edf2f7"],
+body.dark-mode [style*="background: #e2e8f0"] {
+  background: #3d3d4f !important;
+  color: #e2e8f0 !important;
+}
+
+/* Dark mode waiting room */
+body.dark-mode .waiting-room-section {
+  background: #2d2d3f;
+}
+
+body.dark-mode #hostProgressFill {
+  background: linear-gradient(90deg, #667eea, #48bb78);
+}
+
+/* Dark mode for links */
+body.dark-mode a {
+  color: #a78bfa;
+}
+
+body.dark-mode a:hover {
+  color: #c4b5fd;
+}
+
+/* Dark mode for session select cards */
+body.dark-mode .session-option-card {
+  background: #2d2d3f;
+  border-color: #4a5568;
+  color: #e2e8f0;
+}
+
+body.dark-mode .session-option-card:hover {
+  background: #3d3d4f;
+  border-color: #667eea;
+}
+
+body.dark-mode .session-option-card h3 {
+  color: #e2e8f0;
+}
+
+body.dark-mode .session-option-card p {
+  color: #a0aec0;
+}
+
+body.dark-mode .session-item {
+  background: #2d2d3f;
+}
+
+body.dark-mode .session-item h4 {
+  color: #e2e8f0;
+}
+
+body.dark-mode .session-item p {
+  color: #a0aec0;
+}
+
+/* Dark mode for voter page */
+body.dark-mode .waiting-message,
+body.dark-mode .end-message {
+  color: #e2e8f0;
+}
+
+body.dark-mode .feedback-section {
+  background: #2d2d3f;
+}
+
+body.dark-mode .feedback-question label {
+  color: #e2e8f0;
+}
+
+body.dark-mode .option-btn {
+  background: #3d3d4f;
+  border-color: #4a5568;
+  color: #e2e8f0;
+}
+
+body.dark-mode .option-btn:hover,
+body.dark-mode .option-btn.selected {
+  background: #667eea;
+  border-color: #667eea;
+  color: white;
+}
+
+body.dark-mode .star-rating .star {
+  color: #4a5568;
+}
+
+body.dark-mode .star-rating .star.active {
+  color: #ffc107;
+}
+
+body.dark-mode #exposeSection {
+  background: #3d3d2f;
+  border-color: #665c00;
+}
+
+body.dark-mode #exposeSection strong,
+body.dark-mode #exposeSection p {
+  color: #ffc107;
+}
+
+body.dark-mode .voter-list {
+  background: #2d2d3f;
+}
+
+body.dark-mode .voter-chip {
+  background: #48bb78;
+}
+
+body.dark-mode .no-session {
+  background: #4a2020;
+  color: #fc8181;
+}
+
+/* Dark mode for error messages */
+body.dark-mode .error-message {
+  background: #4a2020;
+  color: #fc8181;
+}
+
+/* Dark mode spinner */
+body.dark-mode .spinner {
+  border-color: #4a5568;
+  border-top-color: #667eea;
+}
+
 /* Poll Preview Thumbnails */
 .poll-thumbnails {
   display: flex;
