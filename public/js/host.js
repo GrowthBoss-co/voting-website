@@ -1122,10 +1122,14 @@ function getThumbnailUrl(mediaItem) {
 }
 
 // Generate thumbnail HTML for a media item
-function generateThumbnailHtml(mediaItem, pollIndex, itemIndex) {
+function generateThumbnailHtml(mediaItem, pollIndex, itemIndex, showDelete = false) {
   const thumbnailUrl = getThumbnailUrl(mediaItem);
   const isYouTube = mediaItem.url.includes('youtube.com/embed/');
   const isGoogleDrive = mediaItem.url.includes('drive.google.com');
+
+  const deleteBtn = showDelete ? `
+    <button class="thumbnail-delete-btn" onclick="event.stopPropagation(); deleteMediaItem(${pollIndex}, ${itemIndex})" title="Remove this item">✕</button>
+  ` : '';
 
   if (thumbnailUrl) {
     let overlayLabel = '';
@@ -1139,6 +1143,7 @@ function generateThumbnailHtml(mediaItem, pollIndex, itemIndex) {
       <div class="poll-thumbnail" onclick="showThumbnailPreview('${mediaItem.url}', '${mediaItem.type}')" title="Click to preview">
         <img src="${thumbnailUrl}" alt="Media ${itemIndex + 1}" onerror="this.parentElement.innerHTML='<div class=\\'poll-thumbnail-video\\'><div class=\\'play-icon\\'>📁</div>Failed to load</div>'">
         ${overlayLabel}
+        ${deleteBtn}
       </div>
     `;
   } else {
@@ -1148,8 +1153,52 @@ function generateThumbnailHtml(mediaItem, pollIndex, itemIndex) {
           <div class="play-icon">🎬</div>
           <div>Video</div>
         </div>
+        ${deleteBtn}
       </div>
     `;
+  }
+}
+
+// Delete a specific media item from a poll
+async function deleteMediaItem(pollIndex, mediaIndex) {
+  const poll = polls[pollIndex];
+
+  if (poll.mediaItems.length <= 1) {
+    alert('Cannot delete the last media item. Delete the entire poll instead.');
+    return;
+  }
+
+  const confirmMsg = `Remove media item ${mediaIndex + 1} from Poll ${pollIndex + 1} (${poll.creator} - ${poll.company})?`;
+  if (!confirm(confirmMsg)) return;
+
+  try {
+    // Remove the media item
+    const updatedMediaItems = [...poll.mediaItems];
+    updatedMediaItems.splice(mediaIndex, 1);
+
+    // Update the poll on the server
+    const response = await fetch(`/api/session/${sessionId}/poll/${pollIndex}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        creator: poll.creator,
+        company: poll.company,
+        mediaItems: updatedMediaItems,
+        timer: poll.timer
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update poll');
+    }
+
+    const data = await response.json();
+    polls[pollIndex] = data.poll;
+    updatePollsList();
+
+  } catch (error) {
+    console.error('Error deleting media item:', error);
+    alert('Error deleting media item: ' + error.message);
   }
 }
 
@@ -1243,26 +1292,28 @@ function updatePollsList() {
     </div>
   `;
 
-  // Generate the poll grid HTML
-  const pollGridHtml = `
-    <div class="poll-preview-grid">
-      ${polls.map((poll, index) => `
-        <div class="poll-preview-card ${duplicates.has(index) ? 'duplicate-warning' : ''}" data-index="${index}">
-          <div class="poll-preview-header">
-            <h4>Poll ${index + 1}: ${poll.creator} - ${poll.company}</h4>
-            <span class="poll-meta">${poll.mediaItems.length} item${poll.mediaItems.length > 1 ? 's' : ''} · ${poll.timer}s</span>
+  // Generate the poll grid HTML (with optional delete buttons on thumbnails)
+  function generatePollGridHtml(showDeleteButtons) {
+    return `
+      <div class="poll-preview-grid">
+        ${polls.map((poll, index) => `
+          <div class="poll-preview-card ${duplicates.has(index) ? 'duplicate-warning' : ''}" data-index="${index}">
+            <div class="poll-preview-header">
+              <h4>Poll ${index + 1}: ${poll.creator} - ${poll.company}</h4>
+              <span class="poll-meta">${poll.mediaItems.length} item${poll.mediaItems.length > 1 ? 's' : ''} · ${poll.timer}s</span>
+            </div>
+            <div class="poll-preview-media">
+              ${poll.mediaItems.map((item, itemIndex) => generateThumbnailHtml(item, index, itemIndex, showDeleteButtons)).join('')}
+            </div>
+            <div class="poll-preview-actions">
+              <button onclick="editPoll(${index})" class="btn btn-small btn-secondary">Edit</button>
+              <button onclick="deletePoll(${index})" class="btn btn-small btn-danger">Delete</button>
+            </div>
           </div>
-          <div class="poll-preview-media">
-            ${poll.mediaItems.map((item, itemIndex) => generateThumbnailHtml(item, index, itemIndex)).join('')}
-          </div>
-          <div class="poll-preview-actions">
-            <button onclick="editPoll(${index})" class="btn btn-small btn-secondary">Edit</button>
-            <button onclick="deletePoll(${index})" class="btn btn-small btn-danger">Delete</button>
-          </div>
-        </div>
-      `).join('')}
-    </div>
-  `;
+        `).join('')}
+      </div>
+    `;
+  }
 
   if (pollsViewMode === 'preview') {
     if (pollsExpanded) {
@@ -1285,7 +1336,7 @@ function updatePollsList() {
             </button>
           </div>
         </div>
-        ${pollGridHtml}
+        ${generatePollGridHtml(true)}
       `;
 
       // Keep the regular container with a note
@@ -1298,7 +1349,7 @@ function updatePollsList() {
       }
 
       // Grid view with thumbnails
-      container.innerHTML = viewToggleHtml + pollGridHtml;
+      container.innerHTML = viewToggleHtml + generatePollGridHtml(false);
     }
   } else {
     // Compact list view (original)
