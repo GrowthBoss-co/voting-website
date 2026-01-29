@@ -68,6 +68,24 @@ body.dark-mode .session-item {
   background: #2a2a3a;
 }
 
+/* Dark mode for inner colored boxes */
+body.dark-mode [style*="background: #e8f5e9"],
+body.dark-mode [style*="background: #f8f9fa"],
+body.dark-mode [style*="background: #f0f4f8"],
+body.dark-mode [style*="background: #f7fafc"],
+body.dark-mode [style*="background: #f0f8ff"] {
+  background: #2a2a3a !important;
+}
+
+body.dark-mode .poll-thumbnails,
+body.dark-mode .voter-list {
+  background: #2a2a3a;
+}
+
+body.dark-mode .poll-item {
+  background: #2a2a3a;
+}
+
 /* Poll Preview Thumbnails */
 .poll-thumbnails {
   display: flex;
