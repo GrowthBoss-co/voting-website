@@ -82,6 +82,10 @@ body.dark-mode #pollsList > div[style*="background: #f7fafc"] {
   background: #2a2a3a !important;
 }
 
+body.dark-mode .poll-form {
+  background: #2a2a3a;
+}
+
 body.dark-mode .poll-thumbnails,
 body.dark-mode .voter-list {
   background: #2a2a3a;
