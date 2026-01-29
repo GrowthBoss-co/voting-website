@@ -1091,6 +1091,7 @@ document.getElementById('pollForm').addEventListener('submit', async e => {
 
 // Track the current view mode for polls list
 let pollsViewMode = 'preview'; // 'compact' or 'preview'
+let pollsExpanded = false; // Track expanded state
 
 // Generate thumbnail URL for a media item
 function getThumbnailUrl(mediaItem) {
@@ -1202,44 +1203,103 @@ function togglePollsView(mode) {
   updatePollsList();
 }
 
+// Toggle expanded view for duplicate checking
+function toggleExpandedView() {
+  pollsExpanded = !pollsExpanded;
+  updatePollsList();
+
+  // Handle escape key to close expanded view
+  if (pollsExpanded) {
+    const closeOnEscape = (e) => {
+      if (e.key === 'Escape' && pollsExpanded) {
+        pollsExpanded = false;
+        updatePollsList();
+        document.removeEventListener('keydown', closeOnEscape);
+      }
+    };
+    document.addEventListener('keydown', closeOnEscape);
+  }
+}
+
 function updatePollsList() {
   const container = document.getElementById('pollsContainer');
   const duplicates = findDuplicatePolls();
 
   // Add view toggle buttons
   const viewToggleHtml = `
-    <div style="display: flex; gap: 8px; margin-bottom: 15px;">
+    <div style="display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap; align-items: center;">
       <button class="view-toggle-btn ${pollsViewMode === 'preview' ? 'active' : ''}" onclick="togglePollsView('preview')">
         🖼️ Preview View
       </button>
       <button class="view-toggle-btn ${pollsViewMode === 'compact' ? 'active' : ''}" onclick="togglePollsView('compact')">
         📋 Compact View
       </button>
+      ${pollsViewMode === 'preview' ? `
+        <button class="expand-btn ${pollsExpanded ? 'active' : ''}" onclick="toggleExpandedView()">
+          ${pollsExpanded ? '⬅️ Collapse' : '↔️ Expand Full Screen'}
+        </button>
+      ` : ''}
       ${duplicates.size > 0 ? `<span style="color: #e53e3e; font-weight: 600; padding: 6px 12px; background: #fff5f5; border-radius: 6px;">⚠️ ${duplicates.size} potential duplicate(s) found</span>` : ''}
     </div>
   `;
 
-  if (pollsViewMode === 'preview') {
-    // Grid view with thumbnails
-    container.innerHTML = viewToggleHtml + `
-      <div class="poll-preview-grid">
-        ${polls.map((poll, index) => `
-          <div class="poll-preview-card ${duplicates.has(index) ? 'duplicate-warning' : ''}" data-index="${index}">
-            <div class="poll-preview-header">
-              <h4>Poll ${index + 1}: ${poll.creator} - ${poll.company}</h4>
-              <span class="poll-meta">${poll.mediaItems.length} item${poll.mediaItems.length > 1 ? 's' : ''} · ${poll.timer}s</span>
-            </div>
-            <div class="poll-preview-media">
-              ${poll.mediaItems.map((item, itemIndex) => generateThumbnailHtml(item, index, itemIndex)).join('')}
-            </div>
-            <div class="poll-preview-actions">
-              <button onclick="editPoll(${index})" class="btn btn-small btn-secondary">Edit</button>
-              <button onclick="deletePoll(${index})" class="btn btn-small btn-danger">Delete</button>
-            </div>
+  // Generate the poll grid HTML
+  const pollGridHtml = `
+    <div class="poll-preview-grid">
+      ${polls.map((poll, index) => `
+        <div class="poll-preview-card ${duplicates.has(index) ? 'duplicate-warning' : ''}" data-index="${index}">
+          <div class="poll-preview-header">
+            <h4>Poll ${index + 1}: ${poll.creator} - ${poll.company}</h4>
+            <span class="poll-meta">${poll.mediaItems.length} item${poll.mediaItems.length > 1 ? 's' : ''} · ${poll.timer}s</span>
           </div>
-        `).join('')}
-      </div>
-    `;
+          <div class="poll-preview-media">
+            ${poll.mediaItems.map((item, itemIndex) => generateThumbnailHtml(item, index, itemIndex)).join('')}
+          </div>
+          <div class="poll-preview-actions">
+            <button onclick="editPoll(${index})" class="btn btn-small btn-secondary">Edit</button>
+            <button onclick="deletePoll(${index})" class="btn btn-small btn-danger">Delete</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  if (pollsViewMode === 'preview') {
+    if (pollsExpanded) {
+      // Full screen expanded view
+      let expandedContainer = document.getElementById('expandedPollsView');
+      if (!expandedContainer) {
+        expandedContainer = document.createElement('div');
+        expandedContainer.id = 'expandedPollsView';
+        expandedContainer.className = 'polls-expanded';
+        document.body.appendChild(expandedContainer);
+      }
+
+      expandedContainer.innerHTML = `
+        <div class="expanded-header">
+          <h2>Poll Preview - Duplicate Check (${polls.length} polls)</h2>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            ${duplicates.size > 0 ? `<span style="color: #e53e3e; font-weight: 600; padding: 6px 12px; background: #fff5f5; border-radius: 6px;">⚠️ ${duplicates.size} potential duplicate(s)</span>` : '<span style="color: #48bb78; font-weight: 600;">✓ No duplicates found</span>'}
+            <button class="expand-btn active" onclick="toggleExpandedView()">
+              ✕ Close (Esc)
+            </button>
+          </div>
+        </div>
+        ${pollGridHtml}
+      `;
+
+      // Keep the regular container with a note
+      container.innerHTML = viewToggleHtml + `<p style="color: #666; text-align: center; padding: 20px;">Viewing in expanded mode. Press Esc or click "Collapse" to return.</p>`;
+    } else {
+      // Remove expanded view if it exists
+      const expandedContainer = document.getElementById('expandedPollsView');
+      if (expandedContainer) {
+        expandedContainer.remove();
+      }
+
+      // Grid view with thumbnails
+      container.innerHTML = viewToggleHtml + pollGridHtml;
+    }
   } else {
     // Compact list view (original)
     container.innerHTML = viewToggleHtml + polls
