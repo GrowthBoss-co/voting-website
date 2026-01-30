@@ -89,7 +89,6 @@ function displayPoll(poll, hasVoted = false, voterRating = null) {
   );
 
   // Apply or remove shorts layout class
-  const votingScreen = document.getElementById('votingScreen');
   const ratingSection = document.querySelector('.rating-section');
   const exposeSection = document.getElementById('exposeSection');
 
