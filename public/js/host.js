@@ -1687,10 +1687,54 @@ async function startPoll(pollIndex) {
 
     // Apply or remove shorts layout class
     const currentPollSection = document.querySelector('.current-poll');
+    const resultsPanel = currentPollSection.querySelector('.results-panel');
+    const exposeStatusPanel = document.getElementById('exposeStatusPanel');
+    const autoAdvanceSection = currentPollSection.querySelector('[style*="background: #f0f8ff"]');
+
+    // Handle shorts layout wrapper
+    let shortsRightPanel = currentPollSection.querySelector('.shorts-right-panel');
+
     if (hasShorts && currentPoll.mediaItems.length === 1) {
       currentPollSection.classList.add('shorts-layout');
+
+      // Create wrapper for right side elements if not exists
+      if (!shortsRightPanel) {
+        shortsRightPanel = document.createElement('div');
+        shortsRightPanel.className = 'shorts-right-panel';
+
+        // Move results panel, expose status, and auto-advance into the wrapper
+        if (resultsPanel) {
+          resultsPanel.parentNode.insertBefore(shortsRightPanel, resultsPanel);
+          shortsRightPanel.appendChild(resultsPanel);
+        }
+        if (exposeStatusPanel) {
+          shortsRightPanel.appendChild(exposeStatusPanel);
+        }
+        if (autoAdvanceSection) {
+          autoAdvanceSection.classList.add('auto-advance-section');
+          shortsRightPanel.appendChild(autoAdvanceSection);
+        }
+      }
     } else {
       currentPollSection.classList.remove('shorts-layout');
+
+      // Unwrap elements if wrapper exists
+      if (shortsRightPanel) {
+        const pollControls = currentPollSection.querySelector('.poll-controls');
+        if (resultsPanel && pollControls) {
+          pollControls.parentNode.insertBefore(resultsPanel, pollControls);
+        }
+        if (exposeStatusPanel && pollControls) {
+          pollControls.parentNode.insertBefore(exposeStatusPanel, pollControls);
+        }
+        if (autoAdvanceSection && pollControls) {
+          autoAdvanceSection.classList.remove('auto-advance-section');
+          pollControls.parentNode.insertBefore(autoAdvanceSection, pollControls);
+        }
+        if (shortsRightPanel.parentNode) {
+          shortsRightPanel.parentNode.removeChild(shortsRightPanel);
+        }
+      }
     }
 
     if (currentPoll.mediaItems.length === 1) {

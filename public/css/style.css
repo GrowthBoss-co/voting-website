@@ -788,8 +788,8 @@ h3 {
 /* YouTube Shorts Layout */
 .shorts-video-container {
   width: 100%;
-  max-width: 350px;
-  margin: 0 auto;
+  max-width: 450px;
+  margin: 0;
   aspect-ratio: 9/16;
   background: #000;
   border-radius: 12px;
@@ -802,101 +802,132 @@ h3 {
   border: none;
 }
 
-/* Side-by-side layout for Shorts */
+/* Voter Shorts Layout - Side-by-side */
 .voting-screen.shorts-layout {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 450px 1fr;
   gap: 30px;
   align-items: start;
-  max-width: 1200px;
+  max-width: 1000px;
   margin: 0 auto;
+  padding: 20px;
 }
 
-.voting-screen.shorts-layout > *:first-child {
+/* Timer row spans full width */
+.voting-screen.shorts-layout > div:first-child {
   grid-column: 1 / -1;
 }
 
+/* Title spans full width */
 .voting-screen.shorts-layout h2 {
   grid-column: 1 / -1;
   text-align: center;
+  margin-bottom: 20px;
 }
 
+/* Video on the left */
 .voting-screen.shorts-layout .media-container {
   grid-column: 1;
   grid-row: 3;
   margin: 0;
 }
 
-.voting-screen.shorts-layout .rating-section {
+/* Right side container for rating and expose */
+.voting-screen.shorts-layout .shorts-right-panel {
   grid-column: 2;
-  grid-row: 3 / 5;
-  margin: 0;
-  padding: 20px;
-  background: #f7fafc;
-  border-radius: 12px;
+  grid-row: 3;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  gap: 20px;
 }
 
+/* Rating section styling in shorts layout */
+.voting-screen.shorts-layout .rating-section {
+  margin: 0;
+  padding: 25px;
+  background: #f7fafc;
+  border-radius: 12px;
+}
+
+/* Expose section styling in shorts layout */
 .voting-screen.shorts-layout #exposeSection {
-  grid-column: 2;
-  grid-row: 5;
+  margin: 0 !important;
 }
 
 /* Mobile: stack vertically */
 @media (max-width: 900px) {
   .voting-screen.shorts-layout {
     grid-template-columns: 1fr;
+    padding: 10px;
   }
 
   .voting-screen.shorts-layout .media-container,
-  .voting-screen.shorts-layout .rating-section,
-  .voting-screen.shorts-layout #exposeSection {
+  .voting-screen.shorts-layout .shorts-right-panel {
     grid-column: 1;
     grid-row: auto;
   }
 
   .shorts-video-container {
-    max-width: 280px;
+    max-width: 320px;
+    margin: 0 auto;
   }
 }
 
 /* Host Shorts Layout */
 .current-poll.shorts-layout {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: 450px 1fr;
   gap: 25px;
   align-items: start;
+  max-width: 1100px;
+  margin: 0 auto;
 }
 
+/* Timer/controls row spans full width */
 .current-poll.shorts-layout > div:first-child {
   grid-column: 1 / -1;
 }
 
+/* Title spans full width */
 .current-poll.shorts-layout h2 {
   grid-column: 1 / -1;
 }
 
+/* Video on the left */
 .current-poll.shorts-layout .media-container {
   grid-column: 1;
   grid-row: 3;
   margin: 0;
-  max-width: 350px;
 }
 
-.current-poll.shorts-layout .results-panel {
+/* Right side container for results, expose, auto-advance */
+.current-poll.shorts-layout .shorts-right-panel {
   grid-column: 2;
-  grid-row: 3 / 6;
+  grid-row: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+/* Results panel in shorts layout */
+.current-poll.shorts-layout .results-panel {
   margin: 0;
 }
 
+/* Expose status in shorts layout */
 .current-poll.shorts-layout #exposeStatusPanel {
-  grid-column: 2;
+  margin: 0 !important;
 }
 
+/* Auto-advance section in shorts layout */
+.current-poll.shorts-layout .auto-advance-section {
+  margin: 0 !important;
+}
+
+/* Poll controls span full width at bottom */
 .current-poll.shorts-layout .poll-controls {
   grid-column: 1 / -1;
+  grid-row: 4;
 }
 
 @media (max-width: 1000px) {
@@ -905,15 +936,14 @@ h3 {
   }
 
   .current-poll.shorts-layout .media-container,
-  .current-poll.shorts-layout .results-panel,
-  .current-poll.shorts-layout #exposeStatusPanel,
+  .current-poll.shorts-layout .shorts-right-panel,
   .current-poll.shorts-layout .poll-controls {
     grid-column: 1;
     grid-row: auto;
   }
 
   .current-poll.shorts-layout .media-container {
-    max-width: 300px;
+    max-width: 350px;
     margin: 0 auto;
   }
 }

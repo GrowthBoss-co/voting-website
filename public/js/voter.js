@@ -84,10 +84,38 @@ function displayPoll(poll, hasVoted = false, voterRating = null) {
   const ratingSection = document.querySelector('.rating-section');
   const exposeSection = document.getElementById('exposeSection');
 
+  // Handle shorts layout wrapper
+  let shortsRightPanel = votingScreen.querySelector('.shorts-right-panel');
+
   if (hasShorts && currentPoll.mediaItems.length === 1) {
     votingScreen.classList.add('shorts-layout');
+
+    // Create wrapper for right side elements if not exists
+    if (!shortsRightPanel) {
+      shortsRightPanel = document.createElement('div');
+      shortsRightPanel.className = 'shorts-right-panel';
+
+      // Move rating section and expose section into the wrapper
+      if (ratingSection && exposeSection) {
+        ratingSection.parentNode.insertBefore(shortsRightPanel, ratingSection);
+        shortsRightPanel.appendChild(ratingSection);
+        shortsRightPanel.appendChild(exposeSection);
+      }
+    }
   } else {
     votingScreen.classList.remove('shorts-layout');
+
+    // Unwrap elements if wrapper exists
+    if (shortsRightPanel) {
+      const mediaContainer = document.getElementById('pollMedia');
+      if (mediaContainer && ratingSection) {
+        mediaContainer.parentNode.insertBefore(ratingSection, shortsRightPanel);
+      }
+      if (mediaContainer && exposeSection) {
+        ratingSection.parentNode.insertBefore(exposeSection, shortsRightPanel);
+        exposeSection.parentNode.removeChild(shortsRightPanel);
+      }
+    }
   }
 
   // Always reset timer display first, before starting new timer
