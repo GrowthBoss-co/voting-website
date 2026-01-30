@@ -29,22 +29,33 @@ let currentTimeLeft = 0;
 
 // Stop all playing videos (iframes and YouTube API players)
 function stopAllVideos() {
-  // Stop YouTube API player if exists
-  if (window.ytLoopPlayer && typeof window.ytLoopPlayer.stopVideo === 'function') {
+  // Stop and destroy YouTube API player if exists
+  if (window.ytLoopPlayer) {
     try {
-      window.ytLoopPlayer.stopVideo();
+      if (typeof window.ytLoopPlayer.stopVideo === 'function') {
+        window.ytLoopPlayer.stopVideo();
+      }
+      if (typeof window.ytLoopPlayer.destroy === 'function') {
+        window.ytLoopPlayer.destroy();
+      }
+      window.ytLoopPlayer = null;
     } catch (e) {
       console.log('Error stopping YouTube player:', e);
     }
   }
 
-  // Stop all iframes by resetting their src
+  // Stop all iframes by removing them entirely (most reliable way to stop audio)
   const iframes = document.querySelectorAll('iframe');
   iframes.forEach(iframe => {
-    const src = iframe.src;
-    iframe.src = '';
-    iframe.src = src;
+    // Remove the iframe src to stop all media
+    iframe.src = 'about:blank';
   });
+
+  // Clear video end timeout if exists
+  if (videoEndTimeout) {
+    clearTimeout(videoEndTimeout);
+    videoEndTimeout = null;
+  }
 }
 
 document.getElementById('sessionId').textContent = sessionId;
@@ -2271,6 +2282,82 @@ async function showSessionResults() {
     console.error('Error marking session as completed:', error);
   }
 
+  // Show Top 10 screen first
+  document.getElementById('hostTop10Screen').classList.remove('hidden');
+  await fetchHostTop10();
+}
+
+// Fetch and display Top 10 for host
+async function fetchHostTop10() {
+  try {
+    const response = await fetch(`/api/session/${sessionId}/top10`);
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to load top 10');
+    }
+
+    renderHostTop10(data.top10, data.topCreator);
+  } catch (error) {
+    console.error('Error fetching top 10:', error);
+    const top10List = document.getElementById('hostTop10List');
+    top10List.innerHTML = `
+      <div class="loading-top10">
+        <p>Could not load results. <a href="#" onclick="fetchHostTop10(); return false;">Try again</a></p>
+      </div>
+    `;
+  }
+}
+
+// Render Top 10 for host
+function renderHostTop10(top10, topCreator) {
+  const top10List = document.getElementById('hostTop10List');
+  const congratsSection = document.getElementById('hostTopCreatorCongrats');
+
+  if (!top10 || top10.length === 0) {
+    top10List.innerHTML = `
+      <div class="loading-top10">
+        <p>No rated content available yet.</p>
+      </div>
+    `;
+    congratsSection.classList.add('hidden');
+    return;
+  }
+
+  // Show congratulations for the creator with highest overall average
+  if (topCreator) {
+    document.getElementById('hostTopCreatorName').textContent = topCreator.name;
+    document.getElementById('hostTopCreatorScore').textContent = topCreator.overallAverage.toFixed(2);
+    congratsSection.classList.remove('hidden');
+  } else {
+    congratsSection.classList.add('hidden');
+  }
+
+  // Render top 10 items (simpler version for host - just show info, no playable media)
+  top10List.innerHTML = top10.map((item, index) => {
+    const rank = index + 1;
+    const medalEmoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '';
+
+    return `
+      <div class="top10-item">
+        <div class="top10-rank">${medalEmoji} #${rank}</div>
+        <div class="top10-info">
+          <div class="top10-creator">${item.creator}</div>
+          <div class="top10-company">${item.company}</div>
+          <div class="top10-score">Average: <strong>${item.average.toFixed(2)}</strong></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Handle continue to full results button
+document.getElementById('continueToResultsBtn').addEventListener('click', () => {
+  document.getElementById('hostTop10Screen').classList.add('hidden');
+  showFullSessionResults();
+});
+
+async function showFullSessionResults() {
   const container = document.querySelector('.host-dashboard');
 
   // Fetch all poll results from backend instead of relying on completedPolls array

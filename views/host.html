@@ -325,6 +325,40 @@
             </div>
           </div>
         </div>
+
+        <!-- Host Top 10 Results Screen -->
+        <div id="hostTop10Screen" class="top10-screen hidden">
+          <div class="top10-header">
+            <h2 style="font-size: 2em; margin-bottom: 10px;">Top 10 Content of the Session</h2>
+            <p style="font-size: 1.1em; color: #666;">Based on average ratings from all voters</p>
+          </div>
+
+          <!-- Congratulations for top creator -->
+          <div id="hostTopCreatorCongrats" class="top-creator-congrats hidden">
+            <div class="congrats-content">
+              <span class="trophy">🏆</span>
+              <div class="congrats-text">
+                <p class="congrats-label">Congratulations!</p>
+                <p class="congrats-name" id="hostTopCreatorName"></p>
+                <p class="congrats-score">Highest average score: <strong id="hostTopCreatorScore"></strong></p>
+              </div>
+              <span class="trophy">🏆</span>
+            </div>
+          </div>
+
+          <div id="hostTop10List" class="top10-list">
+            <div class="loading-top10">
+              <div class="spinner"></div>
+              <p>Loading results...</p>
+            </div>
+          </div>
+
+          <div style="text-align: center; margin-top: 30px;">
+            <button id="continueToResultsBtn" class="btn btn-primary btn-large">
+              Continue to Full Results
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 

@@ -204,12 +204,10 @@ function showWaitingScreen(title, subtitle) {
 
 // Stop all playing videos (iframes)
 function stopAllVideos() {
+  // Stop all iframes by setting src to about:blank (most reliable way to stop audio)
   const iframes = document.querySelectorAll('iframe');
   iframes.forEach(iframe => {
-    // Replace iframe src to stop playback
-    const src = iframe.src;
-    iframe.src = '';
-    iframe.src = src;
+    iframe.src = 'about:blank';
   });
 }
 
