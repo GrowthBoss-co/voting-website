@@ -68,10 +68,18 @@ function getShortsEmbedUrl(url) {
 }
 
 function displayPoll(poll, hasVoted = false, voterRating = null) {
+  // Don't show poll if session is already completed
+  if (isSessionCompleted) {
+    console.log('displayPoll blocked - session is completed');
+    return;
+  }
+
   currentPoll = poll;
 
   document.getElementById('waitingScreen').classList.add('hidden');
-  document.getElementById('votingScreen').classList.remove('hidden');
+  const votingScreen = document.getElementById('votingScreen');
+  votingScreen.classList.remove('hidden');
+  votingScreen.style.display = ''; // Clear any inline style to allow CSS to take over
 
   document.getElementById('pollTitle').textContent = `${currentPoll.creator} - ${currentPoll.company}`;
 
@@ -239,6 +247,11 @@ async function checkForPoll() {
     const data = await response.json();
     console.log('checkForPoll response:', data.status, 'currentPoll:', !!data.currentPoll);
 
+    // Check again after fetch in case another request completed first
+    if (isSessionCompleted) {
+      return;
+    }
+
     // Check if session is completed - this takes priority over everything else
     if (data.status === 'completed') {
       console.log('Session completed - showing end screen');
@@ -248,7 +261,8 @@ async function checkForPoll() {
     }
 
     if (data.currentPoll) {
-      if (lastPollId !== data.currentPoll.id) {
+      // Triple-check session isn't completed before showing poll
+      if (!isSessionCompleted && lastPollId !== data.currentPoll.id) {
         lastPollId = data.currentPoll.id;
         displayPoll(data.currentPoll, data.hasVoted, data.voterRating);
       }
@@ -313,9 +327,17 @@ function showEndScreen() {
   // Stop any playing videos first
   stopAllVideos();
 
-  // Always hide voting and waiting screens when session ends
-  document.getElementById('waitingScreen').classList.add('hidden');
-  document.getElementById('votingScreen').classList.add('hidden');
+  // Always hide voting and waiting screens when session ends (use both class and inline style as failsafe)
+  const waitingScreen = document.getElementById('waitingScreen');
+  const votingScreen = document.getElementById('votingScreen');
+
+  waitingScreen.classList.add('hidden');
+  waitingScreen.style.display = 'none';
+
+  votingScreen.classList.add('hidden');
+  votingScreen.style.display = 'none';
+
+  console.log('showEndScreen: hiding voting screen, isSessionCompleted =', isSessionCompleted);
 
   // If user has already moved to feedback, show end screen
   if (hasMovedToFeedback) {
@@ -1010,6 +1032,12 @@ function startExposePolling() {
 // Modify displayPoll to stop videos and start expose polling
 const originalDisplayPoll = displayPoll;
 displayPoll = function(poll, hasVoted, voterRating) {
+  // Don't proceed if session is completed
+  if (isSessionCompleted) {
+    console.log('Wrapped displayPoll blocked - session is completed');
+    return;
+  }
+
   // Stop any playing videos from previous poll
   stopAllVideos();
 
