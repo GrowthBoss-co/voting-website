@@ -1639,6 +1639,24 @@ document.getElementById('closeUpdateAttendanceBtn').addEventListener('click', ()
 
 let timerInterval = null;
 
+// Check if a URL is a YouTube Short
+function isYouTubeShort(url) {
+  if (!url) return false;
+  return url.includes('/shorts/') || (url.includes('youtube.com/embed/') && url.includes('shorts'));
+}
+
+// Get embed URL for Shorts
+function getShortsEmbedUrl(url) {
+  if (url.includes('youtube.com/embed/')) {
+    return url;
+  }
+  const shortsMatch = url.match(/\/shorts\/([a-zA-Z0-9_-]+)/);
+  if (shortsMatch) {
+    return `https://www.youtube.com/embed/${shortsMatch[1]}`;
+  }
+  return url;
+}
+
 async function startPoll(pollIndex) {
   // Stop any playing videos from previous poll
   stopAllVideos();
@@ -1662,35 +1680,61 @@ async function startPoll(pollIndex) {
     const autoAdvanceToggle = document.getElementById('autoAdvanceToggle');
     const isAutoAdvanceEnabled = autoAdvanceToggle ? autoAdvanceToggle.checked : false;
 
+    // Check if this is a YouTube Short
+    const hasShorts = currentPoll.mediaItems.some(item =>
+      item.type === 'video' && isYouTubeShort(item.url)
+    );
+
+    // Apply or remove shorts layout class
+    const currentPollSection = document.querySelector('.current-poll');
+    if (hasShorts && currentPoll.mediaItems.length === 1) {
+      currentPollSection.classList.add('shorts-layout');
+    } else {
+      currentPollSection.classList.remove('shorts-layout');
+    }
+
     if (currentPoll.mediaItems.length === 1) {
       // Single item - no carousel needed
       const item = currentPoll.mediaItems[0];
       if (item.type === 'video') {
-        let videoUrl = item.url;
-        const isYouTubeVideo = videoUrl.includes('youtube.com/embed/');
-        const videoIdMatch = videoUrl.match(/youtube\.com\/embed\/([^?&\/]+)/);
-        const videoId = videoIdMatch ? videoIdMatch[1] : '';
-
-        if (isAutoAdvanceEnabled && isYouTubeVideo && videoId) {
-          // Use YouTube API for looping
+        // Check if it's a YouTube Short
+        if (isYouTubeShort(item.url)) {
+          const embedUrl = getShortsEmbedUrl(item.url);
           mediaContainer.innerHTML = `
-            <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
-              <div id="ytLoopPlayer" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
-            </div>
-          `;
-          initYouTubeLoopPlayer(videoId);
-        } else {
-          // Non-auto-advance or non-YouTube - use regular iframe
-          if (isAutoAdvanceEnabled && isYouTubeVideo) {
-            videoUrl += (videoUrl.includes('?') ? '&' : '?') + 'autoplay=1';
-          }
-          mediaContainer.innerHTML = `
-            <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
-              <iframe src="${videoUrl}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen>
+            <div class="shorts-video-container">
+              <iframe src="${embedUrl}"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowfullscreen>
               </iframe>
             </div>
           `;
+        } else {
+          let videoUrl = item.url;
+          const isYouTubeVideo = videoUrl.includes('youtube.com/embed/');
+          const videoIdMatch = videoUrl.match(/youtube\.com\/embed\/([^?&\/]+)/);
+          const videoId = videoIdMatch ? videoIdMatch[1] : '';
+
+          if (isAutoAdvanceEnabled && isYouTubeVideo && videoId) {
+            // Use YouTube API for looping
+            mediaContainer.innerHTML = `
+              <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
+                <div id="ytLoopPlayer" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
+              </div>
+            `;
+            initYouTubeLoopPlayer(videoId);
+          } else {
+            // Non-auto-advance or non-YouTube - use regular iframe
+            if (isAutoAdvanceEnabled && isYouTubeVideo) {
+              videoUrl += (videoUrl.includes('?') ? '&' : '?') + 'autoplay=1';
+            }
+            mediaContainer.innerHTML = `
+              <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
+                <iframe src="${videoUrl}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen>
+                </iframe>
+              </div>
+            `;
+          }
         }
       } else {
         mediaContainer.innerHTML = `

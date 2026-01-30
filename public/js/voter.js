@@ -45,6 +45,27 @@ ratingInput.addEventListener('input', e => {
   ratingSlider.value = value;
 });
 
+// Check if a URL is a YouTube Short
+function isYouTubeShort(url) {
+  if (!url) return false;
+  // Shorts can be in /shorts/ URL format or embed format with shorts
+  return url.includes('/shorts/') || url.includes('youtube.com/embed/') && url.includes('shorts');
+}
+
+// Convert YouTube Shorts URL to embed format
+function getShortsEmbedUrl(url) {
+  // If already an embed URL, return as is
+  if (url.includes('youtube.com/embed/')) {
+    return url;
+  }
+  // Extract video ID from /shorts/ URL
+  const shortsMatch = url.match(/\/shorts\/([a-zA-Z0-9_-]+)/);
+  if (shortsMatch) {
+    return `https://www.youtube.com/embed/${shortsMatch[1]}`;
+  }
+  return url;
+}
+
 function displayPoll(poll, hasVoted = false, voterRating = null) {
   currentPoll = poll;
 
@@ -52,6 +73,22 @@ function displayPoll(poll, hasVoted = false, voterRating = null) {
   document.getElementById('votingScreen').classList.remove('hidden');
 
   document.getElementById('pollTitle').textContent = `${currentPoll.creator} - ${currentPoll.company}`;
+
+  // Check if this poll contains YouTube Shorts
+  const hasShorts = currentPoll.mediaItems.some(item =>
+    item.type === 'video' && isYouTubeShort(item.url)
+  );
+
+  // Apply or remove shorts layout class
+  const votingScreen = document.getElementById('votingScreen');
+  const ratingSection = document.querySelector('.rating-section');
+  const exposeSection = document.getElementById('exposeSection');
+
+  if (hasShorts && currentPoll.mediaItems.length === 1) {
+    votingScreen.classList.add('shorts-layout');
+  } else {
+    votingScreen.classList.remove('shorts-layout');
+  }
 
   // Always reset timer display first, before starting new timer
   const timerText = document.getElementById('timerText');
@@ -84,13 +121,26 @@ function displayPoll(poll, hasVoted = false, voterRating = null) {
     // Single item - no carousel needed
     const item = currentPoll.mediaItems[0];
     if (item.type === 'video') {
-      mediaContainer.innerHTML = `
-        <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
-          <iframe src="${item.url}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen>
-          </iframe>
-        </div>
-      `;
+      // Check if it's a YouTube Short
+      if (isYouTubeShort(item.url)) {
+        const embedUrl = getShortsEmbedUrl(item.url);
+        mediaContainer.innerHTML = `
+          <div class="shorts-video-container">
+            <iframe src="${embedUrl}"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen>
+            </iframe>
+          </div>
+        `;
+      } else {
+        mediaContainer.innerHTML = `
+          <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
+            <iframe src="${item.url}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen>
+            </iframe>
+          </div>
+        `;
+      }
     } else {
       mediaContainer.innerHTML = `
         <img src="${item.url}" alt="Poll media" style="max-width: 100%; max-height: 500px; display: block; margin: 0 auto; border-radius: 8px;">
