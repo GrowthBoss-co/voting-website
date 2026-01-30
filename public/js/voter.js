@@ -10,7 +10,10 @@ let isVoterTimerPaused = false;
 
 // Authorized voters who can pause/skip/toggle auto-advance
 const authorizedVoters = ['Karol Trojanowski', 'Adrielle Silva'];
-const isAuthorizedVoter = authorizedVoters.includes(voterName);
+// Case-insensitive and trimmed comparison
+const isAuthorizedVoter = voterName && authorizedVoters.some(
+  name => name.toLowerCase().trim() === voterName.toLowerCase().trim()
+);
 
 if (!voterId) {
   window.location.href = '/join-session';
@@ -198,10 +201,102 @@ function showWaitingScreen(title, subtitle) {
 }
 
 function showEndScreen() {
-  document.getElementById('endScreen').classList.remove('hidden');
+  // First show the Top 10 screen, then feedback form
+  document.getElementById('top10Screen').classList.remove('hidden');
   document.getElementById('waitingScreen').classList.add('hidden');
   document.getElementById('votingScreen').classList.add('hidden');
+  document.getElementById('endScreen').classList.add('hidden');
+
+  // Fetch and display top 10
+  fetchTop10();
 }
+
+async function fetchTop10() {
+  try {
+    const response = await fetch(`/api/session/${sessionId}/top10`);
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to load top 10');
+    }
+
+    renderTop10(data.top10);
+  } catch (error) {
+    console.error('Error fetching top 10:', error);
+    const top10List = document.getElementById('top10List');
+    top10List.innerHTML = `
+      <div class="loading-top10">
+        <p>Could not load results. <a href="#" onclick="fetchTop10(); return false;">Try again</a></p>
+      </div>
+    `;
+  }
+}
+
+function renderTop10(top10) {
+  const top10List = document.getElementById('top10List');
+
+  if (!top10 || top10.length === 0) {
+    top10List.innerHTML = `
+      <div class="loading-top10">
+        <p>No rated content available yet.</p>
+      </div>
+    `;
+    return;
+  }
+
+  top10List.innerHTML = top10.map((item, index) => {
+    const rank = index + 1;
+    const mediaItem = item.mediaItems && item.mediaItems[0];
+
+    // Generate thumbnail based on media type
+    let thumbnailHTML = '';
+    if (mediaItem) {
+      if (mediaItem.type === 'video') {
+        // For YouTube videos, try to get thumbnail
+        const youtubeMatch = mediaItem.url.match(/youtube\.com\/embed\/([^?&]+)/);
+        if (youtubeMatch) {
+          thumbnailHTML = `<img src="https://img.youtube.com/vi/${youtubeMatch[1]}/mqdefault.jpg" alt="Video thumbnail">`;
+        } else {
+          thumbnailHTML = `<div class="top10-thumbnail-video">▶</div>`;
+        }
+      } else if (mediaItem.type === 'image') {
+        thumbnailHTML = `<img src="${mediaItem.url}" alt="Content thumbnail">`;
+      } else {
+        // Google Drive or other
+        const driveMatch = mediaItem.url.match(/\/file\/d\/([^\/]+)/);
+        if (driveMatch) {
+          thumbnailHTML = `<img src="https://drive.google.com/thumbnail?id=${driveMatch[1]}&sz=w200" alt="Content thumbnail">`;
+        } else {
+          thumbnailHTML = `<div class="top10-thumbnail-video">📄</div>`;
+        }
+      }
+    }
+
+    return `
+      <div class="top10-item">
+        <div class="top10-rank">#${rank}</div>
+        <div class="top10-thumbnail">
+          ${thumbnailHTML}
+        </div>
+        <div class="top10-info">
+          <div class="top10-title">${item.creator} - ${item.company}</div>
+          <div class="top10-meta">${item.totalVotes} vote${item.totalVotes !== 1 ? 's' : ''}</div>
+        </div>
+        <div class="top10-rating">
+          <div class="top10-rating-value">${item.average.toFixed(1)}</div>
+          <div class="top10-rating-label">avg</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Handle continue to feedback button
+document.getElementById('continueToFeedbackBtn').addEventListener('click', () => {
+  document.getElementById('top10Screen').classList.add('hidden');
+  document.getElementById('endScreen').classList.remove('hidden');
+  initializeFeedbackForm();
+});
 
 checkForPoll();
 pollingInterval = setInterval(checkForPoll, 2000);
@@ -728,20 +823,53 @@ async function voterTogglePause() {
 
 // Voter skip poll (for authorized voters)
 async function voterSkipPoll() {
-  if (!isAuthorizedVoter) return;
+  console.log('voterSkipPoll called, isAuthorizedVoter:', isAuthorizedVoter, 'voterName:', voterName);
+
+  if (!isAuthorizedVoter) {
+    console.log('Not authorized - voterName does not match authorized list');
+    alert('You are not authorized to skip polls. Your name: ' + voterName);
+    return;
+  }
 
   if (!confirm('Skip to the next poll?')) return;
 
+  const skipBtn = document.getElementById('voterSkipBtn');
+  if (skipBtn) {
+    skipBtn.disabled = true;
+    skipBtn.textContent = 'Skipping...';
+  }
+
   try {
-    await fetch(`/api/session/${sessionId}/skip-poll`, {
+    const response = await fetch(`/api/session/${sessionId}/skip-poll`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ voterName })
     });
 
-    // The host will handle the actual skip, voter just triggers it
+    const data = await response.json();
+    console.log('Skip response:', data);
+
+    if (!response.ok) {
+      alert('Failed to skip: ' + (data.error || 'Unknown error'));
+      return;
+    }
+
+    if (data.sessionCompleted) {
+      // Session is over, show end screen
+      showEndScreen();
+    } else {
+      // Force immediate check for new poll
+      lastPollId = null; // Reset so we detect the new poll
+      await checkForPoll();
+    }
   } catch (error) {
     console.error('Error skipping poll:', error);
+    alert('Error skipping poll: ' + error.message);
+  } finally {
+    if (skipBtn) {
+      skipBtn.disabled = false;
+      skipBtn.textContent = 'Skip';
+    }
   }
 }
 
@@ -925,9 +1053,5 @@ async function submitFeedback() {
   }
 }
 
-// Modify showEndScreen to initialize feedback form
-const originalShowEndScreen = showEndScreen;
-showEndScreen = function() {
-  originalShowEndScreen();
-  initializeFeedbackForm();
-};
+// Note: initializeFeedbackForm is now called from the "Continue to Feedback" button click handler
+// after the top 10 screen is shown

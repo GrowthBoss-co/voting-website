@@ -70,6 +70,26 @@
           </div>
         </div>
 
+        <!-- Top 10 Results Screen (shown before feedback) -->
+        <div id="top10Screen" class="top10-screen hidden">
+          <div class="top10-header">
+            <h2 style="font-size: 2em; margin-bottom: 10px;">Top 10 Content of the Session</h2>
+            <p style="font-size: 1.1em; color: #666;">Based on average ratings from all voters</p>
+          </div>
+
+          <div id="top10List" class="top10-list">
+            <!-- Top 10 items will be inserted here -->
+            <div class="loading-top10">
+              <div class="spinner"></div>
+              <p>Loading results...</p>
+            </div>
+          </div>
+
+          <button id="continueToFeedbackBtn" class="btn btn-primary btn-large" style="margin-top: 20px;">
+            Continue to Feedback
+          </button>
+        </div>
+
         <div id="endScreen" class="end-screen hidden">
           <div class="end-message">
             <h2 style="font-size: 2.5em; margin-bottom: 20px;">Thank you for joining us and voting!</h2>

@@ -1360,9 +1360,12 @@ app.post('/api/session/:sessionId/pause-timer', async (req, res) => {
     const { sessionId } = req.params;
     const { voterName, timeLeft } = req.body;
 
-    // Check if voter is authorized (host doesn't need voterName)
-    const authorizedVoters = ['Karol Trojanowski', 'Adrielle Souza'];
-    if (voterName && !authorizedVoters.includes(voterName)) {
+    // Check if voter is authorized (case-insensitive, host doesn't need voterName)
+    const authorizedVoters = ['Karol Trojanowski', 'Adrielle Silva'];
+    const isAuthorized = !voterName || authorizedVoters.some(
+      name => name.toLowerCase().trim() === (voterName || '').toLowerCase().trim()
+    );
+    if (!isAuthorized) {
       return res.status(403).json({ error: 'Not authorized to pause timer' });
     }
 
@@ -1388,9 +1391,12 @@ app.post('/api/session/:sessionId/resume-timer', async (req, res) => {
     const { sessionId } = req.params;
     const { voterName } = req.body;
 
-    // Check if voter is authorized
-    const authorizedVoters = ['Karol Trojanowski', 'Adrielle Souza'];
-    if (voterName && !authorizedVoters.includes(voterName)) {
+    // Check if voter is authorized (case-insensitive)
+    const authorizedVoters = ['Karol Trojanowski', 'Adrielle Silva'];
+    const isAuthorized = !voterName || authorizedVoters.some(
+      name => name.toLowerCase().trim() === (voterName || '').toLowerCase().trim()
+    );
+    if (!isAuthorized) {
       return res.status(403).json({ error: 'Not authorized to resume timer' });
     }
 
@@ -1415,9 +1421,12 @@ app.post('/api/session/:sessionId/skip-poll', async (req, res) => {
     const { sessionId } = req.params;
     const { voterName } = req.body;
 
-    // Check if voter is authorized
-    const authorizedVoters = ['Karol Trojanowski', 'Adrielle Souza'];
-    if (voterName && !authorizedVoters.includes(voterName)) {
+    // Check if voter is authorized (case-insensitive)
+    const authorizedVoters = ['Karol Trojanowski', 'Adrielle Silva'];
+    const isAuthorized = !voterName || authorizedVoters.some(
+      name => name.toLowerCase().trim() === (voterName || '').toLowerCase().trim()
+    );
+    if (!isAuthorized) {
       return res.status(403).json({ error: 'Not authorized to skip poll' });
     }
 
@@ -1426,12 +1435,46 @@ app.post('/api/session/:sessionId/skip-poll', async (req, res) => {
       return res.status(404).json({ error: 'Session not found' });
     }
 
-    // Signal that skip was requested
-    session.skipRequested = true;
+    // Actually advance to the next poll
+    const nextIndex = session.currentPollIndex + 1;
+
+    if (nextIndex >= session.polls.length) {
+      // No more polls - mark session as completed
+      session.status = 'completed';
+      session.currentPollIndex = -1;
+    } else {
+      // Start the next poll
+      session.currentPollIndex = nextIndex;
+      session.polls[nextIndex].startTime = Date.now();
+
+      // Initialize votes for the new poll if not exists
+      if (!session.votes.has(session.polls[nextIndex].id)) {
+        session.votes.set(session.polls[nextIndex].id, new Map());
+      }
+
+      session.status = 'presenting';
+    }
+
+    // Reset timer pause and countdown state
     session.timerPaused = false;
+    session.countdownStarted = false;
+    session.skipRequested = false;
+
+    // Clear expose votes for the current poll
+    if (session.exposeVotes && session.currentPollIndex >= 0) {
+      const currentPollId = session.polls[session.currentPollIndex]?.id;
+      if (currentPollId && session.exposeVotes[currentPollId]) {
+        delete session.exposeVotes[currentPollId];
+      }
+    }
+
     await saveSession(sessionId, session);
 
-    res.json({ success: true });
+    res.json({
+      success: true,
+      newPollIndex: session.currentPollIndex,
+      sessionCompleted: session.status === 'completed'
+    });
   } catch (error) {
     console.error('Error skipping poll:', error);
     res.status(500).json({ error: 'Failed to skip poll' });
@@ -1714,6 +1757,56 @@ function buildFeedbackDescription(feedbackData, sessionName) {
 
   return lines.join('\n');
 }
+
+// Get top 10 content by average rating
+app.get('/api/session/:sessionId/top10', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const session = await getSession(sessionId);
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Calculate average rating for each poll
+    const pollsWithRatings = session.polls.map(poll => {
+      const pollVotes = session.votes.get(poll.id);
+      let average = 0;
+      let totalVotes = 0;
+
+      if (pollVotes && pollVotes.size > 0) {
+        const ratings = Array.from(pollVotes.values());
+        totalVotes = ratings.length;
+        average = ratings.reduce((a, b) => a + b, 0) / ratings.length;
+      }
+
+      return {
+        id: poll.id,
+        creator: poll.creator,
+        company: poll.company,
+        mediaItems: poll.mediaItems,
+        average: parseFloat(average.toFixed(2)),
+        totalVotes
+      };
+    });
+
+    // Sort by average rating (descending) and take top 10
+    const top10 = pollsWithRatings
+      .filter(p => p.totalVotes > 0) // Only include polls with at least one vote
+      .sort((a, b) => b.average - a.average)
+      .slice(0, 10);
+
+    res.json({
+      success: true,
+      top10,
+      totalPolls: session.polls.length,
+      sessionName: session.name
+    });
+  } catch (error) {
+    console.error('Error getting top 10:', error);
+    res.status(500).json({ error: 'Failed to get top 10' });
+  }
+});
 
 // ClickUp API integration for feedback
 async function createClickUpFeedbackTask(sessionName, description, feedbackData) {
