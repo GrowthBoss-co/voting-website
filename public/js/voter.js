@@ -293,6 +293,8 @@ function stopAllVideos() {
 }
 
 function showEndScreen() {
+  console.log('showEndScreen called, hasMovedToFeedback:', hasMovedToFeedback, 'hasShownTop10:', hasShownTop10);
+
   // Stop polling - session is over
   if (pollingInterval) {
     clearInterval(pollingInterval);
@@ -311,16 +313,27 @@ function showEndScreen() {
 
   // If top10 has already been shown, don't re-fetch
   if (hasShownTop10) {
+    console.log('Top10 already shown, returning early');
     return;
   }
 
   hasShownTop10 = true;
 
   // First show the Top 10 screen, then feedback form
-  document.getElementById('waitingScreen').classList.add('hidden');
-  document.getElementById('votingScreen').classList.add('hidden');
-  document.getElementById('endScreen').classList.add('hidden');
-  document.getElementById('top10Screen').classList.remove('hidden');
+  const waitingScreen = document.getElementById('waitingScreen');
+  const votingScreen = document.getElementById('votingScreen');
+  const endScreen = document.getElementById('endScreen');
+  const top10Screen = document.getElementById('top10Screen');
+
+  console.log('Before hiding - votingScreen classes:', votingScreen.className);
+
+  waitingScreen.classList.add('hidden');
+  votingScreen.classList.add('hidden');
+  endScreen.classList.add('hidden');
+  top10Screen.classList.remove('hidden');
+
+  console.log('After hiding - votingScreen classes:', votingScreen.className);
+  console.log('After showing - top10Screen classes:', top10Screen.className);
 
   // Scroll to top to ensure user sees the new screen
   window.scrollTo({ top: 0, behavior: 'smooth' });
