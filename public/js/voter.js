@@ -233,6 +233,13 @@ async function checkForPoll() {
     const data = await response.json();
     console.log('checkForPoll response:', data.status, 'currentPoll:', !!data.currentPoll);
 
+    // Check if session is completed FIRST - this takes priority
+    if (data.status === 'completed') {
+      console.log('Session completed - showing end screen');
+      showEndScreen();
+      return;
+    }
+
     if (data.currentPoll) {
       if (lastPollId !== data.currentPoll.id) {
         lastPollId = data.currentPoll.id;
@@ -243,11 +250,7 @@ async function checkForPoll() {
       currentPoll = null;
       lastPollId = null;
 
-      // Check if session is completed
-      if (data.status === 'completed') {
-        console.log('Session completed - showing end screen');
-        showEndScreen();
-      } else if (data.status === 'paused') {
+      if (data.status === 'paused') {
         showWaitingScreen(
           'Session Paused',
           'The host has paused the session. Please wait while they resume.'
