@@ -293,8 +293,6 @@ function stopAllVideos() {
 }
 
 function showEndScreen() {
-  console.log('showEndScreen called, hasMovedToFeedback:', hasMovedToFeedback, 'hasShownTop10:', hasShownTop10);
-
   // Stop polling - session is over
   if (pollingInterval) {
     clearInterval(pollingInterval);
@@ -313,27 +311,16 @@ function showEndScreen() {
 
   // If top10 has already been shown, don't re-fetch
   if (hasShownTop10) {
-    console.log('Top10 already shown, returning early');
     return;
   }
 
   hasShownTop10 = true;
 
   // First show the Top 10 screen, then feedback form
-  const waitingScreen = document.getElementById('waitingScreen');
-  const votingScreen = document.getElementById('votingScreen');
-  const endScreen = document.getElementById('endScreen');
-  const top10Screen = document.getElementById('top10Screen');
-
-  console.log('Before hiding - votingScreen classes:', votingScreen.className);
-
-  waitingScreen.classList.add('hidden');
-  votingScreen.classList.add('hidden');
-  endScreen.classList.add('hidden');
-  top10Screen.classList.remove('hidden');
-
-  console.log('After hiding - votingScreen classes:', votingScreen.className);
-  console.log('After showing - top10Screen classes:', top10Screen.className);
+  document.getElementById('waitingScreen').classList.add('hidden');
+  document.getElementById('votingScreen').classList.add('hidden');
+  document.getElementById('endScreen').classList.add('hidden');
+  document.getElementById('top10Screen').classList.remove('hidden');
 
   // Scroll to top to ensure user sees the new screen
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -540,15 +527,15 @@ document.getElementById('submitRatingBtn').addEventListener('click', async () =>
     return;
   }
 
-  // Check if timer has expired (but skip this check if auto-advance is on and countdown hasn't started)
+  // Check if timer has expired (but skip this check if auto-advance is on)
   if (currentPoll.timer && currentPoll.startTime) {
     // First check auto-advance state
     try {
       const stateResponse = await fetch(`/api/session/${sessionId}/auto-advance-state`);
       const stateData = await stateResponse.json();
 
-      // If auto-advance is ON and countdown hasn't started, allow voting
-      if (stateData.autoAdvanceOn && !stateData.countdownStarted) {
+      // If auto-advance is ON, always allow voting (no timer expiry)
+      if (stateData.autoAdvanceOn) {
         // Voting is allowed, skip timer check
       } else {
         // Check timer normally
@@ -610,7 +597,6 @@ document.getElementById('submitRatingBtn').addEventListener('click', async () =>
 
 let voterSavedTimeLeft = null;
 let voterAutoAdvanceOn = false;
-let voterCountdownStarted = false;
 
 async function startTimer(duration) {
   let timeLeft = duration;
@@ -625,16 +611,15 @@ async function startTimer(duration) {
     const stateResponse = await fetch(`/api/session/${sessionId}/auto-advance-state`);
     const stateData = await stateResponse.json();
     voterAutoAdvanceOn = stateData.autoAdvanceOn;
-    voterCountdownStarted = stateData.countdownStarted;
   } catch (error) {
     console.error('Error fetching auto-advance state:', error);
   }
 
-  // If auto-advance is ON and countdown hasn't started, hide timer but keep polling
-  if (voterAutoAdvanceOn && !voterCountdownStarted) {
+  // If auto-advance is ON, hide timer and always allow voting (host manually advances)
+  if (voterAutoAdvanceOn) {
     timerDisplay.style.display = 'none';
     enableVotingControls();
-    // Don't return - we need to keep polling for when countdown starts
+    // Don't return - we need to keep polling for state changes
   } else {
     timerDisplay.style.display = 'block';
   }
@@ -653,8 +638,8 @@ async function startTimer(duration) {
   timerDisplay.style.color = 'white';
 
   // Enable voting controls at start
-  // If auto-advance is ON, always enable voting (timer expiry doesn't apply)
-  if (voterAutoAdvanceOn && !voterCountdownStarted) {
+  // If auto-advance is ON, always enable voting (no timer expiry)
+  if (voterAutoAdvanceOn) {
     enableVotingControls();
   } else if (timeLeft > 0) {
     enableVotingControls();
@@ -680,10 +665,10 @@ async function startTimer(duration) {
       if (stateData.autoAdvanceOn !== voterAutoAdvanceOn) {
         voterAutoAdvanceOn = stateData.autoAdvanceOn;
         if (voterAutoAdvanceOn) {
-          // Auto-advance turned ON - hide timer, stop countdown
+          // Auto-advance turned ON - hide timer, voting always allowed
           timerDisplay.style.display = 'none';
           voterSavedTimeLeft = timeLeft;
-          enableVotingControls(); // Keep voting enabled
+          enableVotingControls();
           return;
         } else {
           // Auto-advance turned OFF - show timer, resume countdown
@@ -695,27 +680,12 @@ async function startTimer(duration) {
         }
       }
 
-      // If auto-advance is ON, check if countdown started
+      // If auto-advance is ON, skip timer countdown (host manually advances)
       if (voterAutoAdvanceOn) {
-        if (stateData.countdownStarted && !voterCountdownStarted) {
-          // 10-second countdown started
-          voterCountdownStarted = true;
-          timeLeft = 10;
-          timerDisplay.style.display = 'block';
-          timerText.innerHTML = '70% voted! Auto-advancing in: <strong id="timerValue">' + timeLeft + '</strong>s';
-          timerDisplay.style.background = '#667eea';
-        } else if (!stateData.countdownStarted) {
-          // Still waiting for threshold
-          return;
-        }
+        return;
       }
     } catch (error) {
       console.error('Error checking state:', error);
-    }
-
-    // Skip countdown if auto-advance is on but countdown hasn't started
-    if (voterAutoAdvanceOn && !voterCountdownStarted) {
-      return;
     }
 
     timeLeft--;
@@ -888,7 +858,7 @@ async function fetchExposeStatus() {
       }
     }
 
-    const response = await fetch(`/api/session/${sessionId}/expose-status/${pollIdForThisRequest}?voterId=${voterId}&autoAdvanceOn=${stateData.autoAdvanceOn}&countdownStarted=${stateData.countdownStarted}`);
+    const response = await fetch(`/api/session/${sessionId}/expose-status/${pollIdForThisRequest}?voterId=${voterId}&autoAdvanceOn=${stateData.autoAdvanceOn}`);
     const data = await response.json();
 
     // Ignore response if poll has changed since we made the request
@@ -1133,8 +1103,7 @@ async function voterToggleAutoAdvance() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        autoAdvanceOn: isOn,
-        countdownStarted: false // Reset countdown when toggling
+        autoAdvanceOn: isOn
       })
     });
   } catch (error) {

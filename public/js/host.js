@@ -23,7 +23,6 @@ let readyPollingInterval = null;
 let originalTimerDuration = 60;
 let savedTimeLeft = null;
 let isAutoAdvanceOn = false;
-let countdownStarted = false; // Track if 10-second countdown has started
 let isTimerPaused = false;
 let currentTimeLeft = 0;
 
@@ -623,8 +622,7 @@ async function syncSetupAutoAdvance() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          autoAdvanceOn: isOn,
-          countdownStarted: false
+          autoAdvanceOn: isOn
         })
       });
     } catch (error) {
@@ -1902,7 +1900,6 @@ function startTimer(duration) {
   originalTimerDuration = duration;
   let timeLeft = duration;
   hasReachedThreshold = false;
-  countdownStarted = false;
   savedTimeLeft = null;
   isTimerPaused = false;
   currentTimeLeft = duration;
@@ -1960,7 +1957,6 @@ function startTimer(duration) {
         }
         timerDisplay.style.display = 'block';
         hasReachedThreshold = false;
-        countdownStarted = false;
         timerText.innerHTML = 'Time remaining: <strong id="timerValue">' + timeLeft + '</strong>s';
         updateTimerColor(timerDisplay, timeLeft);
       }
@@ -1977,42 +1973,10 @@ function startTimer(duration) {
     currentTimeLeft = timeLeft;
 
     if (isAutoAdvanceOn) {
-      // Auto-advance mode: wait for 70% vote threshold
-      if (!hasReachedThreshold && totalVotersInSession > 0) {
-        const totalVotesElement = document.getElementById('totalVotes');
-        const currentVotes = parseInt(totalVotesElement.textContent) || 0;
-        const threshold = Math.ceil(totalVotersInSession * 0.7);
-
-        if (currentVotes >= threshold) {
-          // Start 10-second countdown
-          hasReachedThreshold = true;
-          countdownStarted = true;
-          timeLeft = 10;
-          currentTimeLeft = timeLeft;
-          timerDisplay.style.display = 'block';
-          timerText.innerHTML = '70% voted! Auto-advancing in: <strong id="timerValue">' + timeLeft + '</strong>s';
-          timerDisplay.style.background = '#667eea';
-          syncAutoAdvanceState(); // Sync countdown started to server
-        }
-      } else if (hasReachedThreshold) {
-        // 10-second countdown
-        timeLeft--;
-        currentTimeLeft = timeLeft;
-        const timerValueEl = document.getElementById('timerValue');
-        if (timerValueEl) timerValueEl.textContent = timeLeft;
-        timerDisplay.style.background = '#667eea';
-
-        if (timeLeft <= 0) {
-          clearInterval(timerInterval);
-          timerDisplay.style.background = '#718096';
-          if (timerValueEl) timerValueEl.textContent = '0';
-
-          setTimeout(async () => {
-            const nextBtn = document.getElementById('nextPollBtn');
-            if (nextBtn) nextBtn.click();
-          }, 500);
-        }
-      }
+      // Auto-advance mode: no timer countdown, host manually advances
+      // Timer stays hidden, carousels auto-scroll and videos auto-play
+      // Nothing to do here - just keep the interval running to check for pause state
+      return;
     } else {
       // Normal mode: countdown timer
       timeLeft--;
@@ -2050,8 +2014,7 @@ async function syncAutoAdvanceState() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        autoAdvanceOn: isAutoAdvanceOn,
-        countdownStarted: countdownStarted
+        autoAdvanceOn: isAutoAdvanceOn
       })
     });
   } catch (error) {
@@ -2344,7 +2307,7 @@ async function updateResults() {
     ratingsList.innerHTML = '';
 
     // Fetch and update expose status
-    const exposeResponse = await fetch(`/api/session/${sessionId}/expose-status/${currentPoll.id}?autoAdvanceOn=${isAutoAdvanceOn}&countdownStarted=${countdownStarted}`);
+    const exposeResponse = await fetch(`/api/session/${sessionId}/expose-status/${currentPoll.id}?autoAdvanceOn=${isAutoAdvanceOn}`);
     const exposeData = await exposeResponse.json();
 
     document.getElementById('exposeVoteCount').textContent = exposeData.exposeVoteCount;
@@ -3190,7 +3153,6 @@ async function restartSessionFromVoting() {
     currentPollIndex = -1;
     currentPoll = null;
     hasReachedThreshold = false;
-    countdownStarted = false;
     completedPolls.length = 0;
 
     // Start from poll 0
