@@ -235,6 +235,73 @@ app.delete('/api/host/session/:sessionId', checkHostAuth, async (req, res) => {
   }
 });
 
+// Duplicate session
+app.post('/api/host/session/:sessionId/duplicate', checkHostAuth, async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+
+    // Get the original session
+    const originalSession = await getSession(sessionId);
+    if (!originalSession) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Generate new session ID
+    const newSessionId = Math.random().toString(36).substring(2, 10);
+
+    // Create duplicate session with new ID and reset state
+    const duplicatedSession = {
+      id: newSessionId,
+      name: originalSession.name ? `${originalSession.name} (Copy)` : `Session ${newSessionId}`,
+      polls: originalSession.polls.map(poll => ({
+        ...poll,
+        id: require('uuid').v4(), // Generate new poll IDs
+        startTime: null,
+        lastVoter: null,
+        exposeThemV2: false
+      })),
+      currentPollIndex: -1,
+      status: 'waiting',
+      voters: new Map(),
+      votes: new Map(),
+      exposeVotes: {},
+      readyVoters: [],
+      expectedAttendance: originalSession.expectedAttendance || 10,
+      autoAdvanceOn: false,
+      timerPaused: false,
+      countdownStarted: false,
+      created: new Date().toISOString()
+    };
+
+    // Save the new session
+    await saveSession(newSessionId, duplicatedSession);
+
+    // Add to saved sessions list
+    const savedSessions = (await redis.get('host:saved-sessions')) || [];
+    savedSessions.push({
+      id: newSessionId,
+      name: duplicatedSession.name,
+      created: duplicatedSession.created,
+      polls: duplicatedSession.polls
+    });
+    await redis.set('host:saved-sessions', savedSessions);
+
+    res.json({
+      success: true,
+      sessionId: newSessionId,
+      session: {
+        id: newSessionId,
+        name: duplicatedSession.name,
+        polls: duplicatedSession.polls,
+        created: duplicatedSession.created
+      }
+    });
+  } catch (error) {
+    console.error('Error duplicating session:', error);
+    res.status(500).json({ error: 'Failed to duplicate session' });
+  }
+});
+
 // Session verification endpoint
 app.post('/api/session/verify', async (req, res) => {
   const { sessionId, email } = req.body;

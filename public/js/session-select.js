@@ -89,6 +89,7 @@ function displaySavedSessions(sessions) {
       <div class="session-actions">
         <button onclick="editSession('${session.id}')" class="btn btn-small">Edit</button>
         <button onclick="presentSession('${session.id}')" class="btn btn-primary btn-small">Present</button>
+        <button onclick="duplicateSession('${session.id}')" class="btn btn-small" style="background: #805ad5; color: white;">Duplicate</button>
         <button onclick="deleteSession('${session.id}')" class="btn btn-secondary btn-small">Delete</button>
       </div>
     </div>
@@ -124,6 +125,32 @@ async function deleteSession(sessionId) {
     showSavedSessions();
   } catch (error) {
     alert('Error deleting session: ' + error.message);
+  }
+}
+
+async function duplicateSession(sessionId) {
+  try {
+    const response = await fetch(`/api/host/session/${sessionId}/duplicate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${hostToken}`
+      }
+    });
+
+    if (!response.ok) throw new Error('Failed to duplicate session');
+
+    const data = await response.json();
+
+    // Ask if they want to edit the duplicated session
+    if (confirm(`Session duplicated successfully!\n\nNew session: "${data.session.name}"\n\nWould you like to edit it now?`)) {
+      window.location.href = `/host/${data.sessionId}?mode=edit`;
+    } else {
+      // Refresh the list to show the new session
+      showSavedSessions();
+    }
+  } catch (error) {
+    alert('Error duplicating session: ' + error.message);
   }
 }
 
