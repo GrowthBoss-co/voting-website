@@ -2072,49 +2072,12 @@ async function updateResults() {
         await showSessionResults();
         return;
       } else if (sessionData.currentPollIndex >= 0 && sessionData.currentPollIndex < polls.length) {
-        // Voter skipped to a different poll - sync our view
+        // Voter skipped to a different poll - use startPoll to properly initialize
+        stopPolling();
         stopTimer();
         await saveCompletedPoll();
-        // Update local state and display
-        currentPollIndex = sessionData.currentPollIndex;
-        currentPoll = polls[currentPollIndex];
-
-        document.getElementById('currentPollTitle').textContent = `${currentPoll.creator} - ${currentPoll.company}`;
-        document.getElementById('pollProgress').textContent = `Poll ${currentPollIndex + 1} of ${polls.length}`;
-
-        // Update media display
-        const mediaContainer = document.getElementById('currentPollMedia');
-        renderPollMedia(currentPoll, mediaContainer);
-
-        // Reset results display
-        document.getElementById('totalVotes').textContent = '0';
-        document.getElementById('averageRating').textContent = '-';
-        document.getElementById('ratingsList').innerHTML = '';
-        document.getElementById('exposeVoteCount').textContent = '0';
-
-        // Start timer for new poll
-        startTimer(currentPoll.timer);
-
-        // Update next button
-        const nextBtn = document.getElementById('nextPollBtn');
-        if (currentPollIndex >= polls.length - 1) {
-          nextBtn.textContent = 'Finish Session';
-          nextBtn.onclick = async () => {
-            stopPolling();
-            stopTimer();
-            await saveCompletedPoll();
-            await showSessionResults();
-          };
-        } else {
-          nextBtn.textContent = 'Next Poll';
-          nextBtn.onclick = async () => {
-            stopPolling();
-            stopTimer();
-            await saveCompletedPoll();
-            startPoll(currentPollIndex + 1);
-          };
-        }
-
+        // Call startPoll which handles all the media rendering and setup
+        startPoll(sessionData.currentPollIndex);
         return; // Skip the rest of this update cycle
       }
     }
