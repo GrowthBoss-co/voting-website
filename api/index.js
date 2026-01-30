@@ -1968,6 +1968,30 @@ app.post('/api/session/:sessionId/chat', async (req, res) => {
   }
 });
 
+// Chat messages - Clear all messages for a session
+app.delete('/api/session/:sessionId/chat', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+
+    const session = await getSession(sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Clear chat messages
+    session.chatMessages = [];
+    await saveSession(sessionId, session);
+
+    res.json({
+      success: true,
+      message: 'Chat messages cleared'
+    });
+  } catch (error) {
+    console.error('Error clearing chat messages:', error);
+    res.status(500).json({ error: 'Failed to clear messages' });
+  }
+});
+
 // Submit anonymous feedback and create ClickUp task
 app.post('/api/session/:sessionId/feedback', async (req, res) => {
   try {

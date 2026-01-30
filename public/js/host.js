@@ -645,6 +645,11 @@ async function restartSessionFromSetup() {
       method: 'POST'
     });
 
+    // Clear chat messages
+    await fetch(`/api/session/${sessionId}/chat`, {
+      method: 'DELETE'
+    });
+
     // Reset session status
     await fetch(`/api/session/${sessionId}/resume`, {
       method: 'POST',
@@ -652,7 +657,7 @@ async function restartSessionFromSetup() {
       body: JSON.stringify({ restart: true })
     });
 
-    alert('Session has been reset! All votes cleared. Ready to start from Poll 1.');
+    alert('Session has been reset! All votes and chat cleared. Ready to start from Poll 1.');
 
     // Hide clear votes button since votes are now cleared
     document.getElementById('clearVotesBtn').style.display = 'none';
@@ -2193,7 +2198,7 @@ function initYouTubeLoopPlayer(videoId) {
             onReady: function(event) {
               console.log('YouTube player ready, starting playback');
               event.target.unMute();
-              event.target.setVolume(100);
+              event.target.setVolume(75);
               event.target.playVideo();
               startLoopCheck();
             },
@@ -3159,6 +3164,11 @@ async function restartSessionFromVoting() {
     // Clear all votes via API
     await fetch(`/api/session/${sessionId}/clear-votes`, {
       method: 'POST'
+    });
+
+    // Clear chat messages
+    await fetch(`/api/session/${sessionId}/chat`, {
+      method: 'DELETE'
     });
 
     // Reset session status to draft

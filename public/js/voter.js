@@ -1280,45 +1280,8 @@ async function submitFeedback() {
 // CHAT FUNCTIONALITY
 // ============================================
 
-let chatOpen = false;
 let lastMessageTimestamp = 0;
 let chatPollingInterval = null;
-let unreadCount = 0;
-
-// Toggle chat panel open/closed
-function toggleChat() {
-  const chatBody = document.getElementById('chatBody');
-  const toggleIcon = document.getElementById('chatToggleIcon');
-
-  chatOpen = !chatOpen;
-
-  if (chatOpen) {
-    chatBody.classList.remove('hidden');
-    toggleIcon.textContent = '▲';
-    // Clear unread badge when opening
-    unreadCount = 0;
-    updateChatBadge();
-    // Scroll to bottom
-    const messagesDiv = document.getElementById('chatMessages');
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    // Focus input
-    document.getElementById('chatInput').focus();
-  } else {
-    chatBody.classList.add('hidden');
-    toggleIcon.textContent = '▼';
-  }
-}
-
-// Update unread badge
-function updateChatBadge() {
-  const badge = document.getElementById('chatBadge');
-  if (unreadCount > 0) {
-    badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
-    badge.classList.remove('hidden');
-  } else {
-    badge.classList.add('hidden');
-  }
-}
 
 // Format timestamp
 function formatChatTime(timestamp) {
@@ -1378,7 +1341,7 @@ async function fetchChatMessages() {
           lastMessageTimestamp = data.messages[data.messages.length - 1].timestamp;
         }
       } else if (data.messages.length > 0) {
-        // New messages - append and update badge if chat is closed
+        // New messages - append to chat
         const messagesDiv = document.getElementById('chatMessages');
         const emptyDiv = messagesDiv.querySelector('.chat-empty');
         if (emptyDiv) {
@@ -1396,19 +1359,13 @@ async function fetchChatMessages() {
             </div>
           `;
           messagesDiv.insertAdjacentHTML('beforeend', msgHtml);
-
-          // Increment unread if chat is closed and message is from others
-          if (!chatOpen && msg.voterName !== voterName) {
-            unreadCount++;
-          }
         });
 
         lastMessageTimestamp = data.messages[data.messages.length - 1].timestamp;
-        updateChatBadge();
 
         // Auto-scroll if at bottom
         const wasAtBottom = messagesDiv.scrollHeight - messagesDiv.scrollTop <= messagesDiv.clientHeight + 100;
-        if (wasAtBottom || chatOpen) {
+        if (wasAtBottom) {
           messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
       }
@@ -1487,10 +1444,15 @@ function initializeChat() {
 
   // Start polling for new messages
   chatPollingInterval = setInterval(fetchChatMessages, 2000);
-}
 
-// Make toggleChat available globally
-window.toggleChat = toggleChat;
+  // Scroll to bottom initially
+  setTimeout(() => {
+    const messagesDiv = document.getElementById('chatMessages');
+    if (messagesDiv) {
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+  }, 1000);
+}
 
 // Initialize chat when page loads
 document.addEventListener('DOMContentLoaded', () => {
