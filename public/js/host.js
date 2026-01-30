@@ -2192,6 +2192,8 @@ function initYouTubeLoopPlayer(videoId) {
           events: {
             onReady: function(event) {
               console.log('YouTube player ready, starting playback');
+              event.target.unMute();
+              event.target.setVolume(100);
               event.target.playVideo();
               startLoopCheck();
             },
