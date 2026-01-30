@@ -1879,25 +1879,37 @@ app.get('/api/session/:sessionId/top10', async (req, res) => {
         creatorStats[poll.creator].contentCount += 1;
       });
 
-    // Find top creator by overall average
-    let topCreator = null;
+    // Find top creator(s) by overall average (handle ties)
+    let topCreators = [];
     let highestOverallAverage = 0;
     for (const [creator, stats] of Object.entries(creatorStats)) {
       const overallAverage = stats.totalRating / stats.contentCount;
-      if (overallAverage > highestOverallAverage) {
-        highestOverallAverage = overallAverage;
-        topCreator = {
+      const roundedAverage = parseFloat(overallAverage.toFixed(2));
+
+      if (roundedAverage > highestOverallAverage) {
+        // New highest - reset the list
+        highestOverallAverage = roundedAverage;
+        topCreators = [{
           name: creator,
-          overallAverage: parseFloat(overallAverage.toFixed(2)),
+          overallAverage: roundedAverage,
           contentCount: stats.contentCount
-        };
+        }];
+      } else if (roundedAverage === highestOverallAverage) {
+        // Tie - add to the list
+        topCreators.push({
+          name: creator,
+          overallAverage: roundedAverage,
+          contentCount: stats.contentCount
+        });
       }
     }
 
+    // Return topCreator for backwards compatibility, and topCreators for ties
     res.json({
       success: true,
       top10,
-      topCreator,
+      topCreator: topCreators.length > 0 ? topCreators[0] : null,
+      topCreators: topCreators.length > 0 ? topCreators : null,
       totalPolls: session.polls.length,
       sessionName: session.name
     });

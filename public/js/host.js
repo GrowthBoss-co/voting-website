@@ -2297,7 +2297,7 @@ async function fetchHostTop10() {
       throw new Error(data.error || 'Failed to load top 10');
     }
 
-    renderHostTop10(data.top10, data.topCreator);
+    renderHostTop10(data.top10, data.topCreators || (data.topCreator ? [data.topCreator] : null));
   } catch (error) {
     console.error('Error fetching top 10:', error);
     const top10List = document.getElementById('hostTop10List');
@@ -2310,7 +2310,7 @@ async function fetchHostTop10() {
 }
 
 // Render Top 10 for host
-function renderHostTop10(top10, topCreator) {
+function renderHostTop10(top10, topCreators) {
   const top10List = document.getElementById('hostTop10List');
   const congratsSection = document.getElementById('hostTopCreatorCongrats');
 
@@ -2324,10 +2324,15 @@ function renderHostTop10(top10, topCreator) {
     return;
   }
 
-  // Show congratulations for the creator with highest overall average
-  if (topCreator) {
-    document.getElementById('hostTopCreatorName').textContent = topCreator.name;
-    document.getElementById('hostTopCreatorScore').textContent = topCreator.overallAverage.toFixed(2);
+  // Show congratulations for the creator(s) with highest overall average
+  if (topCreators && topCreators.length > 0) {
+    const names = topCreators.map(c => c.name);
+    const namesText = names.length === 1
+      ? names[0]
+      : names.slice(0, -1).join(', ') + ' & ' + names[names.length - 1];
+
+    document.getElementById('hostTopCreatorName').textContent = namesText;
+    document.getElementById('hostTopCreatorScore').textContent = topCreators[0].overallAverage.toFixed(2);
     congratsSection.classList.remove('hidden');
   } else {
     congratsSection.classList.add('hidden');
