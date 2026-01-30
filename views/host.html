@@ -10,7 +10,6 @@
     <div class="container">
       <div class="host-dashboard">
         <div class="header">
-          <h1>Host Dashboard</h1>
           <div class="session-info">
             <div class="session-id-box">
               <label>Session ID:</label>
@@ -34,6 +33,29 @@
         </div>
 
         <div class="setup-section" id="setupSection">
+          <!-- Opening Page Customization Section -->
+          <div style="margin-bottom: 30px; padding: 20px; background: #fff3e0; border-radius: 8px; border-left: 4px solid #ff9800;">
+            <h3 style="margin-top: 0; margin-bottom: 15px; color: #e65100;">Opening Page Customization</h3>
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+              <div>
+                <label for="openingTitleInput" style="font-weight: 600; display: block; margin-bottom: 5px;">Title:</label>
+                <input type="text" id="openingTitleInput" placeholder="Content Production Team Roundtable"
+                       style="width: 100%; padding: 10px; font-size: 16px; border: 2px solid #ff9800; border-radius: 6px;" />
+              </div>
+              <div>
+                <label for="openingSubtitleInput" style="font-weight: 600; display: block; margin-bottom: 5px;">Subtitle:</label>
+                <input type="text" id="openingSubtitleInput" placeholder="🎊 It's Friday! 🎊"
+                       style="width: 100%; padding: 10px; font-size: 16px; border: 2px solid #ff9800; border-radius: 6px;" />
+              </div>
+              <button type="button" onclick="saveOpeningPageSettings()" class="btn" style="background: #ff9800; color: white; align-self: flex-start;">
+                Save Changes
+              </button>
+            </div>
+            <p style="color: #666; margin-top: 10px; margin-bottom: 0; font-size: 14px;">
+              This changes what voters see on the opening page before they join.
+            </p>
+          </div>
+
           <!-- Expected Attendance Section -->
           <div style="margin-bottom: 30px; padding: 20px; background: #e8f5e9; border-radius: 8px; border-left: 4px solid #48bb78;">
             <h3 style="margin-top: 0; margin-bottom: 15px; color: #48bb78;">Session Attendance</h3>

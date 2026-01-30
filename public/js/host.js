@@ -361,6 +361,51 @@ async function deleteVoterName(name) {
 // Load voter names on page load
 loadVoterNames();
 
+// Load opening page settings
+async function loadOpeningPageSettings() {
+  try {
+    const response = await fetch('/api/opening-page-settings');
+    if (response.ok) {
+      const settings = await response.json();
+      document.getElementById('openingTitleInput').value = settings.title;
+      document.getElementById('openingSubtitleInput').value = settings.subtitle;
+    }
+  } catch (error) {
+    console.error('Error loading opening page settings:', error);
+  }
+}
+
+// Save opening page settings
+async function saveOpeningPageSettings() {
+  try {
+    const token = localStorage.getItem('hostToken');
+    const title = document.getElementById('openingTitleInput').value.trim();
+    const subtitle = document.getElementById('openingSubtitleInput').value.trim();
+
+    const response = await fetch('/api/host/opening-page-settings', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ title, subtitle })
+    });
+
+    if (response.ok) {
+      alert('Opening page settings saved!');
+    } else {
+      const data = await response.json();
+      alert('Error: ' + (data.error || 'Failed to save settings'));
+    }
+  } catch (error) {
+    console.error('Error saving opening page settings:', error);
+    alert('Error saving settings: ' + error.message);
+  }
+}
+
+// Load opening page settings on page load
+loadOpeningPageSettings();
+
 // Check if this session is the active session
 async function checkActiveSession() {
   try {

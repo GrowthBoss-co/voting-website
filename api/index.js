@@ -1163,6 +1163,38 @@ app.delete('/api/host/voters/:name', checkHostAuth, async (req, res) => {
   }
 });
 
+// Get opening page settings (public - for index page)
+app.get('/api/opening-page-settings', async (req, res) => {
+  try {
+    const settings = await redis.get('host:opening-page-settings');
+    res.json({
+      title: settings?.title || 'Content Production Team Roundtable',
+      subtitle: settings?.subtitle || "🎊 It's Friday! 🎊"
+    });
+  } catch (error) {
+    console.error('Error fetching opening page settings:', error);
+    res.status(500).json({ error: 'Failed to fetch settings' });
+  }
+});
+
+// Update opening page settings (host only)
+app.put('/api/host/opening-page-settings', checkHostAuth, async (req, res) => {
+  try {
+    const { title, subtitle } = req.body;
+
+    const settings = {
+      title: title || 'Content Production Team Roundtable',
+      subtitle: subtitle || "🎊 It's Friday! 🎊"
+    };
+
+    await redis.set('host:opening-page-settings', settings);
+    res.json({ success: true, settings });
+  } catch (error) {
+    console.error('Error updating opening page settings:', error);
+    res.status(500).json({ error: 'Failed to update settings' });
+  }
+});
+
 // Set session as "This Week's Session"
 app.post('/api/host/set-active-session', checkHostAuth, async (req, res) => {
   try {
