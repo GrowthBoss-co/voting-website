@@ -18,73 +18,52 @@
         </div>
 
         <div id="votingScreen" class="voting-screen hidden">
-          <div class="voting-layout">
-            <!-- Left side: Poll content -->
-            <div class="voting-content">
-              <div style="display: flex; align-items: center; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                <div class="timer-display" id="timerDisplay">
-                  <span id="timerText">Time remaining: <strong id="timerValue">60</strong>s</span>
-                </div>
-                <div id="adminControls" class="hidden" style="display: none; gap: 5px; align-items: center;">
-                  <button id="voterPauseBtn" onclick="voterTogglePause()" class="btn btn-small" style="background: #ed8936; color: white; padding: 5px 10px; font-size: 12px;">
-                    Pause
-                  </button>
-                  <button id="voterSkipBtn" onclick="voterSkipPoll()" class="btn btn-small" style="background: #e53e3e; color: white; padding: 5px 10px; font-size: 12px;">
-                    Skip
-                  </button>
-                  <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 12px; background: #f0f8ff; padding: 5px 8px; border-radius: 4px; border: 1px solid #4a90e2;">
-                    <input type="checkbox" id="voterAutoAdvanceToggle" onchange="voterToggleAutoAdvance()" style="width: auto; cursor: pointer;" />
-                    <span style="color: #4a90e2; font-weight: 600;">Auto</span>
-                  </label>
-                </div>
-              </div>
-              <h2 id="pollTitle"></h2>
-              <div id="pollMedia" class="media-container"></div>
-
-              <div class="rating-section">
-                <label for="ratingInput">Your Rating (0-10):</label>
-                <div class="rating-input-group">
-                  <input type="range" id="ratingSlider" min="0" max="10" value="5" />
-                  <input type="number" id="ratingInput" min="0" max="10" value="5" />
-                </div>
-                <button id="submitRatingBtn" class="btn btn-primary">Submit Rating</button>
-                <div id="submitMessage" class="submit-message hidden"></div>
-              </div>
-
-              <!-- Expose Vote Section -->
-              <div id="exposeSection" style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 8px; border: 1px solid #ffc107;">
-                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
-                  <div>
-                    <strong style="color: #856404;">Vote To Reveal</strong>
-                    <p style="margin: 5px 0 0 0; font-size: 14px; color: #856404;">
-                      <span id="exposeVoteCount">0</span>/<span id="exposeVoteNeeded">0</span> votes to reveal who hasn't voted
-                    </p>
-                  </div>
-                  <button id="voteExposeBtn" class="btn" style="background: #ffc107; color: #856404; border: none; font-weight: 600;">
-                    Vote To Reveal 👀
-                  </button>
-                </div>
-                <div id="exposedResult" class="hidden" style="margin-top: 15px; padding: 15px; background: #f8d7da; border-radius: 8px; text-align: center;">
-                  <strong style="color: #721c24; font-size: 18px;" id="exposedTitle">Revealed!</strong>
-                  <p style="color: #721c24; margin: 10px 0 0 0; font-size: 16px;" id="exposedNames"></p>
-                </div>
-              </div>
+          <div style="display: flex; align-items: center; gap: 10px; justify-content: center; flex-wrap: wrap;">
+            <div class="timer-display" id="timerDisplay">
+              <span id="timerText">Time remaining: <strong id="timerValue">60</strong>s</span>
             </div>
+            <div id="adminControls" class="hidden" style="display: none; gap: 5px; align-items: center;">
+              <button id="voterPauseBtn" onclick="voterTogglePause()" class="btn btn-small" style="background: #ed8936; color: white; padding: 5px 10px; font-size: 12px;">
+                Pause
+              </button>
+              <button id="voterSkipBtn" onclick="voterSkipPoll()" class="btn btn-small" style="background: #e53e3e; color: white; padding: 5px 10px; font-size: 12px;">
+                Skip
+              </button>
+              <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 12px; background: #f0f8ff; padding: 5px 8px; border-radius: 4px; border: 1px solid #4a90e2;">
+                <input type="checkbox" id="voterAutoAdvanceToggle" onchange="voterToggleAutoAdvance()" style="width: auto; cursor: pointer;" />
+                <span style="color: #4a90e2; font-weight: 600;">Auto</span>
+              </label>
+            </div>
+          </div>
+          <h2 id="pollTitle"></h2>
+          <div id="pollMedia" class="media-container"></div>
 
-            <!-- Right side: Chat Panel -->
-            <div id="chatPanel" class="chat-panel-inline">
-              <div class="chat-header">
-                <span>💬 Chat</span>
+          <div class="rating-section">
+            <label for="ratingInput">Your Rating (0-10):</label>
+            <div class="rating-input-group">
+              <input type="range" id="ratingSlider" min="0" max="10" value="5" />
+              <input type="number" id="ratingInput" min="0" max="10" value="5" />
+            </div>
+            <button id="submitRatingBtn" class="btn btn-primary">Submit Rating</button>
+            <div id="submitMessage" class="submit-message hidden"></div>
+          </div>
+
+          <!-- Expose Vote Section -->
+          <div id="exposeSection" style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 8px; border: 1px solid #ffc107;">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+              <div>
+                <strong style="color: #856404;">Vote To Reveal</strong>
+                <p style="margin: 5px 0 0 0; font-size: 14px; color: #856404;">
+                  <span id="exposeVoteCount">0</span>/<span id="exposeVoteNeeded">0</span> votes to reveal who hasn't voted
+                </p>
               </div>
-              <div id="chatBody" class="chat-body">
-                <div id="chatMessages" class="chat-messages">
-                  <!-- Messages will be inserted here -->
-                </div>
-                <div class="chat-input-container">
-                  <input type="text" id="chatInput" placeholder="Type a message..." maxlength="500" />
-                  <button id="chatSendBtn" class="btn btn-primary">Send</button>
-                </div>
-              </div>
+              <button id="voteExposeBtn" class="btn" style="background: #ffc107; color: #856404; border: none; font-weight: 600;">
+                Vote To Reveal 👀
+              </button>
+            </div>
+            <div id="exposedResult" class="hidden" style="margin-top: 15px; padding: 15px; background: #f8d7da; border-radius: 8px; text-align: center;">
+              <strong style="color: #721c24; font-size: 18px;" id="exposedTitle">Revealed!</strong>
+              <p style="color: #721c24; margin: 10px 0 0 0; font-size: 16px;" id="exposedNames"></p>
             </div>
           </div>
         </div>

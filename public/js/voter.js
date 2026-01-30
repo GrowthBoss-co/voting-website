@@ -314,10 +314,13 @@ function showEndScreen() {
   hasShownTop10 = true;
 
   // First show the Top 10 screen, then feedback form
-  document.getElementById('top10Screen').classList.remove('hidden');
   document.getElementById('waitingScreen').classList.add('hidden');
   document.getElementById('votingScreen').classList.add('hidden');
   document.getElementById('endScreen').classList.add('hidden');
+  document.getElementById('top10Screen').classList.remove('hidden');
+
+  // Scroll to top to ensure user sees the new screen
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 
   // Fetch and display top 10
   fetchTop10();
@@ -418,13 +421,21 @@ function renderTop10SingleMedia(mediaItem) {
   if (!mediaItem) return '';
 
   if (mediaItem.type === 'video') {
-    // Check if YouTube
-    const youtubeMatch = mediaItem.url.match(/youtube\.com\/embed\/([^?&]+)/);
+    let videoUrl = mediaItem.url;
+
+    // Check if YouTube Shorts URL - convert to embed format
+    const shortsMatch = videoUrl.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]+)/);
+    if (shortsMatch) {
+      videoUrl = `https://www.youtube.com/embed/${shortsMatch[1]}`;
+    }
+
+    // Check if YouTube embed URL
+    const youtubeMatch = videoUrl.match(/youtube\.com\/embed\/([^?&]+)/);
     if (youtubeMatch) {
-      return `<iframe src="${mediaItem.url}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+      return `<iframe src="${videoUrl}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
     }
     // Google Drive video
-    return `<iframe src="${mediaItem.url}" allow="autoplay" allowfullscreen></iframe>`;
+    return `<iframe src="${videoUrl}" allow="autoplay" allowfullscreen></iframe>`;
   } else {
     // Image
     return `<img src="${mediaItem.url}" alt="Content">`;
@@ -1275,194 +1286,3 @@ async function submitFeedback() {
 
 // Note: initializeFeedbackForm is now called from the "Continue to Feedback" button click handler
 // after the top 10 screen is shown
-
-// ============================================
-// CHAT FUNCTIONALITY
-// ============================================
-
-let lastMessageTimestamp = 0;
-let chatPollingInterval = null;
-
-// Format timestamp
-function formatChatTime(timestamp) {
-  const date = new Date(timestamp);
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-// Render chat messages
-function renderChatMessages(messages) {
-  const messagesDiv = document.getElementById('chatMessages');
-
-  if (messages.length === 0) {
-    messagesDiv.innerHTML = '<div class="chat-empty">No messages yet. Start the conversation!</div>';
-    return;
-  }
-
-  const wasAtBottom = messagesDiv.scrollHeight - messagesDiv.scrollTop <= messagesDiv.clientHeight + 50;
-
-  messagesDiv.innerHTML = messages.map(msg => `
-    <div class="chat-message ${msg.voterName === voterName ? 'own-message' : ''}">
-      <div class="chat-message-header">
-        <span class="chat-message-name">${escapeHtml(msg.voterName)}</span>
-        <span class="chat-message-time">${formatChatTime(msg.timestamp)}</span>
-      </div>
-      <div class="chat-message-text">${escapeHtml(msg.message)}</div>
-    </div>
-  `).join('');
-
-  // Auto-scroll to bottom if user was at bottom
-  if (wasAtBottom) {
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
-  }
-}
-
-// Escape HTML to prevent XSS
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-// Fetch chat messages
-async function fetchChatMessages() {
-  try {
-    const url = lastMessageTimestamp > 0
-      ? `/api/session/${sessionId}/chat?since=${lastMessageTimestamp}`
-      : `/api/session/${sessionId}/chat`;
-
-    const response = await fetch(url);
-    const data = await response.json();
-
-    if (data.success) {
-      if (lastMessageTimestamp === 0) {
-        // Initial load - render all messages
-        renderChatMessages(data.messages);
-        if (data.messages.length > 0) {
-          lastMessageTimestamp = data.messages[data.messages.length - 1].timestamp;
-        }
-      } else if (data.messages.length > 0) {
-        // New messages - append to chat
-        const messagesDiv = document.getElementById('chatMessages');
-        const emptyDiv = messagesDiv.querySelector('.chat-empty');
-        if (emptyDiv) {
-          messagesDiv.innerHTML = '';
-        }
-
-        data.messages.forEach(msg => {
-          const msgHtml = `
-            <div class="chat-message ${msg.voterName === voterName ? 'own-message' : ''}">
-              <div class="chat-message-header">
-                <span class="chat-message-name">${escapeHtml(msg.voterName)}</span>
-                <span class="chat-message-time">${formatChatTime(msg.timestamp)}</span>
-              </div>
-              <div class="chat-message-text">${escapeHtml(msg.message)}</div>
-            </div>
-          `;
-          messagesDiv.insertAdjacentHTML('beforeend', msgHtml);
-        });
-
-        lastMessageTimestamp = data.messages[data.messages.length - 1].timestamp;
-
-        // Auto-scroll if at bottom
-        const wasAtBottom = messagesDiv.scrollHeight - messagesDiv.scrollTop <= messagesDiv.clientHeight + 100;
-        if (wasAtBottom) {
-          messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-      }
-    }
-  } catch (error) {
-    console.error('Error fetching chat messages:', error);
-  }
-}
-
-// Send chat message
-async function sendChatMessage() {
-  const input = document.getElementById('chatInput');
-  const message = input.value.trim();
-
-  if (!message) return;
-
-  // Disable input while sending
-  input.disabled = true;
-  document.getElementById('chatSendBtn').disabled = true;
-
-  try {
-    const response = await fetch(`/api/session/${sessionId}/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ voterName, message })
-    });
-
-    const data = await response.json();
-
-    if (data.success) {
-      input.value = '';
-      // Immediately add the message to the UI
-      const messagesDiv = document.getElementById('chatMessages');
-      const emptyDiv = messagesDiv.querySelector('.chat-empty');
-      if (emptyDiv) {
-        messagesDiv.innerHTML = '';
-      }
-
-      const msgHtml = `
-        <div class="chat-message own-message">
-          <div class="chat-message-header">
-            <span class="chat-message-name">${escapeHtml(data.message.voterName)}</span>
-            <span class="chat-message-time">${formatChatTime(data.message.timestamp)}</span>
-          </div>
-          <div class="chat-message-text">${escapeHtml(data.message.message)}</div>
-        </div>
-      `;
-      messagesDiv.insertAdjacentHTML('beforeend', msgHtml);
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
-      lastMessageTimestamp = data.message.timestamp;
-    }
-  } catch (error) {
-    console.error('Error sending chat message:', error);
-  } finally {
-    input.disabled = false;
-    document.getElementById('chatSendBtn').disabled = false;
-    input.focus();
-  }
-}
-
-// Initialize chat
-function initializeChat() {
-  // Set up send button
-  document.getElementById('chatSendBtn').addEventListener('click', sendChatMessage);
-
-  // Set up enter key to send
-  document.getElementById('chatInput').addEventListener('keypress', e => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendChatMessage();
-    }
-  });
-
-  // Initial fetch
-  fetchChatMessages();
-
-  // Start polling for new messages
-  chatPollingInterval = setInterval(fetchChatMessages, 2000);
-
-  // Scroll to bottom initially
-  setTimeout(() => {
-    const messagesDiv = document.getElementById('chatMessages');
-    if (messagesDiv) {
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    }
-  }, 1000);
-}
-
-// Initialize chat when page loads
-document.addEventListener('DOMContentLoaded', () => {
-  // Small delay to ensure elements are ready
-  setTimeout(initializeChat, 500);
-});
-
-// Clean up chat polling on page unload
-window.addEventListener('beforeunload', () => {
-  if (chatPollingInterval) {
-    clearInterval(chatPollingInterval);
-  }
-});

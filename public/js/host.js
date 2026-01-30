@@ -2555,11 +2555,19 @@ function renderHostTop10SingleMedia(mediaItem) {
   if (!mediaItem) return '';
 
   if (mediaItem.type === 'video') {
-    const youtubeMatch = mediaItem.url.match(/youtube\.com\/embed\/([^?&]+)/);
-    if (youtubeMatch) {
-      return `<iframe src="${mediaItem.url}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+    let videoUrl = mediaItem.url;
+
+    // Check if YouTube Shorts URL - convert to embed format
+    const shortsMatch = videoUrl.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]+)/);
+    if (shortsMatch) {
+      videoUrl = `https://www.youtube.com/embed/${shortsMatch[1]}`;
     }
-    return `<iframe src="${mediaItem.url}" allow="autoplay" allowfullscreen></iframe>`;
+
+    const youtubeMatch = videoUrl.match(/youtube\.com\/embed\/([^?&]+)/);
+    if (youtubeMatch) {
+      return `<iframe src="${videoUrl}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+    }
+    return `<iframe src="${videoUrl}" allow="autoplay" allowfullscreen></iframe>`;
   } else {
     return `<img src="${mediaItem.url}" alt="Content">`;
   }
