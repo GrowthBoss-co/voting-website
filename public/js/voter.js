@@ -9,6 +9,7 @@ let timerInterval = null;
 let isVoterTimerPaused = false;
 let hasMovedToFeedback = false; // Track if user has moved past top10 to feedback
 let hasShownTop10 = false; // Track if top10 has already been shown
+let isSessionCompleted = false; // Track if session has ended (prevents further poll processing)
 
 // Authorized voters who can pause/skip/toggle auto-advance
 const authorizedVoters = ['Karol Trojanowski', 'Adrielle Silva'];
@@ -222,6 +223,11 @@ function displayPoll(poll, hasVoted = false, voterRating = null) {
 }
 
 async function checkForPoll() {
+  // If session is already completed, don't process anything
+  if (isSessionCompleted) {
+    return;
+  }
+
   try {
     const response = await fetch(`/api/session/${sessionId}/current-poll?voterId=${voterId}`);
 
@@ -233,6 +239,14 @@ async function checkForPoll() {
     const data = await response.json();
     console.log('checkForPoll response:', data.status, 'currentPoll:', !!data.currentPoll);
 
+    // Check if session is completed - this takes priority over everything else
+    if (data.status === 'completed') {
+      console.log('Session completed - showing end screen');
+      isSessionCompleted = true; // Set flag to prevent further processing
+      showEndScreen();
+      return;
+    }
+
     if (data.currentPoll) {
       if (lastPollId !== data.currentPoll.id) {
         lastPollId = data.currentPoll.id;
@@ -243,11 +257,8 @@ async function checkForPoll() {
       currentPoll = null;
       lastPollId = null;
 
-      // Check if session is completed
-      if (data.status === 'completed') {
-        console.log('Session completed - showing end screen');
-        showEndScreen();
-      } else if (data.status === 'paused') {
+      // Check other statuses
+      if (data.status === 'paused') {
         showWaitingScreen(
           'Session Paused',
           'The host has paused the session. Please wait while they resume.'
@@ -290,6 +301,9 @@ function stopAllVideos() {
 }
 
 function showEndScreen() {
+  // Mark session as completed
+  isSessionCompleted = true;
+
   // Stop polling - session is over
   if (pollingInterval) {
     clearInterval(pollingInterval);
@@ -299,23 +313,27 @@ function showEndScreen() {
   // Stop any playing videos first
   stopAllVideos();
 
-  // If user has already moved to feedback, don't bring them back to top10
+  // Always hide voting and waiting screens when session ends
+  document.getElementById('waitingScreen').classList.add('hidden');
+  document.getElementById('votingScreen').classList.add('hidden');
+
+  // If user has already moved to feedback, show end screen
   if (hasMovedToFeedback) {
     document.getElementById('top10Screen').classList.add('hidden');
     document.getElementById('endScreen').classList.remove('hidden');
     return;
   }
 
-  // If top10 has already been shown, don't re-fetch
+  // If top10 has already been shown, ensure it's visible but don't re-fetch
   if (hasShownTop10) {
+    document.getElementById('endScreen').classList.add('hidden');
+    document.getElementById('top10Screen').classList.remove('hidden');
     return;
   }
 
   hasShownTop10 = true;
 
   // First show the Top 10 screen, then feedback form
-  document.getElementById('waitingScreen').classList.add('hidden');
-  document.getElementById('votingScreen').classList.add('hidden');
   document.getElementById('endScreen').classList.add('hidden');
   document.getElementById('top10Screen').classList.remove('hidden');
 
@@ -1087,6 +1105,7 @@ async function voterSkipPoll() {
 
     if (data.sessionCompleted) {
       // Session is over, show end screen
+      isSessionCompleted = true;
       showEndScreen();
     } else {
       // Force immediate check for new poll
