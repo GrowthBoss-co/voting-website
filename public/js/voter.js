@@ -8,6 +8,7 @@ let lastPollId = null;
 let timerInterval = null;
 let isVoterTimerPaused = false;
 let hasMovedToFeedback = false; // Track if user has moved past top10 to feedback
+let hasShownTop10 = false; // Track if top10 has already been shown
 
 // Authorized voters who can pause/skip/toggle auto-advance
 const authorizedVoters = ['Karol Trojanowski', 'Adrielle Silva'];
@@ -213,6 +214,12 @@ function stopAllVideos() {
 }
 
 function showEndScreen() {
+  // Stop polling - session is over
+  if (pollingInterval) {
+    clearInterval(pollingInterval);
+    pollingInterval = null;
+  }
+
   // Stop any playing videos first
   stopAllVideos();
 
@@ -222,6 +229,13 @@ function showEndScreen() {
     document.getElementById('endScreen').classList.remove('hidden');
     return;
   }
+
+  // If top10 has already been shown, don't re-fetch
+  if (hasShownTop10) {
+    return;
+  }
+
+  hasShownTop10 = true;
 
   // First show the Top 10 screen, then feedback form
   document.getElementById('top10Screen').classList.remove('hidden');
