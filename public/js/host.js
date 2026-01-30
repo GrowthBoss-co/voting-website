@@ -1568,6 +1568,9 @@ document.getElementById('closeUpdateAttendanceBtn').addEventListener('click', ()
 let timerInterval = null;
 
 async function startPoll(pollIndex) {
+  // Stop any playing videos from previous poll
+  stopAllVideos();
+
   try {
     const response = await fetch(`/api/session/${sessionId}/start/${pollIndex}`, {
       method: 'POST'

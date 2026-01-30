@@ -735,10 +735,13 @@ function preloadCarouselImages(mediaItems) {
 // Expose voting functionality
 let hasVotedToExpose = false;
 let exposePollingInterval = null;
+let currentExposePollId = null; // Track which poll we're fetching expose status for
 
 // Fetch and update expose status
 async function fetchExposeStatus() {
   if (!currentPoll) return;
+
+  const pollIdForThisRequest = currentPoll.id;
 
   try {
     // First get the auto-advance state from the server
@@ -777,14 +780,19 @@ async function fetchExposeStatus() {
       }
     }
 
-    const response = await fetch(`/api/session/${sessionId}/expose-status/${currentPoll.id}?voterId=${voterId}&autoAdvanceOn=${stateData.autoAdvanceOn}&countdownStarted=${stateData.countdownStarted}`);
+    const response = await fetch(`/api/session/${sessionId}/expose-status/${pollIdForThisRequest}?voterId=${voterId}&autoAdvanceOn=${stateData.autoAdvanceOn}&countdownStarted=${stateData.countdownStarted}`);
     const data = await response.json();
+
+    // Ignore response if poll has changed since we made the request
+    if (!currentPoll || currentPoll.id !== pollIdForThisRequest) {
+      return;
+    }
 
     // Update vote counts
     document.getElementById('exposeVoteCount').textContent = data.exposeVoteCount;
     document.getElementById('exposeVoteNeeded').textContent = data.thresholdNeeded;
 
-    // Update button state
+    // Update button state only if this is for the current poll
     hasVotedToExpose = data.hasVotedToExpose;
     const exposeBtn = document.getElementById('voteExposeBtn');
     if (hasVotedToExpose) {
@@ -866,6 +874,9 @@ function startExposePolling() {
     clearInterval(exposePollingInterval);
   }
 
+  // Track which poll we're polling for
+  currentExposePollId = currentPoll?.id;
+
   // Reset expose state for new poll
   hasVotedToExpose = false;
   const exposeBtn = document.getElementById('voteExposeBtn');
@@ -886,9 +897,12 @@ function startExposePolling() {
   exposePollingInterval = setInterval(fetchExposeStatus, 2000);
 }
 
-// Modify displayPoll to start expose polling
+// Modify displayPoll to stop videos and start expose polling
 const originalDisplayPoll = displayPoll;
 displayPoll = function(poll, hasVoted, voterRating) {
+  // Stop any playing videos from previous poll
+  stopAllVideos();
+
   originalDisplayPoll(poll, hasVoted, voterRating);
   startExposePolling();
 };
