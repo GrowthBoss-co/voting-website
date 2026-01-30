@@ -821,7 +821,7 @@ function startExposePolling() {
   // Reset expose state for new poll
   hasVotedToExpose = false;
   const exposeBtn = document.getElementById('voteExposeBtn');
-  exposeBtn.textContent = 'Vote to Reveal';
+  exposeBtn.textContent = 'Vote To Reveal';
   exposeBtn.disabled = false;
   exposeBtn.style.background = '#ffc107';
   exposeBtn.style.color = '#856404';

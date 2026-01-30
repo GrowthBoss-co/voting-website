@@ -244,9 +244,21 @@ app.post('/api/session/verify', async (req, res) => {
     return res.status(404).json({ success: false, error: 'Session not found' });
   }
 
-  const voterId = uuidv4();
-  session.voters.set(voterId, email);
-  await saveSession(sessionId, session);
+  // Check if voter with same email/name already exists, reuse their voterId
+  let voterId = null;
+  for (const [existingId, existingName] of session.voters.entries()) {
+    if (existingName === email) {
+      voterId = existingId;
+      break;
+    }
+  }
+
+  // Only create new voterId if voter doesn't exist
+  if (!voterId) {
+    voterId = uuidv4();
+    session.voters.set(voterId, email);
+    await saveSession(sessionId, session);
+  }
 
   res.json({ success: true, voterId });
 });
@@ -867,11 +879,19 @@ app.get('/api/session/:sessionId/results/:pollId', async (req, res) => {
   // Calculate who didn't vote if exposeThemV2 is true
   let nonVoters = [];
   if (poll?.exposeThemV2) {
+    // Get names of voters who HAVE voted (by voterId)
     const voterIds = Array.from(pollVotes.keys());
-    const allVoters = Array.from(session.voters.entries());
-    nonVoters = allVoters
-      .filter(([voterId]) => !voterIds.includes(voterId))
-      .map(([voterId, email]) => email);
+    const votedNames = new Set();
+    for (const vId of voterIds) {
+      const name = session.voters.get(vId);
+      if (name) votedNames.add(name);
+    }
+
+    // Get unique voter names from session.voters (deduplicate)
+    const allUniqueNames = [...new Set(Array.from(session.voters.values()))];
+
+    // Filter to only names that haven't voted
+    nonVoters = allUniqueNames.filter(name => !votedNames.has(name));
   }
 
   res.json({
@@ -1235,9 +1255,20 @@ app.post('/api/session/:sessionId/ready', async (req, res) => {
       session.readyVoters.push(voterName);
     }
 
-    // Generate voter ID and store
-    const voterId = uuidv4();
-    session.voters.set(voterId, voterName);
+    // Check if voter with same name already exists, reuse their voterId
+    let voterId = null;
+    for (const [existingId, existingName] of session.voters.entries()) {
+      if (existingName === voterName) {
+        voterId = existingId;
+        break;
+      }
+    }
+
+    // Only create new voterId if voter doesn't exist
+    if (!voterId) {
+      voterId = uuidv4();
+      session.voters.set(voterId, voterName);
+    }
 
     await saveSession(sessionId, session);
 
@@ -1611,11 +1642,19 @@ app.get('/api/session/:sessionId/expose-status/:pollId', async (req, res) => {
         }
       } else {
         // Not everyone voted - find who didn't vote
+        // Get names of voters who HAVE voted (by voterId)
         const voterIds = pollVotes ? Array.from(pollVotes.keys()) : [];
-        const allVoters = Array.from(session.voters.entries());
-        const nonVoters = allVoters
-          .filter(([vId]) => !voterIds.includes(vId))
-          .map(([, name]) => name);
+        const votedNames = new Set();
+        for (const vId of voterIds) {
+          const name = session.voters.get(vId);
+          if (name) votedNames.add(name);
+        }
+
+        // Get unique voter names from session.voters (deduplicate)
+        const allUniqueNames = [...new Set(Array.from(session.voters.values()))];
+
+        // Filter to only names that haven't voted
+        const nonVoters = allUniqueNames.filter(name => !votedNames.has(name));
 
         exposedData = {
           type: 'nonVoters',
