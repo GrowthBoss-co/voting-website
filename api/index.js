@@ -541,6 +541,91 @@ app.post('/api/automation/add-poll', async (req, res) => {
   }
 });
 
+// Automation endpoint - Get session data
+app.get('/api/automation/session/:sessionId', async (req, res) => {
+  try {
+    const apiKey = req.headers['x-api-key'];
+    const validApiKey = process.env.N8N_API_KEY || 'your-secret-api-key-here';
+
+    if (apiKey !== validApiKey) {
+      return res.status(401).json({ error: 'Invalid API key' });
+    }
+
+    const { sessionId } = req.params;
+    const session = await getSession(sessionId);
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Convert Maps to objects for JSON serialization
+    const sessionData = {
+      ...session,
+      votes: session.votes ? Object.fromEntries(
+        Array.from(session.votes.entries()).map(([pollId, votes]) => [
+          pollId,
+          Object.fromEntries(votes.entries())
+        ])
+      ) : {},
+      voters: session.voters ? Object.fromEntries(session.voters.entries()) : {}
+    };
+
+    res.json({ success: true, session: sessionData });
+  } catch (error) {
+    console.error('Error getting session:', error);
+    res.status(500).json({ error: error.message || 'Failed to get session' });
+  }
+});
+
+// Automation endpoint - Convert YouTube URLs to Shorts format
+app.post('/api/automation/convert-to-shorts/:sessionId', async (req, res) => {
+  try {
+    const apiKey = req.headers['x-api-key'];
+    const validApiKey = process.env.N8N_API_KEY || 'your-secret-api-key-here';
+
+    if (apiKey !== validApiKey) {
+      return res.status(401).json({ error: 'Invalid API key' });
+    }
+
+    const { sessionId } = req.params;
+    const session = await getSession(sessionId);
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    let convertedCount = 0;
+
+    // Convert YouTube embed URLs to Shorts format
+    for (const poll of session.polls) {
+      if (poll.mediaItems) {
+        for (const item of poll.mediaItems) {
+          if (item.type === 'video' && item.url && item.url.includes('youtube.com/embed/')) {
+            // Extract video ID from embed URL
+            const videoIdMatch = item.url.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]+)/);
+            if (videoIdMatch) {
+              // Convert to shorts URL format
+              item.url = `https://www.youtube.com/shorts/${videoIdMatch[1]}`;
+              convertedCount++;
+            }
+          }
+        }
+      }
+    }
+
+    await saveSession(sessionId, session);
+
+    res.json({
+      success: true,
+      message: `Converted ${convertedCount} YouTube URLs to Shorts format`,
+      convertedCount
+    });
+  } catch (error) {
+    console.error('Error converting to shorts:', error);
+    res.status(500).json({ error: error.message || 'Failed to convert URLs' });
+  }
+});
+
 // Update poll
 app.put('/api/session/:sessionId/poll/:pollIndex', async (req, res) => {
   try {
