@@ -232,6 +232,9 @@ async function fetchTop10() {
   }
 }
 
+// Store carousel state for each top10 item
+window.top10Carousels = {};
+
 function renderTop10(top10) {
   const top10List = document.getElementById('top10List');
 
@@ -244,51 +247,125 @@ function renderTop10(top10) {
     return;
   }
 
+  // Reset carousel state
+  window.top10Carousels = {};
+
   top10List.innerHTML = top10.map((item, index) => {
     const rank = index + 1;
-    const mediaItem = item.mediaItems && item.mediaItems[0];
+    const mediaItems = item.mediaItems || [];
 
-    // Generate thumbnail based on media type
-    let thumbnailHTML = '';
-    if (mediaItem) {
-      if (mediaItem.type === 'video') {
-        // For YouTube videos, try to get thumbnail
-        const youtubeMatch = mediaItem.url.match(/youtube\.com\/embed\/([^?&]+)/);
-        if (youtubeMatch) {
-          thumbnailHTML = `<img src="https://img.youtube.com/vi/${youtubeMatch[1]}/mqdefault.jpg" alt="Video thumbnail">`;
-        } else {
-          thumbnailHTML = `<div class="top10-thumbnail-video">▶</div>`;
-        }
-      } else if (mediaItem.type === 'image') {
-        thumbnailHTML = `<img src="${mediaItem.url}" alt="Content thumbnail">`;
-      } else {
-        // Google Drive or other
-        const driveMatch = mediaItem.url.match(/\/file\/d\/([^\/]+)/);
-        if (driveMatch) {
-          thumbnailHTML = `<img src="https://drive.google.com/thumbnail?id=${driveMatch[1]}&sz=w200" alt="Content thumbnail">`;
-        } else {
-          thumbnailHTML = `<div class="top10-thumbnail-video">📄</div>`;
-        }
-      }
+    // Generate media HTML based on number of items
+    let mediaHTML = '';
+    if (mediaItems.length === 1) {
+      // Single item - display directly
+      mediaHTML = renderTop10SingleMedia(mediaItems[0]);
+    } else if (mediaItems.length > 1) {
+      // Multiple items - create carousel
+      window.top10Carousels[index] = { items: mediaItems, currentIndex: 0 };
+      mediaHTML = renderTop10Carousel(index, mediaItems);
     }
 
     return `
       <div class="top10-item">
-        <div class="top10-rank">#${rank}</div>
-        <div class="top10-thumbnail">
-          ${thumbnailHTML}
+        <div class="top10-item-header">
+          <div class="top10-rank">#${rank}</div>
+          <div class="top10-info">
+            <div class="top10-title">${item.creator} - ${item.company}</div>
+            <div class="top10-meta">${item.totalVotes} vote${item.totalVotes !== 1 ? 's' : ''}</div>
+          </div>
+          <div class="top10-rating">
+            <div class="top10-rating-value">${item.average.toFixed(1)}</div>
+            <div class="top10-rating-label">avg</div>
+          </div>
         </div>
-        <div class="top10-info">
-          <div class="top10-title">${item.creator} - ${item.company}</div>
-          <div class="top10-meta">${item.totalVotes} vote${item.totalVotes !== 1 ? 's' : ''}</div>
-        </div>
-        <div class="top10-rating">
-          <div class="top10-rating-value">${item.average.toFixed(1)}</div>
-          <div class="top10-rating-label">avg</div>
+        <div class="top10-media">
+          ${mediaHTML}
         </div>
       </div>
     `;
   }).join('');
+}
+
+function renderTop10SingleMedia(mediaItem) {
+  if (!mediaItem) return '';
+
+  if (mediaItem.type === 'video') {
+    // Check if YouTube
+    const youtubeMatch = mediaItem.url.match(/youtube\.com\/embed\/([^?&]+)/);
+    if (youtubeMatch) {
+      return `<iframe src="${mediaItem.url}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+    }
+    // Google Drive video
+    return `<iframe src="${mediaItem.url}" allow="autoplay" allowfullscreen></iframe>`;
+  } else {
+    // Image
+    return `<img src="${mediaItem.url}" alt="Content">`;
+  }
+}
+
+function renderTop10Carousel(carouselIndex, mediaItems) {
+  const firstItem = mediaItems[0];
+  const indicators = mediaItems.map((_, i) =>
+    `<span class="top10-carousel-dot ${i === 0 ? 'active' : ''}" onclick="top10CarouselGoto(${carouselIndex}, ${i})"></span>`
+  ).join('');
+
+  return `
+    <div class="top10-carousel" id="top10-carousel-${carouselIndex}">
+      <div class="top10-carousel-content" id="top10-carousel-content-${carouselIndex}">
+        ${renderTop10SingleMedia(firstItem)}
+      </div>
+      <div class="top10-carousel-arrows">
+        <button class="top10-carousel-arrow" onclick="top10CarouselPrev(${carouselIndex})">‹</button>
+        <button class="top10-carousel-arrow" onclick="top10CarouselNext(${carouselIndex})">›</button>
+      </div>
+      <div class="top10-carousel-indicators" id="top10-carousel-indicators-${carouselIndex}">
+        ${indicators}
+      </div>
+    </div>
+  `;
+}
+
+function top10CarouselPrev(carouselIndex) {
+  const carousel = window.top10Carousels[carouselIndex];
+  if (!carousel) return;
+
+  carousel.currentIndex = (carousel.currentIndex - 1 + carousel.items.length) % carousel.items.length;
+  updateTop10Carousel(carouselIndex);
+}
+
+function top10CarouselNext(carouselIndex) {
+  const carousel = window.top10Carousels[carouselIndex];
+  if (!carousel) return;
+
+  carousel.currentIndex = (carousel.currentIndex + 1) % carousel.items.length;
+  updateTop10Carousel(carouselIndex);
+}
+
+function top10CarouselGoto(carouselIndex, itemIndex) {
+  const carousel = window.top10Carousels[carouselIndex];
+  if (!carousel) return;
+
+  carousel.currentIndex = itemIndex;
+  updateTop10Carousel(carouselIndex);
+}
+
+function updateTop10Carousel(carouselIndex) {
+  const carousel = window.top10Carousels[carouselIndex];
+  if (!carousel) return;
+
+  const content = document.getElementById(`top10-carousel-content-${carouselIndex}`);
+  const indicators = document.getElementById(`top10-carousel-indicators-${carouselIndex}`);
+
+  if (content) {
+    content.innerHTML = renderTop10SingleMedia(carousel.items[carousel.currentIndex]);
+  }
+
+  if (indicators) {
+    const dots = indicators.querySelectorAll('.top10-carousel-dot');
+    dots.forEach((dot, i) => {
+      dot.classList.toggle('active', i === carousel.currentIndex);
+    });
+  }
 }
 
 // Handle continue to feedback button
