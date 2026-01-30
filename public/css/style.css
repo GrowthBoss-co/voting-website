@@ -95,6 +95,10 @@ body.dark-mode .poll-item {
   background: #2a2a3a;
 }
 
+body.dark-mode .welcome-card h1 {
+  color: white;
+}
+
 /* Poll Preview Thumbnails */
 .poll-thumbnails {
   display: flex;
@@ -390,6 +394,10 @@ body {
   max-width: 1200px;
   margin: 0 auto;
   width: 100%;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .welcome-card,
@@ -403,6 +411,7 @@ body {
 
 .welcome-card {
   text-align: center;
+  position: relative;
 }
 
 .welcome-card .subtitle {
@@ -414,11 +423,13 @@ body {
   display: inline-block;
   animation: minecraftSplash 1.5s ease-in-out infinite;
   transform-origin: center center;
+  position: relative;
+  left: 15%;
 }
 
 @keyframes minecraftSplash {
-  0%, 100% { transform: scale(1) rotate(-2deg); }
-  50% { transform: scale(1.08) rotate(-2deg); }
+  0%, 100% { transform: scale(1) rotate(-8deg); }
+  50% { transform: scale(1.08) rotate(-8deg); }
 }
 
 h1 {
