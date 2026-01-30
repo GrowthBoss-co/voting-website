@@ -1743,7 +1743,11 @@ async function startPoll(pollIndex) {
       if (item.type === 'video') {
         // Check if it's a YouTube Short
         if (isYouTubeShort(item.url)) {
-          const embedUrl = getShortsEmbedUrl(item.url);
+          let embedUrl = getShortsEmbedUrl(item.url);
+          // Add autoplay if auto-advance is enabled
+          if (isAutoAdvanceEnabled) {
+            embedUrl += (embedUrl.includes('?') ? '&' : '?') + 'autoplay=1&mute=1';
+          }
           mediaContainer.innerHTML = `
             <div class="shorts-video-container">
               <iframe src="${embedUrl}"
