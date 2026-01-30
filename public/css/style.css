@@ -394,6 +394,9 @@ body {
   max-width: 1200px;
   margin: 0 auto;
   width: 100%;
+}
+
+.container:has(.welcome-card) {
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -412,6 +415,11 @@ body {
 .welcome-card {
   text-align: center;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 350px;
 }
 
 .welcome-card .subtitle {
@@ -424,7 +432,7 @@ body {
   animation: minecraftSplash 1.5s ease-in-out infinite;
   transform-origin: center center;
   position: relative;
-  left: 15%;
+  left: 22%;
 }
 
 @keyframes minecraftSplash {
