@@ -1202,10 +1202,26 @@ function generateThumbnailHtml(mediaItem, pollIndex, itemIndex, showDelete = fal
   const thumbnailUrl = getThumbnailUrl(mediaItem);
   const isYouTube = mediaItem.url.includes('youtube.com/embed/');
   const isGoogleDrive = mediaItem.url.includes('drive.google.com');
+  const poll = polls[pollIndex];
+  const totalItems = poll ? poll.mediaItems.length : 1;
 
   const deleteBtn = showDelete ? `
     <button class="thumbnail-delete-btn" onclick="event.stopPropagation(); deleteMediaItem(${pollIndex}, ${itemIndex})" title="Remove this item">✕</button>
   ` : '';
+
+  // Shuffle buttons (only show if more than 1 item)
+  let shuffleButtons = '';
+  if (totalItems > 1) {
+    const canMoveLeft = itemIndex > 0;
+    const canMoveRight = itemIndex < totalItems - 1;
+    shuffleButtons = `
+      <div class="thumbnail-shuffle-btns">
+        <button class="thumbnail-shuffle-btn ${!canMoveLeft ? 'disabled' : ''}" onclick="event.stopPropagation(); ${canMoveLeft ? `moveMediaItem(${pollIndex}, ${itemIndex}, -1)` : ''}" title="Move left" ${!canMoveLeft ? 'disabled' : ''}>◀</button>
+        <span class="thumbnail-position">${itemIndex + 1}/${totalItems}</span>
+        <button class="thumbnail-shuffle-btn ${!canMoveRight ? 'disabled' : ''}" onclick="event.stopPropagation(); ${canMoveRight ? `moveMediaItem(${pollIndex}, ${itemIndex}, 1)` : ''}" title="Move right" ${!canMoveRight ? 'disabled' : ''}>▶</button>
+      </div>
+    `;
+  }
 
   if (thumbnailUrl) {
     let overlayLabel = '';
@@ -1220,6 +1236,7 @@ function generateThumbnailHtml(mediaItem, pollIndex, itemIndex, showDelete = fal
         <img src="${thumbnailUrl}" alt="Media ${itemIndex + 1}" onerror="this.parentElement.innerHTML='<div class=\\'poll-thumbnail-video\\'><div class=\\'play-icon\\'>📁</div>Failed to load</div>'">
         ${overlayLabel}
         ${deleteBtn}
+        ${shuffleButtons}
       </div>
     `;
   } else {
@@ -1230,8 +1247,48 @@ function generateThumbnailHtml(mediaItem, pollIndex, itemIndex, showDelete = fal
           <div>Video</div>
         </div>
         ${deleteBtn}
+        ${shuffleButtons}
       </div>
     `;
+  }
+}
+
+// Move a media item left or right in the carousel order
+async function moveMediaItem(pollIndex, mediaIndex, direction) {
+  const poll = polls[pollIndex];
+  const newIndex = mediaIndex + direction;
+
+  if (newIndex < 0 || newIndex >= poll.mediaItems.length) return;
+
+  try {
+    // Swap the media items
+    const updatedMediaItems = [...poll.mediaItems];
+    const temp = updatedMediaItems[mediaIndex];
+    updatedMediaItems[mediaIndex] = updatedMediaItems[newIndex];
+    updatedMediaItems[newIndex] = temp;
+
+    // Update the poll on the server
+    const response = await fetch(`/api/session/${sessionId}/poll/${pollIndex}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        creator: poll.creator,
+        company: poll.company,
+        mediaItems: updatedMediaItems,
+        timer: poll.timer
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update poll');
+    }
+
+    const data = await response.json();
+    polls[pollIndex] = data.poll;
+    updatePollsList();
+  } catch (error) {
+    console.error('Error moving media item:', error);
+    alert('Failed to reorder media item');
   }
 }
 
@@ -1407,11 +1464,15 @@ function updatePollsList() {
           <h2>Poll Preview - Duplicate Check (${polls.length} polls)</h2>
           <div style="display: flex; gap: 8px; align-items: center;">
             ${duplicates.size > 0 ? `<span style="color: #e53e3e; font-weight: 600; padding: 6px 12px; background: #fff5f5; border-radius: 6px;">⚠️ ${duplicates.size} potential duplicate(s)</span>` : '<span style="color: #48bb78; font-weight: 600;">✓ No duplicates found</span>'}
-            <button class="expand-btn active" onclick="toggleExpandedView()">
-              ✕ Close (Esc)
+            <button class="btn" style="background: #667eea; color: white; padding: 8px 16px;" onclick="toggleExpandedView()">
+              ↙ Collapse View
+            </button>
+            <button class="expand-btn active" onclick="toggleExpandedView()" style="font-size: 20px; padding: 8px 12px;">
+              ✕
             </button>
           </div>
         </div>
+        <p style="color: #666; margin: 0 0 15px 0; font-size: 14px;">💡 Hover over thumbnails to reorder carousel items using the arrow buttons</p>
         ${generatePollGridHtml(true)}
       `;
 

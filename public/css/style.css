@@ -191,6 +191,59 @@ body.dark-mode .welcome-card h1 {
   transform: scale(1.1);
 }
 
+.thumbnail-shuffle-btns {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 12px;
+  padding: 2px 6px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 10;
+}
+
+.poll-thumbnail:hover .thumbnail-shuffle-btns {
+  opacity: 1;
+}
+
+.thumbnail-shuffle-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: #667eea;
+  color: white;
+  border: none;
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+}
+
+.thumbnail-shuffle-btn:hover:not(.disabled) {
+  background: #5a67d8;
+}
+
+.thumbnail-shuffle-btn.disabled {
+  background: #a0aec0;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.thumbnail-position {
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  min-width: 28px;
+  text-align: center;
+}
+
 .poll-preview-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
