@@ -237,6 +237,7 @@ window.top10Carousels = {};
 
 function renderTop10(top10) {
   const top10List = document.getElementById('top10List');
+  const congratsSection = document.getElementById('topCreatorCongrats');
 
   if (!top10 || top10.length === 0) {
     top10List.innerHTML = `
@@ -244,7 +245,16 @@ function renderTop10(top10) {
         <p>No rated content available yet.</p>
       </div>
     `;
+    congratsSection.classList.add('hidden');
     return;
+  }
+
+  // Show congratulations for the top creator (first item has highest average)
+  const topItem = top10[0];
+  if (topItem) {
+    document.getElementById('topCreatorName').textContent = topItem.creator;
+    document.getElementById('topCreatorScore').textContent = topItem.average.toFixed(2);
+    congratsSection.classList.remove('hidden');
   }
 
   // Reset carousel state
