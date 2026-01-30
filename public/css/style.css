@@ -415,11 +415,6 @@ body {
 .welcome-card {
   text-align: center;
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 350px;
 }
 
 .welcome-card .subtitle {
@@ -427,7 +422,7 @@ body {
   font-weight: 700;
   color: #f5c400;
   text-shadow: 1px 1px 0 #c49b00, 2px 2px 4px rgba(0, 0, 0, 0.3);
-  margin-bottom: 20px;
+  margin-bottom: 5px;
   display: inline-block;
   animation: minecraftSplash 1.5s ease-in-out infinite;
   transform-origin: center center;
