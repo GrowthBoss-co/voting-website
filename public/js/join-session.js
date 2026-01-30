@@ -124,6 +124,17 @@ document.getElementById('joinForm').addEventListener('submit', async e => {
 
     const data = await response.json();
 
+    // Check for name already taken error (409 Conflict)
+    if (response.status === 409) {
+      errorDiv.textContent = data.message || 'This name is already taken. Please choose a different name.';
+      errorDiv.classList.remove('hidden');
+      // Reset the dropdown so they can choose a different name
+      document.getElementById('voterName').value = '';
+      document.getElementById('customName').style.display = 'none';
+      document.getElementById('customName').value = '';
+      return;
+    }
+
     if (data.success) {
       voterId = data.voterId;
       localStorage.setItem(`voterId_${activeSessionId}`, voterId);

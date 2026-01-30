@@ -1743,19 +1743,31 @@ async function startPoll(pollIndex) {
       if (item.type === 'video') {
         // Check if it's a YouTube Short
         if (isYouTubeShort(item.url)) {
-          let embedUrl = getShortsEmbedUrl(item.url);
-          // Add autoplay if auto-advance is enabled
-          if (isAutoAdvanceEnabled) {
-            embedUrl += (embedUrl.includes('?') ? '&' : '?') + 'autoplay=1&mute=1';
+          // Extract video ID from shorts URL
+          const shortsMatch = item.url.match(/\/shorts\/([a-zA-Z0-9_-]+)/);
+          const embedMatch = item.url.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]+)/);
+          const videoId = shortsMatch ? shortsMatch[1] : (embedMatch ? embedMatch[1] : '');
+
+          if (isAutoAdvanceEnabled && videoId) {
+            // Use YouTube API for looping shorts
+            mediaContainer.innerHTML = `
+              <div class="shorts-video-container">
+                <div id="ytLoopPlayer" style="width: 100%; height: 100%;"></div>
+              </div>
+            `;
+            initYouTubeLoopPlayer(videoId);
+          } else {
+            // Non-auto-advance - use regular iframe
+            let embedUrl = getShortsEmbedUrl(item.url);
+            mediaContainer.innerHTML = `
+              <div class="shorts-video-container">
+                <iframe src="${embedUrl}"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowfullscreen>
+                </iframe>
+              </div>
+            `;
           }
-          mediaContainer.innerHTML = `
-            <div class="shorts-video-container">
-              <iframe src="${embedUrl}"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowfullscreen>
-              </iframe>
-            </div>
-          `;
         } else {
           let videoUrl = item.url;
           const isYouTubeVideo = videoUrl.includes('youtube.com/embed/');
@@ -3208,13 +3220,24 @@ async function resumeSession(restart, pausedAtPollIndex) {
     const sessionResponse = await fetch(`/api/session/${sessionId}`);
     if (sessionResponse.ok) {
       const sessionData = await sessionResponse.json();
-      expectedAttendance = sessionData.expectedAttendance || 0;
+      // Use server value, fall back to input value if server has 0
+      const inputAttendance = parseInt(document.getElementById('expectedAttendanceInput').value) || 10;
+      expectedAttendance = sessionData.expectedAttendance || inputAttendance;
       totalVotersInSession = expectedAttendance;
 
       // Update attendance display
       const attendanceDisplay = document.getElementById('currentAttendance');
       if (attendanceDisplay) {
         attendanceDisplay.textContent = expectedAttendance;
+      }
+
+      // Save attendance to server if it was 0
+      if (!sessionData.expectedAttendance) {
+        await fetch(`/api/session/${sessionId}/attendance`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ attendance: expectedAttendance })
+        });
       }
     }
 

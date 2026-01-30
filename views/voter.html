@@ -68,6 +68,24 @@
           </div>
         </div>
 
+        <!-- Chat Panel -->
+        <div id="chatPanel" class="chat-panel">
+          <div class="chat-header" onclick="toggleChat()">
+            <span>💬 Chat</span>
+            <span id="chatBadge" class="chat-badge hidden">0</span>
+            <span id="chatToggleIcon">▼</span>
+          </div>
+          <div id="chatBody" class="chat-body hidden">
+            <div id="chatMessages" class="chat-messages">
+              <!-- Messages will be inserted here -->
+            </div>
+            <div class="chat-input-container">
+              <input type="text" id="chatInput" placeholder="Type a message..." maxlength="500" />
+              <button id="chatSendBtn" class="btn btn-primary">Send</button>
+            </div>
+          </div>
+        </div>
+
         <!-- Top 10 Results Screen (shown before feedback) -->
         <div id="top10Screen" class="top10-screen hidden">
           <div class="top10-header">

@@ -1434,25 +1434,20 @@ app.post('/api/session/:sessionId/ready', async (req, res) => {
       session.readyVoters = [];
     }
 
-    // Add voter if not already ready
-    if (!session.readyVoters.includes(voterName)) {
-      session.readyVoters.push(voterName);
+    // Check if name is already taken by someone in the ready list
+    if (session.readyVoters.includes(voterName)) {
+      return res.status(409).json({
+        error: 'Name already taken',
+        message: `Someone named "${voterName}" has already joined. Please choose a different name.`
+      });
     }
 
-    // Check if voter with same name already exists, reuse their voterId
-    let voterId = null;
-    for (const [existingId, existingName] of session.voters.entries()) {
-      if (existingName === voterName) {
-        voterId = existingId;
-        break;
-      }
-    }
+    // Add voter to ready list
+    session.readyVoters.push(voterName);
 
-    // Only create new voterId if voter doesn't exist
-    if (!voterId) {
-      voterId = uuidv4();
-      session.voters.set(voterId, voterName);
-    }
+    // Create new voterId for this voter
+    const voterId = uuidv4();
+    session.voters.set(voterId, voterName);
 
     await saveSession(sessionId, session);
 
@@ -1881,6 +1876,95 @@ app.put('/api/session/:sessionId/attendance', async (req, res) => {
   } catch (error) {
     console.error('Error updating attendance:', error);
     res.status(500).json({ error: 'Failed to update attendance' });
+  }
+});
+
+// Chat messages - Get messages for a session
+app.get('/api/session/:sessionId/chat', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { since } = req.query; // Optional: only get messages after this timestamp
+
+    const session = await getSession(sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Initialize chat if not exists
+    if (!session.chatMessages) {
+      session.chatMessages = [];
+    }
+
+    let messages = session.chatMessages;
+
+    // Filter messages if 'since' timestamp provided
+    if (since) {
+      const sinceTime = parseInt(since);
+      messages = messages.filter(msg => msg.timestamp > sinceTime);
+    }
+
+    res.json({
+      success: true,
+      messages,
+      totalCount: session.chatMessages.length
+    });
+  } catch (error) {
+    console.error('Error getting chat messages:', error);
+    res.status(500).json({ error: 'Failed to get messages' });
+  }
+});
+
+// Chat messages - Send a message
+app.post('/api/session/:sessionId/chat', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { voterName, message } = req.body;
+
+    if (!voterName || !message) {
+      return res.status(400).json({ error: 'voterName and message are required' });
+    }
+
+    // Limit message length
+    const trimmedMessage = message.trim().substring(0, 500);
+    if (!trimmedMessage) {
+      return res.status(400).json({ error: 'Message cannot be empty' });
+    }
+
+    const session = await getSession(sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Initialize chat if not exists
+    if (!session.chatMessages) {
+      session.chatMessages = [];
+    }
+
+    // Create message object
+    const chatMessage = {
+      id: uuidv4(),
+      voterName,
+      message: trimmedMessage,
+      timestamp: Date.now()
+    };
+
+    // Add message to session
+    session.chatMessages.push(chatMessage);
+
+    // Keep only last 100 messages to prevent storage bloat
+    if (session.chatMessages.length > 100) {
+      session.chatMessages = session.chatMessages.slice(-100);
+    }
+
+    await saveSession(sessionId, session);
+
+    res.json({
+      success: true,
+      message: chatMessage
+    });
+  } catch (error) {
+    console.error('Error sending chat message:', error);
+    res.status(500).json({ error: 'Failed to send message' });
   }
 });
 
