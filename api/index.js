@@ -1867,9 +1867,37 @@ app.get('/api/session/:sessionId/top10', async (req, res) => {
       .sort((a, b) => b.average - a.average)
       .slice(0, 10);
 
+    // Calculate overall average per creator across all their content
+    const creatorStats = {};
+    pollsWithRatings
+      .filter(p => p.totalVotes > 0)
+      .forEach(poll => {
+        if (!creatorStats[poll.creator]) {
+          creatorStats[poll.creator] = { totalRating: 0, contentCount: 0 };
+        }
+        creatorStats[poll.creator].totalRating += poll.average;
+        creatorStats[poll.creator].contentCount += 1;
+      });
+
+    // Find top creator by overall average
+    let topCreator = null;
+    let highestOverallAverage = 0;
+    for (const [creator, stats] of Object.entries(creatorStats)) {
+      const overallAverage = stats.totalRating / stats.contentCount;
+      if (overallAverage > highestOverallAverage) {
+        highestOverallAverage = overallAverage;
+        topCreator = {
+          name: creator,
+          overallAverage: parseFloat(overallAverage.toFixed(2)),
+          contentCount: stats.contentCount
+        };
+      }
+    }
+
     res.json({
       success: true,
       top10,
+      topCreator,
       totalPolls: session.polls.length,
       sessionName: session.name
     });

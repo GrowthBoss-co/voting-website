@@ -220,7 +220,7 @@ async function fetchTop10() {
       throw new Error(data.error || 'Failed to load top 10');
     }
 
-    renderTop10(data.top10);
+    renderTop10(data.top10, data.topCreator);
   } catch (error) {
     console.error('Error fetching top 10:', error);
     const top10List = document.getElementById('top10List');
@@ -235,7 +235,7 @@ async function fetchTop10() {
 // Store carousel state for each top10 item
 window.top10Carousels = {};
 
-function renderTop10(top10) {
+function renderTop10(top10, topCreator) {
   const top10List = document.getElementById('top10List');
   const congratsSection = document.getElementById('topCreatorCongrats');
 
@@ -249,12 +249,13 @@ function renderTop10(top10) {
     return;
   }
 
-  // Show congratulations for the top creator (first item has highest average)
-  const topItem = top10[0];
-  if (topItem) {
-    document.getElementById('topCreatorName').textContent = topItem.creator;
-    document.getElementById('topCreatorScore').textContent = topItem.average.toFixed(2);
+  // Show congratulations for the creator with highest overall average
+  if (topCreator) {
+    document.getElementById('topCreatorName').textContent = topCreator.name;
+    document.getElementById('topCreatorScore').textContent = topCreator.overallAverage.toFixed(2);
     congratsSection.classList.remove('hidden');
+  } else {
+    congratsSection.classList.add('hidden');
   }
 
   // Reset carousel state
