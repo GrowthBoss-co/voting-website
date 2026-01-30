@@ -7,6 +7,7 @@ let pollingInterval = null;
 let lastPollId = null;
 let timerInterval = null;
 let isVoterTimerPaused = false;
+let hasMovedToFeedback = false; // Track if user has moved past top10 to feedback
 
 // Authorized voters who can pause/skip/toggle auto-advance
 const authorizedVoters = ['Karol Trojanowski', 'Adrielle Silva'];
@@ -200,7 +201,28 @@ function showWaitingScreen(title, subtitle) {
   document.getElementById('endScreen').classList.add('hidden');
 }
 
+// Stop all playing videos (iframes)
+function stopAllVideos() {
+  const iframes = document.querySelectorAll('iframe');
+  iframes.forEach(iframe => {
+    // Replace iframe src to stop playback
+    const src = iframe.src;
+    iframe.src = '';
+    iframe.src = src;
+  });
+}
+
 function showEndScreen() {
+  // Stop any playing videos first
+  stopAllVideos();
+
+  // If user has already moved to feedback, don't bring them back to top10
+  if (hasMovedToFeedback) {
+    document.getElementById('top10Screen').classList.add('hidden');
+    document.getElementById('endScreen').classList.remove('hidden');
+    return;
+  }
+
   // First show the Top 10 screen, then feedback form
   document.getElementById('top10Screen').classList.remove('hidden');
   document.getElementById('waitingScreen').classList.add('hidden');
@@ -381,6 +403,7 @@ function updateTop10Carousel(carouselIndex) {
 
 // Handle continue to feedback button
 document.getElementById('continueToFeedbackBtn').addEventListener('click', () => {
+  hasMovedToFeedback = true; // Prevent being brought back to top10
   document.getElementById('top10Screen').classList.add('hidden');
   document.getElementById('endScreen').classList.remove('hidden');
   initializeFeedbackForm();

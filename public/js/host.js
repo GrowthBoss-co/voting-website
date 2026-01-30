@@ -27,6 +27,26 @@ let countdownStarted = false; // Track if 10-second countdown has started
 let isTimerPaused = false;
 let currentTimeLeft = 0;
 
+// Stop all playing videos (iframes and YouTube API players)
+function stopAllVideos() {
+  // Stop YouTube API player if exists
+  if (window.ytLoopPlayer && typeof window.ytLoopPlayer.stopVideo === 'function') {
+    try {
+      window.ytLoopPlayer.stopVideo();
+    } catch (e) {
+      console.log('Error stopping YouTube player:', e);
+    }
+  }
+
+  // Stop all iframes by resetting their src
+  const iframes = document.querySelectorAll('iframe');
+  iframes.forEach(iframe => {
+    const src = iframe.src;
+    iframe.src = '';
+    iframe.src = src;
+  });
+}
+
 document.getElementById('sessionId').textContent = sessionId;
 
 // Load creator and company lists
@@ -2234,6 +2254,9 @@ async function saveCompletedPoll() {
 }
 
 async function showSessionResults() {
+  // Stop any playing videos first
+  stopAllVideos();
+
   document.getElementById('votingSection').classList.add('hidden');
 
   // Mark session as completed
