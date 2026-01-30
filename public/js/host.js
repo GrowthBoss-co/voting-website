@@ -2309,6 +2309,9 @@ async function fetchHostTop10() {
   }
 }
 
+// Store carousel state for host top10
+window.hostTop10Carousels = {};
+
 // Render Top 10 for host
 function renderHostTop10(top10, topCreators) {
   const top10List = document.getElementById('hostTop10List');
@@ -2338,22 +2341,121 @@ function renderHostTop10(top10, topCreators) {
     congratsSection.classList.add('hidden');
   }
 
-  // Render top 10 items (simpler version for host - just show info, no playable media)
+  // Reset carousel state
+  window.hostTop10Carousels = {};
+
+  // Render top 10 items with full media preview
   top10List.innerHTML = top10.map((item, index) => {
     const rank = index + 1;
-    const medalEmoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '';
+    const mediaItems = item.mediaItems || [];
+
+    // Generate media HTML based on number of items
+    let mediaHTML = '';
+    if (mediaItems.length === 1) {
+      mediaHTML = renderHostTop10SingleMedia(mediaItems[0]);
+    } else if (mediaItems.length > 1) {
+      window.hostTop10Carousels[index] = { items: mediaItems, currentIndex: 0 };
+      mediaHTML = renderHostTop10Carousel(index, mediaItems);
+    }
 
     return `
       <div class="top10-item">
-        <div class="top10-rank">${medalEmoji} #${rank}</div>
-        <div class="top10-info">
-          <div class="top10-creator">${item.creator}</div>
-          <div class="top10-company">${item.company}</div>
-          <div class="top10-score">Average: <strong>${item.average.toFixed(2)}</strong></div>
+        <div class="top10-item-header">
+          <div class="top10-rank">#${rank}</div>
+          <div class="top10-info">
+            <div class="top10-title">${item.creator} - ${item.company}</div>
+            <div class="top10-meta">${item.totalVotes} vote${item.totalVotes !== 1 ? 's' : ''}</div>
+          </div>
+          <div class="top10-rating">
+            <div class="top10-rating-value">${item.average.toFixed(1)}</div>
+            <div class="top10-rating-label">avg</div>
+          </div>
+        </div>
+        <div class="top10-media">
+          ${mediaHTML}
         </div>
       </div>
     `;
   }).join('');
+}
+
+function renderHostTop10SingleMedia(mediaItem) {
+  if (!mediaItem) return '';
+
+  if (mediaItem.type === 'video') {
+    const youtubeMatch = mediaItem.url.match(/youtube\.com\/embed\/([^?&]+)/);
+    if (youtubeMatch) {
+      return `<iframe src="${mediaItem.url}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+    }
+    return `<iframe src="${mediaItem.url}" allow="autoplay" allowfullscreen></iframe>`;
+  } else {
+    return `<img src="${mediaItem.url}" alt="Content">`;
+  }
+}
+
+function renderHostTop10Carousel(carouselIndex, mediaItems) {
+  const firstItem = mediaItems[0];
+  const indicators = mediaItems.map((_, i) =>
+    `<span class="top10-carousel-dot ${i === 0 ? 'active' : ''}" onclick="hostTop10CarouselGoto(${carouselIndex}, ${i})"></span>`
+  ).join('');
+
+  return `
+    <div class="top10-carousel" id="host-top10-carousel-${carouselIndex}">
+      <div class="top10-carousel-content" id="host-top10-carousel-content-${carouselIndex}">
+        ${renderHostTop10SingleMedia(firstItem)}
+      </div>
+      <div class="top10-carousel-arrows">
+        <button class="top10-carousel-arrow" onclick="hostTop10CarouselPrev(${carouselIndex})">‹</button>
+        <button class="top10-carousel-arrow" onclick="hostTop10CarouselNext(${carouselIndex})">›</button>
+      </div>
+      <div class="top10-carousel-indicators" id="host-top10-carousel-indicators-${carouselIndex}">
+        ${indicators}
+      </div>
+    </div>
+  `;
+}
+
+function hostTop10CarouselPrev(carouselIndex) {
+  const carousel = window.hostTop10Carousels[carouselIndex];
+  if (!carousel) return;
+
+  carousel.currentIndex = (carousel.currentIndex - 1 + carousel.items.length) % carousel.items.length;
+  updateHostTop10Carousel(carouselIndex);
+}
+
+function hostTop10CarouselNext(carouselIndex) {
+  const carousel = window.hostTop10Carousels[carouselIndex];
+  if (!carousel) return;
+
+  carousel.currentIndex = (carousel.currentIndex + 1) % carousel.items.length;
+  updateHostTop10Carousel(carouselIndex);
+}
+
+function hostTop10CarouselGoto(carouselIndex, itemIndex) {
+  const carousel = window.hostTop10Carousels[carouselIndex];
+  if (!carousel) return;
+
+  carousel.currentIndex = itemIndex;
+  updateHostTop10Carousel(carouselIndex);
+}
+
+function updateHostTop10Carousel(carouselIndex) {
+  const carousel = window.hostTop10Carousels[carouselIndex];
+  if (!carousel) return;
+
+  const content = document.getElementById(`host-top10-carousel-content-${carouselIndex}`);
+  const indicators = document.getElementById(`host-top10-carousel-indicators-${carouselIndex}`);
+
+  if (content) {
+    content.innerHTML = renderHostTop10SingleMedia(carousel.items[carousel.currentIndex]);
+  }
+
+  if (indicators) {
+    const dots = indicators.querySelectorAll('.top10-carousel-dot');
+    dots.forEach((dot, i) => {
+      dot.classList.toggle('active', i === carousel.currentIndex);
+    });
+  }
 }
 
 // Handle continue to full results button
