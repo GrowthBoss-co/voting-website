@@ -14,10 +14,11 @@ async function checkActiveSession() {
     if (data.active && data.sessionId) {
       activeSessionId = data.sessionId;
 
-      // If voter already has saved credentials for this session, redirect to voting
+      // If voter already has saved credentials AND session is actively presenting,
+      // skip name selection and go straight to voting
       const savedVoterId = localStorage.getItem(`voterId_${activeSessionId}`);
       const savedVoterName = localStorage.getItem(`voterEmail_${activeSessionId}`);
-      if (savedVoterId && savedVoterName) {
+      if (savedVoterId && savedVoterName && data.session && data.session.status === 'presenting') {
         // Send a heartbeat to re-register presence, then redirect
         try {
           await fetch(`/api/session/${activeSessionId}/heartbeat`, {
