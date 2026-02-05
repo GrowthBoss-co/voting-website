@@ -854,7 +854,9 @@ async function navigateToPoll(direction) {
 
   if (direction === 'live') {
     // Go back to live poll
+    restoreVotingUI();
     viewingPollIndex = null;
+    lastPollId = null; // Force checkForPoll to re-display the current poll
     await checkForPoll();
     updatePollNavigationUI();
     return;
@@ -875,7 +877,9 @@ async function navigateToPoll(direction) {
 
   // If navigating to the live poll, go back to live mode
   if (targetIndex === livePollIndex) {
+    restoreVotingUI();
     viewingPollIndex = null;
+    lastPollId = null; // Force checkForPoll to re-display the current poll
     await checkForPoll();
     updatePollNavigationUI();
     return;
