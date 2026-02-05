@@ -18,6 +18,14 @@
         </div>
 
         <div id="votingScreen" class="voting-screen hidden">
+          <!-- Poll Navigation Controls -->
+          <div id="pollNavigation" class="poll-navigation hidden">
+            <button id="prevPollBtn" onclick="navigateToPoll('prev')" class="btn btn-small btn-secondary">← Previous</button>
+            <span id="pollNavigationInfo" style="padding: 5px 15px; background: #f0f8ff; border-radius: 20px; font-weight: 600; color: #667eea;">Viewing Poll 1 of 10</span>
+            <button id="nextPollBtn" onclick="navigateToPoll('next')" class="btn btn-small btn-secondary">Next →</button>
+            <button id="backToLiveBtn" onclick="navigateToPoll('live')" class="btn btn-small btn-primary" style="margin-left: 10px;">Back to Live</button>
+          </div>
+
           <div style="display: flex; align-items: center; gap: 10px; justify-content: center; flex-wrap: wrap;">
             <div class="timer-display" id="timerDisplay">
               <span id="timerText">Time remaining: <strong id="timerValue">60</strong>s</span>
@@ -48,6 +56,28 @@
             <div id="submitMessage" class="submit-message hidden"></div>
           </div>
 
+          <!-- Voter Status Panel -->
+          <div id="voterStatusPanel" class="voter-status-panel">
+            <div class="voter-panel-header">
+              <h4>Voters</h4>
+              <span id="voterCountBadge" class="voter-count-badge">0</span>
+            </div>
+            <div id="voterList" class="voter-list">
+              <!-- Voters will be listed here -->
+            </div>
+            <div class="status-buttons">
+              <button onclick="setVoterStatus('speaking')" class="status-btn status-speaking" title="I'd like to speak!">
+                👋 Speak
+              </button>
+              <button onclick="setVoterStatus('ready')" class="status-btn status-ready" title="Ready to continue">
+                ✓ Ready
+              </button>
+              <button onclick="setVoterStatus('notReady')" class="status-btn status-not-ready" title="Not ready yet">
+                ✗ Not Ready
+              </button>
+            </div>
+          </div>
+
           <!-- Expose Vote Section -->
           <div id="exposeSection" style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 8px; border: 1px solid #ffc107;">
             <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
@@ -64,6 +94,23 @@
             <div id="exposedResult" class="hidden" style="margin-top: 15px; padding: 15px; background: #f8d7da; border-radius: 8px; text-align: center;">
               <strong style="color: #721c24; font-size: 18px;" id="exposedTitle">Revealed!</strong>
               <p style="color: #721c24; margin: 10px 0 0 0; font-size: 16px;" id="exposedNames"></p>
+            </div>
+          </div>
+
+          <!-- Notes Section -->
+          <div id="notesSection" class="notes-section">
+            <div class="notes-header" onclick="toggleNotesPanel()">
+              <h4>Notes</h4>
+              <span id="notesToggleIcon" class="notes-toggle-icon">▼</span>
+            </div>
+            <div id="notesContent" class="notes-content hidden">
+              <div class="notes-input-area">
+                <textarea id="noteInput" placeholder="Add a note for this poll (anonymous)..." rows="3"></textarea>
+                <button id="saveNoteBtn" onclick="saveNote()" class="btn btn-primary btn-small">Save Note</button>
+              </div>
+              <div id="notesList" class="notes-list">
+                <!-- Notes will be inserted here -->
+              </div>
             </div>
           </div>
         </div>

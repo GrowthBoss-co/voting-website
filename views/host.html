@@ -212,7 +212,7 @@
               <button id="clearVotesBtn" class="btn btn-secondary" onclick="clearAllVotes()" style="display: none;">Clear All Votes</button>
             </div>
             <small style="color: #666; display: block; margin-top: 12px; line-height: 1.5;">
-              <strong>Auto-Advance:</strong> Poll advances after 70% vote + 10s countdown. Carousel rotates, videos autoplay.<br/>
+              <strong>Auto-Advance:</strong> Carousel rotates every 5s, videos autoplay. Host controls when to advance.<br/>
               <strong>Restart:</strong> Clears all votes and resets session to Poll 1.
             </small>
           </div>
@@ -308,14 +308,25 @@
               </small>
             </div>
 
+            <!-- Host Voter Status Panel -->
+            <div id="hostVoterStatusPanel" class="voter-status-panel">
+              <div class="voter-panel-header">
+                <h4>Voter Status</h4>
+                <span id="hostVoterCountBadge" class="voter-count-badge">0</span>
+              </div>
+              <div id="hostVoterList" class="voter-list">
+                <!-- Voters will be listed here -->
+              </div>
+            </div>
+
             <div style="margin: 15px 0; padding: 12px; background: #f0f8ff; border-radius: 8px; border-left: 4px solid #4a90e2;">
               <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin-bottom: 8px;">
                 <input type="checkbox" id="autoAdvanceToggle" style="width: auto; cursor: pointer; transform: scale(1.2);" />
                 <span><strong>Auto-Advance Mode</strong> 🚀</span>
               </label>
               <small style="color: #555; display: block; line-height: 1.4;">
-                • Poll auto-advances after 70% vote + 10s countdown<br/>
-                • Carousel rotates every 5s • Videos autoplay + advance after 60s
+                • Carousel rotates every 5s, videos autoplay with looping<br/>
+                • Host controls when to advance to next poll
               </small>
             </div>
 

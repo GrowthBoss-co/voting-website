@@ -826,6 +826,48 @@ app.get('/api/session/:sessionId/current-poll', async (req, res) => {
   });
 });
 
+// Get specific poll by index (for viewing past polls)
+app.get('/api/session/:sessionId/poll/:pollIndex', async (req, res) => {
+  const { sessionId, pollIndex } = req.params;
+  const { voterId } = req.query;
+  const session = await getSession(sessionId);
+
+  if (!session) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+
+  const index = parseInt(pollIndex);
+  if (index < 0 || index >= session.polls.length) {
+    return res.status(400).json({ error: 'Invalid poll index' });
+  }
+
+  const poll = session.polls[index];
+  const pollVotes = session.votes.get(poll.id);
+  const hasVoted = pollVotes && voterId ? pollVotes.has(voterId) : false;
+  const voterRating = hasVoted ? pollVotes.get(voterId) : null;
+
+  // Get results for this poll
+  let results = { totalVotes: 0, average: 0 };
+  if (pollVotes && pollVotes.size > 0) {
+    const ratings = Array.from(pollVotes.values());
+    results = {
+      totalVotes: ratings.length,
+      average: (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(2)
+    };
+  }
+
+  res.json({
+    poll,
+    pollIndex: index,
+    hasVoted,
+    voterRating,
+    results,
+    totalPolls: session.polls.length,
+    currentPollIndex: session.currentPollIndex,
+    isCurrentPoll: index === session.currentPollIndex
+  });
+});
+
 // Start poll
 app.post('/api/session/:sessionId/start/:pollIndex', async (req, res) => {
   const { sessionId, pollIndex } = req.params;
@@ -1429,13 +1471,49 @@ app.post('/api/session/:sessionId/ready', async (req, res) => {
       return res.status(404).json({ error: 'Session not found' });
     }
 
-    // Initialize readyVoters if not exists
+    // Initialize readyVoters and voterLastSeen if not exists
     if (!session.readyVoters) {
       session.readyVoters = [];
+    }
+    if (!session.voterLastSeen) {
+      session.voterLastSeen = {};
     }
 
     // Check if name is already taken by someone in the ready list
     if (session.readyVoters.includes(voterName)) {
+      // Check if voter is stale (no heartbeat in last 30 seconds)
+      const lastSeen = session.voterLastSeen[voterName];
+      const isStale = !lastSeen || (Date.now() - lastSeen > 30000);
+
+      if (isStale) {
+        // Voter is stale, allow rejoin with existing voterId
+        let existingVoterId = null;
+        for (const [vId, name] of session.voters.entries()) {
+          if (name === voterName) {
+            existingVoterId = vId;
+            break;
+          }
+        }
+
+        // Update last seen timestamp
+        session.voterLastSeen[voterName] = Date.now();
+        await saveSession(sessionId, session);
+
+        const expectedAttendance = session.expectedAttendance || 10;
+        const readyCount = session.readyVoters.length;
+        const thresholdReached = readyCount >= Math.ceil(expectedAttendance * 0.8);
+
+        return res.json({
+          success: true,
+          voterId: existingVoterId || uuidv4(),
+          readyCount,
+          expectedAttendance,
+          thresholdReached,
+          sessionStatus: session.status,
+          rejoined: true
+        });
+      }
+
       return res.status(409).json({
         error: 'Name already taken',
         message: `Someone named "${voterName}" has already joined. Please choose a different name.`
@@ -1448,6 +1526,9 @@ app.post('/api/session/:sessionId/ready', async (req, res) => {
     // Create new voterId for this voter
     const voterId = uuidv4();
     session.voters.set(voterId, voterName);
+
+    // Track last seen timestamp
+    session.voterLastSeen[voterName] = Date.now();
 
     await saveSession(sessionId, session);
 
@@ -1467,6 +1548,36 @@ app.post('/api/session/:sessionId/ready', async (req, res) => {
   } catch (error) {
     console.error('Error marking voter ready:', error);
     res.status(500).json({ error: 'Failed to mark voter ready' });
+  }
+});
+
+// Heartbeat endpoint - voter sends periodically to indicate they're still connected
+app.post('/api/session/:sessionId/heartbeat', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { voterId, voterName } = req.body;
+
+    const session = await getSession(sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Initialize voterLastSeen if not exists
+    if (!session.voterLastSeen) {
+      session.voterLastSeen = {};
+    }
+
+    // Update last seen timestamp
+    if (voterName) {
+      session.voterLastSeen[voterName] = Date.now();
+    }
+
+    await saveSession(sessionId, session);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error processing heartbeat:', error);
+    res.status(500).json({ error: 'Failed to process heartbeat' });
   }
 });
 
@@ -1571,7 +1682,7 @@ app.post('/api/session/:sessionId/pause-timer', async (req, res) => {
     const { voterName, timeLeft } = req.body;
 
     // Check if voter is authorized (case-insensitive, host doesn't need voterName)
-    const authorizedVoters = ['Karol Trojanowski', 'Adrielle Silva'];
+    const authorizedVoters = ['Karol Trojanowski', 'Adrielle Silva', 'Henry Dutra'];
     const isAuthorized = !voterName || authorizedVoters.some(
       name => name.toLowerCase().trim() === (voterName || '').toLowerCase().trim()
     );
@@ -1602,7 +1713,7 @@ app.post('/api/session/:sessionId/resume-timer', async (req, res) => {
     const { voterName } = req.body;
 
     // Check if voter is authorized (case-insensitive)
-    const authorizedVoters = ['Karol Trojanowski', 'Adrielle Silva'];
+    const authorizedVoters = ['Karol Trojanowski', 'Adrielle Silva', 'Henry Dutra'];
     const isAuthorized = !voterName || authorizedVoters.some(
       name => name.toLowerCase().trim() === (voterName || '').toLowerCase().trim()
     );
@@ -1632,7 +1743,7 @@ app.post('/api/session/:sessionId/skip-poll', async (req, res) => {
     const { voterName } = req.body;
 
     // Check if voter is authorized (case-insensitive)
-    const authorizedVoters = ['Karol Trojanowski', 'Adrielle Silva'];
+    const authorizedVoters = ['Karol Trojanowski', 'Adrielle Silva', 'Henry Dutra'];
     const isAuthorized = !voterName || authorizedVoters.some(
       name => name.toLowerCase().trim() === (voterName || '').toLowerCase().trim()
     );
@@ -1667,6 +1778,7 @@ app.post('/api/session/:sessionId/skip-poll', async (req, res) => {
 
     // Reset timer pause and countdown state
     session.timerPaused = false;
+    session.pausedTimeLeft = null;
     session.countdownStarted = false;
     session.skipRequested = false;
 
@@ -1677,6 +1789,9 @@ app.post('/api/session/:sessionId/skip-poll', async (req, res) => {
         delete session.exposeVotes[currentPollId];
       }
     }
+
+    // Clear voter statuses when poll advances
+    session.voterStatuses = {};
 
     await saveSession(sessionId, session);
 
@@ -1730,6 +1845,162 @@ app.post('/api/session/:sessionId/clear-ready', async (req, res) => {
   } catch (error) {
     console.error('Error clearing ready voters:', error);
     res.status(500).json({ error: 'Failed to clear ready voters' });
+  }
+});
+
+// Update voter status (speaking, ready, not ready)
+app.post('/api/session/:sessionId/voter-status', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { voterId, voterName, status } = req.body;
+
+    const session = await getSession(sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Initialize voterStatuses if not exists
+    if (!session.voterStatuses) {
+      session.voterStatuses = {};
+    }
+
+    if (status === null) {
+      // Clear status
+      delete session.voterStatuses[voterName];
+    } else {
+      // Set status with timestamp
+      session.voterStatuses[voterName] = {
+        status,
+        timestamp: Date.now()
+      };
+    }
+
+    await saveSession(sessionId, session);
+
+    res.json({ success: true, voterStatuses: session.voterStatuses });
+  } catch (error) {
+    console.error('Error updating voter status:', error);
+    res.status(500).json({ error: 'Failed to update voter status' });
+  }
+});
+
+// Get all voter statuses
+app.get('/api/session/:sessionId/voter-statuses', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const session = await getSession(sessionId);
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Get list of ready voters
+    const readyVoters = session.readyVoters || [];
+    const voterStatuses = session.voterStatuses || {};
+
+    // Auto-clear "speaking" status after 3 seconds
+    const now = Date.now();
+    for (const [name, data] of Object.entries(voterStatuses)) {
+      if (data.status === 'speaking' && (now - data.timestamp) > 3000) {
+        delete voterStatuses[name];
+      }
+    }
+
+    res.json({
+      success: true,
+      readyVoters,
+      voterStatuses
+    });
+  } catch (error) {
+    console.error('Error getting voter statuses:', error);
+    res.status(500).json({ error: 'Failed to get voter statuses' });
+  }
+});
+
+// ===== NOTES ENDPOINTS =====
+
+// Save a note for a poll (anonymous)
+app.post('/api/session/:sessionId/poll/:pollId/notes', async (req, res) => {
+  try {
+    const { sessionId, pollId } = req.params;
+    const { content, pollTitle } = req.body;
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({ error: 'Note content is required' });
+    }
+
+    const session = await getSession(sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Initialize notes array if not exists
+    if (!session.notes) {
+      session.notes = [];
+    }
+
+    const note = {
+      id: uuidv4(),
+      pollId,
+      pollTitle: pollTitle || 'Unknown Poll',
+      content: content.trim(),
+      timestamp: Date.now()
+    };
+
+    session.notes.push(note);
+    await saveSession(sessionId, session);
+
+    res.json({
+      success: true,
+      note
+    });
+  } catch (error) {
+    console.error('Error saving note:', error);
+    res.status(500).json({ error: 'Failed to save note' });
+  }
+});
+
+// Get notes for a specific poll
+app.get('/api/session/:sessionId/poll/:pollId/notes', async (req, res) => {
+  try {
+    const { sessionId, pollId } = req.params;
+    const session = await getSession(sessionId);
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const notes = (session.notes || []).filter(note => note.pollId === pollId);
+
+    res.json({
+      success: true,
+      notes
+    });
+  } catch (error) {
+    console.error('Error getting notes:', error);
+    res.status(500).json({ error: 'Failed to get notes' });
+  }
+});
+
+// Get all notes for the session
+app.get('/api/session/:sessionId/notes', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const session = await getSession(sessionId);
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const notes = session.notes || [];
+
+    res.json({
+      success: true,
+      notes
+    });
+  } catch (error) {
+    console.error('Error getting all notes:', error);
+    res.status(500).json({ error: 'Failed to get notes' });
   }
 });
 

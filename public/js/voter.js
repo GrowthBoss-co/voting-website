@@ -10,8 +10,13 @@ let isVoterTimerPaused = false;
 let hasMovedToFeedback = false; // Track if user has moved past top10 to feedback
 let hasShownTop10 = false; // Track if top10 has already been shown
 
+// Poll navigation state
+let viewingPollIndex = null; // null = viewing current/live poll, number = viewing past poll
+let totalPolls = 0;
+let livePollIndex = -1; // Track the live poll index
+
 // Authorized voters who can pause/skip/toggle auto-advance
-const authorizedVoters = ['Karol Trojanowski', 'Adrielle Silva'];
+const authorizedVoters = ['Karol Trojanowski', 'Adrielle Silva', 'Henry Dutra'];
 // Case-insensitive and trimmed comparison
 const isAuthorizedVoter = voterName && authorizedVoters.some(
   name => name.toLowerCase().trim() === voterName.toLowerCase().trim()
@@ -129,10 +134,15 @@ function displayPoll(poll, hasVoted = false, voterRating = null) {
       timerInterval = null;
     }
 
+    // Reset saved time state for new poll
+    voterSavedTimeLeft = null;
+    isVoterTimerPaused = false;
+
     // Reset to default state
     timerText.innerHTML = 'Time remaining: <strong id="timerValue">60</strong>s';
     timerDisplay.style.background = '#48bb78';
     timerDisplay.style.color = 'white';
+    timerDisplay.style.display = 'block';
   }
 
   // Start timer if poll has one
@@ -219,9 +229,19 @@ function displayPoll(poll, hasVoted = false, voterRating = null) {
     document.getElementById('submitMessage').classList.add('hidden');
     document.getElementById('submitRatingBtn').disabled = false;
   }
+
+  // Reload notes if the notes panel is expanded
+  if (notesExpanded) {
+    loadNotes();
+  }
 }
 
 async function checkForPoll() {
+  // If viewing a past poll, don't auto-update
+  if (viewingPollIndex !== null) {
+    return;
+  }
+
   try {
     const response = await fetch(`/api/session/${sessionId}/current-poll?voterId=${voterId}`);
 
@@ -233,6 +253,12 @@ async function checkForPoll() {
     const data = await response.json();
     console.log('checkForPoll response:', data.status, 'currentPoll:', !!data.currentPoll);
 
+    // Track total polls and live poll index for navigation
+    totalPolls = data.totalPolls || 0;
+    if (data.pollIndex !== undefined) {
+      livePollIndex = data.pollIndex;
+    }
+
     // Check if session is completed FIRST - this takes priority
     if (data.status === 'completed') {
       console.log('Session completed - showing end screen');
@@ -243,7 +269,13 @@ async function checkForPoll() {
     if (data.currentPoll) {
       if (lastPollId !== data.currentPoll.id) {
         lastPollId = data.currentPoll.id;
+        // Restore voting UI if coming back from viewing past polls
+        if (viewingPollIndex !== null) {
+          restoreVotingUI();
+          viewingPollIndex = null;
+        }
         displayPoll(data.currentPoll, data.hasVoted, data.voterRating);
+        updatePollNavigationUI();
       }
     } else {
       // No active poll - show appropriate waiting screen
@@ -521,11 +553,15 @@ document.getElementById('continueToFeedbackBtn').addEventListener('click', () =>
 checkForPoll();
 pollingInterval = setInterval(checkForPoll, 2000);
 
-document.getElementById('submitRatingBtn').addEventListener('click', async () => {
+// Named function for submitting rating (can be reattached after restoring UI)
+async function submitRating() {
   if (!currentPoll) {
     alert('No active poll');
     return;
   }
+
+  const ratingSlider = document.getElementById('ratingSlider');
+  const ratingInput = document.getElementById('ratingInput');
 
   // Check if timer has expired (but skip this check if auto-advance is on)
   if (currentPoll.timer && currentPoll.startTime) {
@@ -593,7 +629,9 @@ document.getElementById('submitRatingBtn').addEventListener('click', async () =>
     messageDiv.className = 'submit-message error';
     messageDiv.classList.remove('hidden');
   }
-});
+}
+
+document.getElementById('submitRatingBtn').addEventListener('click', submitRating);
 
 let voterSavedTimeLeft = null;
 let voterAutoAdvanceOn = false;
@@ -810,6 +848,212 @@ function preloadCarouselImages(mediaItems) {
   });
 }
 
+// Poll navigation functions
+async function navigateToPoll(direction) {
+  let targetIndex;
+
+  if (direction === 'live') {
+    // Go back to live poll
+    viewingPollIndex = null;
+    await checkForPoll();
+    updatePollNavigationUI();
+    return;
+  } else if (direction === 'prev') {
+    const currentViewing = viewingPollIndex !== null ? viewingPollIndex : livePollIndex;
+    targetIndex = currentViewing - 1;
+  } else if (direction === 'next') {
+    const currentViewing = viewingPollIndex !== null ? viewingPollIndex : livePollIndex;
+    targetIndex = currentViewing + 1;
+  } else {
+    targetIndex = parseInt(direction);
+  }
+
+  // Bounds check
+  if (targetIndex < 0 || targetIndex >= totalPolls) {
+    return;
+  }
+
+  // If navigating to the live poll, go back to live mode
+  if (targetIndex === livePollIndex) {
+    viewingPollIndex = null;
+    await checkForPoll();
+    updatePollNavigationUI();
+    return;
+  }
+
+  viewingPollIndex = targetIndex;
+  await loadPollForViewing(targetIndex);
+}
+
+async function loadPollForViewing(pollIndex) {
+  try {
+    const response = await fetch(`/api/session/${sessionId}/poll/${pollIndex}?voterId=${voterId}`);
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('Failed to load poll:', data.error);
+      return;
+    }
+
+    // Display the poll in read-only mode
+    displayPollForViewing(data.poll, data.hasVoted, data.voterRating, data.results, pollIndex, data.totalPolls);
+  } catch (error) {
+    console.error('Error loading poll for viewing:', error);
+  }
+}
+
+function displayPollForViewing(poll, hasVoted, voterRating, results, pollIndex, total) {
+  currentPoll = poll;
+  totalPolls = total;
+
+  document.getElementById('waitingScreen').classList.add('hidden');
+  document.getElementById('votingScreen').classList.remove('hidden');
+
+  document.getElementById('pollTitle').textContent = `${poll.creator} - ${poll.company}`;
+
+  // Clear timer for past polls
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  const timerDisplay = document.getElementById('timerDisplay');
+  timerDisplay.style.display = 'none';
+
+  // Render media
+  const mediaContainer = document.getElementById('pollMedia');
+  if (poll.mediaItems.length === 1) {
+    const item = poll.mediaItems[0];
+    if (item.type === 'video') {
+      if (isYouTubeShort(item.url)) {
+        const embedUrl = getShortsEmbedUrl(item.url);
+        mediaContainer.innerHTML = `
+          <div class="shorts-video-container">
+            <iframe src="${embedUrl}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+          </div>`;
+      } else {
+        mediaContainer.innerHTML = `
+          <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
+            <iframe src="${item.url}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+          </div>`;
+      }
+    } else {
+      mediaContainer.innerHTML = `<img src="${item.url}" alt="Poll media" style="max-width: 100%; max-height: 500px; display: block; margin: 0 auto; border-radius: 8px;">`;
+    }
+  } else {
+    mediaContainer.innerHTML = `
+      <div class="carousel-container">
+        <button class="carousel-arrow carousel-prev" onclick="voterCarouselPrev()">‹</button>
+        <div class="carousel-content" id="voterCarouselContent"></div>
+        <button class="carousel-arrow carousel-next" onclick="voterCarouselNext()">›</button>
+      </div>
+      <div class="carousel-indicators" id="voterCarouselIndicators"></div>`;
+    window.voterCarouselIndex = 0;
+    window.voterCarouselItems = poll.mediaItems;
+    renderVoterCarouselItem(0);
+  }
+
+  // Show results instead of voting controls for past polls
+  const ratingSection = document.querySelector('.rating-section');
+  ratingSection.innerHTML = `
+    <div style="text-align: center; padding: 20px; background: #f7fafc; border-radius: 8px;">
+      <h3 style="margin: 0 0 15px 0; color: #667eea;">Poll Results</h3>
+      <div style="display: flex; gap: 20px; justify-content: center; margin-bottom: 15px;">
+        <div style="text-align: center;">
+          <div style="font-size: 32px; font-weight: bold; color: #667eea;">${results.average}</div>
+          <div style="color: #666; font-size: 14px;">Average Rating</div>
+        </div>
+        <div style="text-align: center;">
+          <div style="font-size: 32px; font-weight: bold; color: #48bb78;">${results.totalVotes}</div>
+          <div style="color: #666; font-size: 14px;">Total Votes</div>
+        </div>
+      </div>
+      ${hasVoted ? `<p style="color: #48bb78; margin: 0;">Your rating: <strong>${voterRating}/10</strong></p>` : '<p style="color: #666; margin: 0;">You did not vote on this poll</p>'}
+    </div>`;
+
+  // Hide expose section for past polls
+  const exposeSection = document.getElementById('exposeSection');
+  exposeSection.style.display = 'none';
+
+  // Update navigation UI
+  updatePollNavigationUI();
+
+  // Reload notes if the notes panel is expanded
+  if (notesExpanded) {
+    loadNotes();
+  }
+}
+
+function updatePollNavigationUI() {
+  const navContainer = document.getElementById('pollNavigation');
+  const navInfo = document.getElementById('pollNavigationInfo');
+  const prevBtn = document.getElementById('prevPollBtn');
+  const nextBtn = document.getElementById('nextPollBtn');
+  const backToLiveBtn = document.getElementById('backToLiveBtn');
+
+  if (totalPolls <= 1 && viewingPollIndex === null) {
+    navContainer.classList.add('hidden');
+    return;
+  }
+
+  navContainer.classList.remove('hidden');
+
+  const currentViewing = viewingPollIndex !== null ? viewingPollIndex : livePollIndex;
+
+  if (viewingPollIndex !== null) {
+    navInfo.textContent = `Viewing Poll ${viewingPollIndex + 1} of ${totalPolls} (Past)`;
+    navInfo.style.background = '#fff3cd';
+    navInfo.style.color = '#856404';
+    backToLiveBtn.style.display = 'inline-block';
+  } else {
+    navInfo.textContent = `Poll ${livePollIndex + 1} of ${totalPolls} (Live)`;
+    navInfo.style.background = '#d4edda';
+    navInfo.style.color = '#155724';
+    backToLiveBtn.style.display = 'none';
+  }
+
+  prevBtn.disabled = currentViewing <= 0;
+  nextBtn.disabled = currentViewing >= totalPolls - 1;
+
+  prevBtn.style.opacity = prevBtn.disabled ? '0.5' : '1';
+  nextBtn.style.opacity = nextBtn.disabled ? '0.5' : '1';
+}
+
+function restoreVotingUI() {
+  // Restore the original rating section HTML
+  const ratingSection = document.querySelector('.rating-section');
+  ratingSection.innerHTML = `
+    <label for="ratingInput">Your Rating (0-10):</label>
+    <div class="rating-input-group">
+      <input type="range" id="ratingSlider" min="0" max="10" value="5" />
+      <input type="number" id="ratingInput" min="0" max="10" value="5" />
+    </div>
+    <button id="submitRatingBtn" class="btn btn-primary">Submit Rating</button>
+    <div id="submitMessage" class="submit-message hidden"></div>`;
+
+  // Re-attach event listeners
+  const ratingSlider = document.getElementById('ratingSlider');
+  const ratingInput = document.getElementById('ratingInput');
+
+  ratingSlider.addEventListener('input', e => {
+    ratingInput.value = e.target.value;
+  });
+
+  ratingInput.addEventListener('input', e => {
+    let value = parseInt(e.target.value);
+    if (value < 0) value = 0;
+    if (value > 10) value = 10;
+    ratingInput.value = value;
+    ratingSlider.value = value;
+  });
+
+  document.getElementById('submitRatingBtn').addEventListener('click', submitRating);
+
+  // Show expose section again
+  const exposeSection = document.getElementById('exposeSection');
+  exposeSection.style.display = 'block';
+}
+
 // Expose voting functionality
 let hasVotedToExpose = false;
 let exposePollingInterval = null;
@@ -990,7 +1234,41 @@ window.addEventListener('beforeunload', () => {
   if (exposePollingInterval) {
     clearInterval(exposePollingInterval);
   }
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+  }
 });
+
+// Heartbeat - send every 15 seconds to indicate we're still connected
+let heartbeatInterval = null;
+
+function startHeartbeat() {
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+  }
+
+  // Send initial heartbeat
+  sendHeartbeat();
+
+  // Send heartbeat every 15 seconds
+  heartbeatInterval = setInterval(sendHeartbeat, 15000);
+}
+
+async function sendHeartbeat() {
+  try {
+    await fetch(`/api/session/${sessionId}/heartbeat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ voterId, voterName })
+    });
+  } catch (error) {
+    // Silently fail - heartbeat is not critical
+    console.log('Heartbeat failed:', error.message);
+  }
+}
+
+// Start heartbeat when page loads
+startHeartbeat();
 
 // Voter pause/resume timer (for authorized voters)
 async function voterTogglePause() {
@@ -1271,3 +1549,257 @@ async function submitFeedback() {
 
 // Note: initializeFeedbackForm is now called from the "Continue to Feedback" button click handler
 // after the top 10 screen is shown
+
+// ========================================
+// Voter Status Panel
+// ========================================
+
+let voterStatusPollingInterval = null;
+let currentVoterStatus = null;
+
+// Start polling for voter statuses
+function startVoterStatusPolling() {
+  if (voterStatusPollingInterval) {
+    clearInterval(voterStatusPollingInterval);
+  }
+
+  // Initial fetch
+  fetchVoterStatuses();
+
+  // Poll every 2 seconds
+  voterStatusPollingInterval = setInterval(fetchVoterStatuses, 2000);
+}
+
+// Fetch and update voter statuses
+async function fetchVoterStatuses() {
+  try {
+    const response = await fetch(`/api/session/${sessionId}/voter-statuses`);
+    const data = await response.json();
+
+    if (data.success) {
+      renderVoterList(data.readyVoters, data.voterStatuses);
+    }
+  } catch (error) {
+    console.error('Error fetching voter statuses:', error);
+  }
+}
+
+// Render the voter list with status indicators
+function renderVoterList(readyVoters, voterStatuses) {
+  const voterList = document.getElementById('voterList');
+  const voterCountBadge = document.getElementById('voterCountBadge');
+
+  if (!voterList) return;
+
+  voterCountBadge.textContent = readyVoters.length;
+
+  voterList.innerHTML = readyVoters.map(name => {
+    const statusData = voterStatuses[name];
+    let statusClass = '';
+    let statusIcon = '';
+
+    if (statusData) {
+      switch (statusData.status) {
+        case 'speaking':
+          statusClass = 'voter-speaking';
+          statusIcon = '👋';
+          break;
+        case 'ready':
+          statusClass = 'voter-ready';
+          statusIcon = '✓';
+          break;
+        case 'notReady':
+          statusClass = 'voter-not-ready';
+          statusIcon = '✗';
+          break;
+      }
+    }
+
+    const isMe = name === voterName;
+
+    return `
+      <div class="voter-item ${statusClass} ${isMe ? 'voter-me' : ''}">
+        <span class="voter-name">${name}${isMe ? ' (You)' : ''}</span>
+        <span class="voter-status-icon">${statusIcon}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+// Set voter status
+async function setVoterStatus(status) {
+  // If clicking the same status, clear it
+  if (currentVoterStatus === status) {
+    status = null;
+  }
+
+  try {
+    const response = await fetch(`/api/session/${sessionId}/voter-status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        voterId,
+        voterName,
+        status
+      })
+    });
+
+    if (response.ok) {
+      currentVoterStatus = status;
+      updateStatusButtonStates();
+
+      // If speaking status, auto-clear after 3 seconds
+      if (status === 'speaking') {
+        setTimeout(() => {
+          if (currentVoterStatus === 'speaking') {
+            setVoterStatus(null);
+          }
+        }, 3000);
+      }
+    }
+  } catch (error) {
+    console.error('Error setting voter status:', error);
+  }
+}
+
+// Update button visual states
+function updateStatusButtonStates() {
+  const buttons = document.querySelectorAll('.status-btn');
+  buttons.forEach(btn => {
+    btn.classList.remove('active');
+  });
+
+  if (currentVoterStatus) {
+    const activeBtn = document.querySelector(`.status-${currentVoterStatus === 'notReady' ? 'not-ready' : currentVoterStatus}`);
+    if (activeBtn) {
+      activeBtn.classList.add('active');
+    }
+  }
+}
+
+// Start voter status polling when page loads
+startVoterStatusPolling();
+
+// ===== NOTES FUNCTIONALITY =====
+
+let notesExpanded = false;
+let currentPollNotes = [];
+
+// Toggle notes panel visibility
+function toggleNotesPanel() {
+  const notesContent = document.getElementById('notesContent');
+  const toggleIcon = document.getElementById('notesToggleIcon');
+
+  notesExpanded = !notesExpanded;
+
+  if (notesExpanded) {
+    notesContent.classList.remove('hidden');
+    toggleIcon.textContent = '▲';
+    // Load notes when panel is opened
+    loadNotes();
+  } else {
+    notesContent.classList.add('hidden');
+    toggleIcon.textContent = '▼';
+  }
+}
+
+// Save a note for the current poll
+async function saveNote() {
+  const noteInput = document.getElementById('noteInput');
+  const content = noteInput.value.trim();
+
+  if (!content) {
+    return;
+  }
+
+  // Determine which poll we're viewing (live or navigating)
+  const pollIndex = viewingPollIndex !== null ? viewingPollIndex : livePollIndex;
+
+  if (pollIndex === null || !currentPoll) {
+    console.error('No poll data available');
+    return;
+  }
+
+  const pollId = `poll-${pollIndex}`;
+  const pollTitle = currentPoll.creator ?
+    `${currentPoll.creator} - ${currentPoll.company || 'Unknown'}` :
+    'Unknown Poll';
+
+  try {
+    const response = await fetch(`/api/session/${sessionId}/poll/${pollId}/notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content, pollTitle })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      // Add to local list and re-render
+      currentPollNotes.push(data.note);
+      renderNotes();
+      // Clear input
+      noteInput.value = '';
+    } else {
+      console.error('Failed to save note');
+    }
+  } catch (error) {
+    console.error('Error saving note:', error);
+  }
+}
+
+// Load notes for the current poll
+async function loadNotes() {
+  const pollIndex = viewingPollIndex !== null ? viewingPollIndex : livePollIndex;
+
+  if (pollIndex === null) {
+    currentPollNotes = [];
+    renderNotes();
+    return;
+  }
+
+  const pollId = `poll-${pollIndex}`;
+
+  try {
+    const response = await fetch(`/api/session/${sessionId}/poll/${pollId}/notes`);
+    if (response.ok) {
+      const data = await response.json();
+      currentPollNotes = data.notes || [];
+      renderNotes();
+    }
+  } catch (error) {
+    console.error('Error loading notes:', error);
+    currentPollNotes = [];
+    renderNotes();
+  }
+}
+
+// Render the notes list
+function renderNotes() {
+  const notesList = document.getElementById('notesList');
+  if (!notesList) return;
+
+  if (currentPollNotes.length === 0) {
+    notesList.innerHTML = '<p class="no-notes">No notes yet for this poll.</p>';
+    return;
+  }
+
+  // Sort by timestamp (newest first)
+  const sortedNotes = [...currentPollNotes].sort((a, b) => b.timestamp - a.timestamp);
+
+  notesList.innerHTML = sortedNotes.map(note => {
+    const time = new Date(note.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return `
+      <div class="note-item">
+        <div class="note-time">${time}</div>
+        <div class="note-content">${escapeHtml(note.content)}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Helper to escape HTML in notes
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}

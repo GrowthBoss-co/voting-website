@@ -1347,7 +1347,37 @@ function showThumbnailPreview(url, type) {
   if (type === 'image') {
     modal.innerHTML = `<img src="${url}" onclick="event.stopPropagation()">`;
   } else {
-    modal.innerHTML = `<iframe src="${url}" frameborder="0" allowfullscreen onclick="event.stopPropagation()"></iframe>`;
+    // Check if it's a YouTube Shorts URL and convert to embed
+    let embedUrl = url;
+    let isShorts = false;
+
+    // Convert /shorts/ URL to embed format
+    if (url.includes('/shorts/')) {
+      const shortsMatch = url.match(/\/shorts\/([a-zA-Z0-9_-]+)/);
+      if (shortsMatch) {
+        embedUrl = `https://www.youtube.com/embed/${shortsMatch[1]}`;
+        isShorts = true;
+      }
+    }
+
+    // Check if it's a YouTube embed that might be a short (vertical video)
+    const embedMatch = embedUrl.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]+)/);
+    if (embedMatch && !isShorts) {
+      // Check if original URL was a shorts URL
+      isShorts = url.includes('/shorts/');
+    }
+
+    if (isShorts) {
+      // Use 9:16 aspect ratio for Shorts
+      modal.innerHTML = `
+        <div onclick="event.stopPropagation()" style="width: 350px; height: 622px; max-height: 90vh; aspect-ratio: 9/16;">
+          <iframe src="${embedUrl}" style="width: 100%; height: 100%; border: none; border-radius: 12px;"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowfullscreen></iframe>
+        </div>`;
+    } else {
+      modal.innerHTML = `<iframe src="${embedUrl}" frameborder="0" allowfullscreen onclick="event.stopPropagation()"></iframe>`;
+    }
   }
 
   document.body.appendChild(modal);
@@ -1854,6 +1884,9 @@ async function startPoll(pollIndex) {
     startTimer(currentPoll.timer);
 
     startPolling();
+
+    // Start voter status polling for the status panel
+    startHostVoterStatusPolling();
 
     const nextBtn = document.getElementById('nextPollBtn');
     if (pollIndex >= polls.length - 1) {
@@ -3269,3 +3302,73 @@ window.addEventListener('pagehide', (e) => {
     navigator.sendBeacon(`/api/session/${sessionId}/pause`, blob);
   }
 }, { capture: true });
+
+// ========================================
+// Host Voter Status Panel
+// ========================================
+
+let hostVoterStatusInterval = null;
+
+function startHostVoterStatusPolling() {
+  if (hostVoterStatusInterval) {
+    clearInterval(hostVoterStatusInterval);
+  }
+
+  // Initial fetch
+  fetchHostVoterStatuses();
+
+  // Poll every 2 seconds
+  hostVoterStatusInterval = setInterval(fetchHostVoterStatuses, 2000);
+}
+
+async function fetchHostVoterStatuses() {
+  try {
+    const response = await fetch(`/api/session/${sessionId}/voter-statuses`);
+    const data = await response.json();
+
+    if (data.success) {
+      renderHostVoterList(data.readyVoters, data.voterStatuses);
+    }
+  } catch (error) {
+    console.error('Error fetching voter statuses:', error);
+  }
+}
+
+function renderHostVoterList(readyVoters, voterStatuses) {
+  const voterList = document.getElementById('hostVoterList');
+  const voterCountBadge = document.getElementById('hostVoterCountBadge');
+
+  if (!voterList) return;
+
+  voterCountBadge.textContent = readyVoters.length;
+
+  voterList.innerHTML = readyVoters.map(name => {
+    const statusData = voterStatuses[name];
+    let statusClass = '';
+    let statusIcon = '';
+
+    if (statusData) {
+      switch (statusData.status) {
+        case 'speaking':
+          statusClass = 'voter-speaking';
+          statusIcon = '👋';
+          break;
+        case 'ready':
+          statusClass = 'voter-ready';
+          statusIcon = '✓';
+          break;
+        case 'notReady':
+          statusClass = 'voter-not-ready';
+          statusIcon = '✗';
+          break;
+      }
+    }
+
+    return `
+      <div class="voter-item ${statusClass}">
+        <span class="voter-name">${name}</span>
+        <span class="voter-status-icon">${statusIcon}</span>
+      </div>
+    `;
+  }).join('');
+}
