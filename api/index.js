@@ -2073,7 +2073,16 @@ app.get('/api/session/:sessionId/expose-status/:pollId', async (req, res) => {
 
     // Determine if we should reveal:
     // Threshold must be reached AND 10 seconds must have passed since threshold was first hit
-    const thresholdTime = session.exposeThresholdTime?.[pollId] || null;
+    // Also set the threshold timestamp here as a fallback if it wasn't set in the POST endpoint
+    if (!session.exposeThresholdTime) {
+      session.exposeThresholdTime = {};
+    }
+    if (thresholdReached && !session.exposeThresholdTime[pollId]) {
+      session.exposeThresholdTime[pollId] = Date.now();
+      await saveSession(sessionId, session);
+    }
+
+    const thresholdTime = session.exposeThresholdTime[pollId] || null;
     const tenSecondsPassed = thresholdTime && (Date.now() - thresholdTime >= 10000);
     const shouldReveal = thresholdReached && tenSecondsPassed && (!isAutoAdvance || isCountdownStarted);
 
