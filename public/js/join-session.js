@@ -13,10 +13,24 @@ async function checkActiveSession() {
 
     if (data.active && data.sessionId) {
       activeSessionId = data.sessionId;
-      // Clear any saved credentials so user must pick their name again
-      // This ensures users always go through the name selection
-      localStorage.removeItem(`voterId_${activeSessionId}`);
-      localStorage.removeItem(`voterEmail_${activeSessionId}`);
+
+      // If voter already has saved credentials for this session, redirect to voting
+      const savedVoterId = localStorage.getItem(`voterId_${activeSessionId}`);
+      const savedVoterName = localStorage.getItem(`voterEmail_${activeSessionId}`);
+      if (savedVoterId && savedVoterName) {
+        // Send a heartbeat to re-register presence, then redirect
+        try {
+          await fetch(`/api/session/${activeSessionId}/heartbeat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ voterId: savedVoterId, voterName: savedVoterName })
+          });
+        } catch (e) {
+          // Heartbeat failure is non-critical
+        }
+        window.location.href = `/vote/${activeSessionId}`;
+        return;
+      }
     }
     // Don't show error message here - let user select name first
     // Error will show when they try to click Ready without an active session

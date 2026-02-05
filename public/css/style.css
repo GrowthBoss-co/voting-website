@@ -449,6 +449,11 @@ body {
   width: 100%;
 }
 
+/* Wider container for voter view with sidebars */
+.container:has(.voter-view) {
+  max-width: 1400px;
+}
+
 .container:has(.welcome-card) {
   min-height: 100vh;
   display: flex;
@@ -2005,9 +2010,54 @@ h3 {
   }
 }
 
+/* ===== 3-Column Poll Layout ===== */
+.poll-layout-3col {
+  display: grid;
+  grid-template-columns: 200px 1fr 240px;
+  gap: 20px;
+  align-items: start;
+  margin-top: 15px;
+}
+
+.poll-left-sidebar {
+  position: sticky;
+  top: 20px;
+}
+
+.poll-right-sidebar {
+  position: sticky;
+  top: 20px;
+}
+
+.poll-center-content {
+  min-width: 0; /* prevent overflow */
+}
+
+/* On medium screens, collapse to 2 columns (voters + content), notes below */
+@media (max-width: 1100px) {
+  .poll-layout-3col {
+    grid-template-columns: 180px 1fr;
+  }
+  .poll-right-sidebar {
+    grid-column: 1 / -1;
+    position: static;
+  }
+}
+
+/* On small screens, single column stack */
+@media (max-width: 768px) {
+  .poll-layout-3col {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  .poll-left-sidebar,
+  .poll-right-sidebar {
+    position: static;
+  }
+}
+
 /* Voter Status Panel */
 .voter-status-panel {
-  margin-top: 20px;
   padding: 15px;
   background: #f7fafc;
   border-radius: 8px;
@@ -2038,21 +2088,22 @@ h3 {
 
 .voter-list {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
   margin-bottom: 15px;
-  max-height: 150px;
+  max-height: 400px;
   overflow-y: auto;
 }
 
 .voter-item {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 6px;
-  padding: 6px 12px;
+  padding: 6px 10px;
   background: white;
-  border-radius: 20px;
-  font-size: 13px;
+  border-radius: 8px;
+  font-size: 12px;
   border: 2px solid #e2e8f0;
   transition: all 0.3s ease;
 }
@@ -2089,22 +2140,23 @@ h3 {
 
 .status-buttons {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: center;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .status-btn {
-  padding: 8px 16px;
+  padding: 7px 10px;
   border: 2px solid;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 5px;
+  width: 100%;
 }
 
 .status-btn.status-speaking {
@@ -2153,26 +2205,34 @@ h3 {
 
 @media (max-width: 768px) {
   .voter-status-panel {
-    margin-top: 15px;
     padding: 12px;
   }
 
   .voter-list {
-    max-height: 100px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    max-height: 120px;
+  }
+
+  .voter-item {
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 16px;
   }
 
   .status-buttons {
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
   }
 
   .status-btn {
-    justify-content: center;
+    width: auto;
   }
 }
 
 /* ===== NOTES SECTION ===== */
 .notes-section {
-  margin-top: 20px;
   background: #f8f9fa;
   border-radius: 8px;
   border: 1px solid #e2e8f0;

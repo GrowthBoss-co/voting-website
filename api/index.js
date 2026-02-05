@@ -1481,42 +1481,31 @@ app.post('/api/session/:sessionId/ready', async (req, res) => {
 
     // Check if name is already taken by someone in the ready list
     if (session.readyVoters.includes(voterName)) {
-      // Check if voter is stale (no heartbeat in last 30 seconds)
-      const lastSeen = session.voterLastSeen[voterName];
-      const isStale = !lastSeen || (Date.now() - lastSeen > 30000);
-
-      if (isStale) {
-        // Voter is stale, allow rejoin with existing voterId
-        let existingVoterId = null;
-        for (const [vId, name] of session.voters.entries()) {
-          if (name === voterName) {
-            existingVoterId = vId;
-            break;
-          }
+      // Always allow rejoin - find existing voterId for this name
+      let existingVoterId = null;
+      for (const [vId, name] of session.voters.entries()) {
+        if (name === voterName) {
+          existingVoterId = vId;
+          break;
         }
-
-        // Update last seen timestamp
-        session.voterLastSeen[voterName] = Date.now();
-        await saveSession(sessionId, session);
-
-        const expectedAttendance = session.expectedAttendance || 10;
-        const readyCount = session.readyVoters.length;
-        const thresholdReached = readyCount >= Math.ceil(expectedAttendance * 0.8);
-
-        return res.json({
-          success: true,
-          voterId: existingVoterId || uuidv4(),
-          readyCount,
-          expectedAttendance,
-          thresholdReached,
-          sessionStatus: session.status,
-          rejoined: true
-        });
       }
 
-      return res.status(409).json({
-        error: 'Name already taken',
-        message: `Someone named "${voterName}" has already joined. Please choose a different name.`
+      // Update last seen timestamp
+      session.voterLastSeen[voterName] = Date.now();
+      await saveSession(sessionId, session);
+
+      const expectedAttendance = session.expectedAttendance || 10;
+      const readyCount = session.readyVoters.length;
+      const thresholdReached = readyCount >= Math.ceil(expectedAttendance * 0.8);
+
+      return res.json({
+        success: true,
+        voterId: existingVoterId || uuidv4(),
+        readyCount,
+        expectedAttendance,
+        thresholdReached,
+        sessionStatus: session.status,
+        rejoined: true
       });
     }
 
