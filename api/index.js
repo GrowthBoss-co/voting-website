@@ -2067,10 +2067,6 @@ app.get('/api/session/:sessionId/expose-status/:pollId', async (req, res) => {
     const pollVotes = session.votes.get(pollId);
     const totalVotes = pollVotes ? pollVotes.size : 0;
 
-    // Use server-stored state for auto-advance (more reliable than client params)
-    const isAutoAdvance = session.autoAdvanceOn || false;
-    const isCountdownStarted = session.countdownStarted || false;
-
     // Determine if we should reveal:
     // Threshold must be reached AND 10 seconds must have passed since threshold was first hit
     // Also set the threshold timestamp here as a fallback if it wasn't set in the POST endpoint
@@ -2084,7 +2080,7 @@ app.get('/api/session/:sessionId/expose-status/:pollId', async (req, res) => {
 
     const thresholdTime = session.exposeThresholdTime[pollId] || null;
     const tenSecondsPassed = thresholdTime && (Date.now() - thresholdTime >= 10000);
-    const shouldReveal = thresholdReached && tenSecondsPassed && (!isAutoAdvance || isCountdownStarted);
+    const shouldReveal = thresholdReached && tenSecondsPassed;
 
     // Calculate seconds remaining until reveal (for client countdown display)
     let revealCountdown = null;
