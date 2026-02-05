@@ -890,6 +890,15 @@ app.post('/api/session/:sessionId/start/:pollIndex', async (req, res) => {
     session.votes.set(session.polls[index].id, new Map());
   }
 
+  // Clear expose state for this poll so the 10-second countdown restarts fresh
+  const presentPollId = session.polls[index].id;
+  if (session.exposeVotes && session.exposeVotes[presentPollId]) {
+    delete session.exposeVotes[presentPollId];
+  }
+  if (session.exposeThresholdTime && session.exposeThresholdTime[presentPollId]) {
+    delete session.exposeThresholdTime[presentPollId];
+  }
+
   session.status = 'presenting'; // Mark as presenting
   await saveSession(sessionId, session);
 
@@ -1771,11 +1780,16 @@ app.post('/api/session/:sessionId/skip-poll', async (req, res) => {
     session.countdownStarted = false;
     session.skipRequested = false;
 
-    // Clear expose votes for the current poll
-    if (session.exposeVotes && session.currentPollIndex >= 0) {
-      const currentPollId = session.polls[session.currentPollIndex]?.id;
-      if (currentPollId && session.exposeVotes[currentPollId]) {
-        delete session.exposeVotes[currentPollId];
+    // Clear expose state for the new poll (ensure fresh countdown)
+    if (session.currentPollIndex >= 0) {
+      const newPollId = session.polls[session.currentPollIndex]?.id;
+      if (newPollId) {
+        if (session.exposeVotes && session.exposeVotes[newPollId]) {
+          delete session.exposeVotes[newPollId];
+        }
+        if (session.exposeThresholdTime && session.exposeThresholdTime[newPollId]) {
+          delete session.exposeThresholdTime[newPollId];
+        }
       }
     }
 

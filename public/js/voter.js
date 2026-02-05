@@ -6,6 +6,7 @@ const voterName = localStorage.getItem(`voterEmail_${sessionId}`);
 let pollingInterval = null;
 let lastPollId = null;
 let timerInterval = null;
+let pollCheckGeneration = 0; // Increment to invalidate stale checkForPoll responses
 let isVoterTimerPaused = false;
 let hasMovedToFeedback = false; // Track if user has moved past top10 to feedback
 let hasShownTop10 = false; // Track if top10 has already been shown
@@ -204,14 +205,18 @@ function displayPoll(poll, hasVoted = false, voterRating = null) {
     renderVoterCarouselItem(0);
   }
 
+  // Get fresh DOM references (restoreVotingUI may have recreated these elements)
+  const currentSlider = document.getElementById('ratingSlider');
+  const currentInput = document.getElementById('ratingInput');
+
   // Track voting status
-  ratingSlider.dataset.hasVoted = hasVoted ? 'true' : 'false';
+  currentSlider.dataset.hasVoted = hasVoted ? 'true' : 'false';
 
   if (hasVoted && voterRating !== null) {
-    ratingSlider.value = voterRating;
-    ratingInput.value = voterRating;
-    ratingSlider.disabled = true;
-    ratingInput.disabled = true;
+    currentSlider.value = voterRating;
+    currentInput.value = voterRating;
+    currentSlider.disabled = true;
+    currentInput.disabled = true;
     document.getElementById('submitRatingBtn').disabled = true;
 
     const messageDiv = document.getElementById('submitMessage');
@@ -219,13 +224,13 @@ function displayPoll(poll, hasVoted = false, voterRating = null) {
     messageDiv.className = 'submit-message success';
     messageDiv.classList.remove('hidden');
   } else {
-    ratingSlider.value = 5;
-    ratingInput.value = 5;
+    currentSlider.value = 5;
+    currentInput.value = 5;
 
     // Always enable voting controls initially - the timer will handle disabling if needed
     // This prevents issues with auto-advance mode where timer shouldn't disable voting
-    ratingSlider.disabled = false;
-    ratingInput.disabled = false;
+    currentSlider.disabled = false;
+    currentInput.disabled = false;
     document.getElementById('submitMessage').classList.add('hidden');
     document.getElementById('submitRatingBtn').disabled = false;
   }
@@ -242,8 +247,15 @@ async function checkForPoll() {
     return;
   }
 
+  const myGeneration = pollCheckGeneration;
+
   try {
     const response = await fetch(`/api/session/${sessionId}/current-poll?voterId=${voterId}`);
+
+    // If a skip/navigation happened while we were waiting, discard this stale response
+    if (myGeneration !== pollCheckGeneration) {
+      return;
+    }
 
     if (!response.ok) {
       console.error('Failed to fetch current poll:', response.status);
@@ -855,6 +867,7 @@ async function navigateToPoll(direction) {
   if (direction === 'live') {
     // Go back to live poll
     restoreVotingUI();
+    pollCheckGeneration++;
     viewingPollIndex = null;
     lastPollId = null; // Force checkForPoll to re-display the current poll
     await checkForPoll();
@@ -878,6 +891,7 @@ async function navigateToPoll(direction) {
   // If navigating to the live poll, go back to live mode
   if (targetIndex === livePollIndex) {
     restoreVotingUI();
+    pollCheckGeneration++;
     viewingPollIndex = null;
     lastPollId = null; // Force checkForPoll to re-display the current poll
     await checkForPoll();
@@ -1361,6 +1375,8 @@ async function voterSkipPoll() {
       // Session is over, show end screen
       showEndScreen();
     } else {
+      // Invalidate any in-flight checkForPoll responses
+      pollCheckGeneration++;
       // Force immediate check for new poll
       lastPollId = null; // Reset so we detect the new poll
       await checkForPoll();
