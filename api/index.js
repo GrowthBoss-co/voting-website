@@ -2017,13 +2017,21 @@ app.post('/api/session/:sessionId/vote-expose', async (req, res) => {
       session.exposeVotes[pollId].push(voterId);
     }
 
-    await saveSession(sessionId, session);
-
     // Calculate if threshold reached (50% of expected attendance)
     const expectedAttendance = session.expectedAttendance || 10;
     const exposeVoteCount = session.exposeVotes[pollId].length;
     const thresholdNeeded = Math.ceil(expectedAttendance * 0.5);
     const thresholdReached = exposeVoteCount >= thresholdNeeded;
+
+    // Track when threshold was first reached for the 10-second reveal delay
+    if (!session.exposeThresholdTime) {
+      session.exposeThresholdTime = {};
+    }
+    if (thresholdReached && !session.exposeThresholdTime[pollId]) {
+      session.exposeThresholdTime[pollId] = Date.now();
+    }
+
+    await saveSession(sessionId, session);
 
     res.json({
       success: true,
@@ -2063,10 +2071,17 @@ app.get('/api/session/:sessionId/expose-status/:pollId', async (req, res) => {
     const isAutoAdvance = session.autoAdvanceOn || false;
     const isCountdownStarted = session.countdownStarted || false;
 
-    // Determine if we should reveal based on auto-advance state
-    // If auto-advance is ON: only reveal when 10-second countdown has started
-    // If auto-advance is OFF: reveal immediately when threshold reached
-    const shouldReveal = thresholdReached && (!isAutoAdvance || isCountdownStarted);
+    // Determine if we should reveal:
+    // Threshold must be reached AND 10 seconds must have passed since threshold was first hit
+    const thresholdTime = session.exposeThresholdTime?.[pollId] || null;
+    const tenSecondsPassed = thresholdTime && (Date.now() - thresholdTime >= 10000);
+    const shouldReveal = thresholdReached && tenSecondsPassed && (!isAutoAdvance || isCountdownStarted);
+
+    // Calculate seconds remaining until reveal (for client countdown display)
+    let revealCountdown = null;
+    if (thresholdReached && thresholdTime && !tenSecondsPassed) {
+      revealCountdown = Math.max(0, Math.ceil((10000 - (Date.now() - thresholdTime)) / 1000));
+    }
 
     let exposedData = null;
     if (shouldReveal) {
@@ -2109,6 +2124,7 @@ app.get('/api/session/:sessionId/expose-status/:pollId', async (req, res) => {
       hasVotedToExpose,
       exposedData,
       shouldReveal,
+      revealCountdown,
       totalVotes,
       expectedAttendance
     });

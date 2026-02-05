@@ -1144,12 +1144,16 @@ async function fetchExposeStatus() {
         }
       }
     } else if (data.thresholdReached && !data.shouldReveal) {
-      // Threshold reached but waiting for countdown
+      // Threshold reached but waiting for 10-second countdown
       const resultDiv = document.getElementById('exposedResult');
       resultDiv.classList.remove('hidden');
-      document.getElementById('exposedTitle').textContent = 'Threshold Reached!';
-      document.getElementById('exposedNames').textContent = 'Waiting for countdown to reveal...';
       resultDiv.style.background = '#fff3cd';
+      document.getElementById('exposedTitle').textContent = 'Threshold Reached!';
+      if (data.revealCountdown !== null && data.revealCountdown > 0) {
+        document.getElementById('exposedNames').textContent = `Revealing in ${data.revealCountdown} seconds...`;
+      } else {
+        document.getElementById('exposedNames').textContent = 'Revealing shortly...';
+      }
     } else {
       document.getElementById('exposedResult').classList.add('hidden');
     }

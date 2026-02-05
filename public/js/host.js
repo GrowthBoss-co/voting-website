@@ -2352,7 +2352,11 @@ async function updateResults() {
       exposeStatus.style.background = '#f8d7da';
       exposeStatus.style.color = '#721c24';
     } else if (exposeData.thresholdReached) {
-      exposeStatus.textContent = 'Waiting for countdown...';
+      if (exposeData.revealCountdown !== null && exposeData.revealCountdown > 0) {
+        exposeStatus.textContent = `Revealing in ${exposeData.revealCountdown}s`;
+      } else {
+        exposeStatus.textContent = 'Revealing...';
+      }
       exposeStatus.style.background = '#fff3cd';
       exposeStatus.style.color = '#856404';
     } else {
