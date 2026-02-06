@@ -8,3 +8,7 @@ public/uploads/
 
 .vercel
 .env*.local
+
+# Google credentials (sensitive)
+google_credentials*.json
+google_token*.json

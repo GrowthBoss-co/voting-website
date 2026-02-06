@@ -5,6 +5,7 @@ const { Redis } = require('@upstash/redis');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const fs = require('fs');
+const { syncNotesToDrive } = require('./lib/googleDrive');
 
 const app = express();
 
@@ -1952,6 +1953,15 @@ app.post('/api/session/:sessionId/poll/:pollId/notes', async (req, res) => {
 
     session.notes.push(note);
     await saveSession(sessionId, session);
+
+    // Fire-and-forget Drive sync (runs in background)
+    const pollIndex = parseInt(pollId.replace('poll-', ''), 10);
+    const poll = session.polls[pollIndex];
+    if (poll && !isNaN(pollIndex)) {
+      const pollNotes = session.notes.filter(n => n.pollId === pollId);
+      syncNotesToDrive(redis, sessionId, pollId, pollIndex, poll, pollTitle || `${poll.creator} - ${poll.company}`, pollNotes)
+        .catch(err => console.error('Drive sync error:', err));
+    }
 
     res.json({
       success: true,
