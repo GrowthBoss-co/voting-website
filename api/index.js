@@ -933,11 +933,12 @@ app.post('/api/session/:sessionId/resume', async (req, res) => {
   }
 
   if (restart) {
-    // Restart from beginning - clear ALL votes
+    // Restart from beginning - clear ALL votes and notes
     session.currentPollIndex = -1;
     session.status = 'draft';
     session.pausedAtPollIndex = -1;
     session.votes = new Map(); // Clear all votes
+    session.notes = []; // Clear all notes
   } else {
     // Continue from where left off - clear votes from paused poll onwards
     const pausedIndex = session.pausedAtPollIndex;

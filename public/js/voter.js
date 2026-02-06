@@ -1259,6 +1259,9 @@ window.addEventListener('beforeunload', () => {
   if (heartbeatInterval) {
     clearInterval(heartbeatInterval);
   }
+  if (notesPollingInterval) {
+    clearInterval(notesPollingInterval);
+  }
 });
 
 // Heartbeat - send every 15 seconds to indicate we're still connected
@@ -1708,6 +1711,7 @@ startVoterStatusPolling();
 
 let notesExpanded = false;
 let currentPollNotes = [];
+let notesPollingInterval = null;
 
 // Toggle notes panel visibility
 function toggleNotesPanel() {
@@ -1719,11 +1723,27 @@ function toggleNotesPanel() {
   if (notesExpanded) {
     notesContent.classList.remove('hidden');
     toggleIcon.textContent = '▲';
-    // Load notes when panel is opened
+    // Load notes when panel is opened and start live polling
     loadNotes();
+    startNotesPolling();
   } else {
     notesContent.classList.add('hidden');
     toggleIcon.textContent = '▼';
+    stopNotesPolling();
+  }
+}
+
+// Start polling for live notes updates
+function startNotesPolling() {
+  stopNotesPolling();
+  notesPollingInterval = setInterval(loadNotes, 3000); // Poll every 3 seconds
+}
+
+// Stop notes polling
+function stopNotesPolling() {
+  if (notesPollingInterval) {
+    clearInterval(notesPollingInterval);
+    notesPollingInterval = null;
   }
 }
 
