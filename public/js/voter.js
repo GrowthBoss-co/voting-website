@@ -5,9 +5,7 @@ const voterId = localStorage.getItem(`voterId_${sessionId}`);
 const voterName = localStorage.getItem(`voterEmail_${sessionId}`);
 let pollingInterval = null;
 let lastPollId = null;
-let timerInterval = null;
 let pollCheckGeneration = 0; // Increment to invalidate stale checkForPoll responses
-let isVoterTimerPaused = false;
 let hasMovedToFeedback = false; // Track if user has moved past top10 to feedback
 let hasShownTop10 = false; // Track if top10 has already been shown
 
@@ -122,35 +120,6 @@ function displayPoll(poll, hasVoted = false, voterRating = null) {
         exposeSection.parentNode.removeChild(shortsRightPanel);
       }
     }
-  }
-
-  // Always reset timer display first, before starting new timer
-  const timerText = document.getElementById('timerText');
-  const timerDisplay = document.getElementById('timerDisplay');
-
-  if (timerText && timerDisplay) {
-    // Clear any existing timer interval
-    if (timerInterval) {
-      clearInterval(timerInterval);
-      timerInterval = null;
-    }
-
-    // Reset saved time state for new poll
-    voterSavedTimeLeft = null;
-    isVoterTimerPaused = false;
-
-    // Reset to default state
-    timerText.innerHTML = 'Time remaining: <strong id="timerValue">60</strong>s';
-    timerDisplay.style.background = '#48bb78';
-    timerDisplay.style.color = 'white';
-    timerDisplay.style.display = 'block';
-  }
-
-  // Start timer if poll has one
-  if (currentPoll.timer && currentPoll.startTime) {
-    const elapsed = Math.floor((Date.now() - currentPoll.startTime) / 1000);
-    const timeLeft = Math.max(0, currentPoll.timer - elapsed);
-    startTimer(timeLeft);
   }
 
   // Render carousel for media items
@@ -575,41 +544,6 @@ async function submitRating() {
   const ratingSlider = document.getElementById('ratingSlider');
   const ratingInput = document.getElementById('ratingInput');
 
-  // Check if timer has expired (but skip this check if auto-advance is on)
-  if (currentPoll.timer && currentPoll.startTime) {
-    // First check auto-advance state
-    try {
-      const stateResponse = await fetch(`/api/session/${sessionId}/auto-advance-state`);
-      const stateData = await stateResponse.json();
-
-      // If auto-advance is ON, always allow voting (no timer expiry)
-      if (stateData.autoAdvanceOn) {
-        // Voting is allowed, skip timer check
-      } else {
-        // Check timer normally
-        const elapsed = Math.floor((Date.now() - currentPoll.startTime) / 1000);
-        const timeLeft = Math.max(0, currentPoll.timer - elapsed);
-
-        if (timeLeft <= 0) {
-          alert('Voting period has ended for this poll');
-          disableVotingControls();
-          return;
-        }
-      }
-    } catch (error) {
-      console.error('Error checking auto-advance state:', error);
-      // Fall back to timer check
-      const elapsed = Math.floor((Date.now() - currentPoll.startTime) / 1000);
-      const timeLeft = Math.max(0, currentPoll.timer - elapsed);
-
-      if (timeLeft <= 0) {
-        alert('Voting period has ended for this poll');
-        disableVotingControls();
-        return;
-      }
-    }
-  }
-
   const rating = parseInt(ratingInput.value);
 
   try {
@@ -644,129 +578,6 @@ async function submitRating() {
 }
 
 document.getElementById('submitRatingBtn').addEventListener('click', submitRating);
-
-let voterSavedTimeLeft = null;
-let voterAutoAdvanceOn = false;
-
-async function startTimer(duration) {
-  let timeLeft = duration;
-  voterSavedTimeLeft = duration;
-  const timerDisplay = document.getElementById('timerDisplay');
-  const timerText = document.getElementById('timerText');
-
-  if (!timerDisplay || !timerText) return;
-
-  // Check initial auto-advance state
-  try {
-    const stateResponse = await fetch(`/api/session/${sessionId}/auto-advance-state`);
-    const stateData = await stateResponse.json();
-    voterAutoAdvanceOn = stateData.autoAdvanceOn;
-  } catch (error) {
-    console.error('Error fetching auto-advance state:', error);
-  }
-
-  // If auto-advance is ON, hide timer and always allow voting (host manually advances)
-  if (voterAutoAdvanceOn) {
-    timerDisplay.style.display = 'none';
-    enableVotingControls();
-    // Don't return - we need to keep polling for state changes
-  } else {
-    timerDisplay.style.display = 'block';
-  }
-
-  // Update timer text with actual duration
-  timerText.innerHTML = 'Time remaining: <strong id="timerValue">' + timeLeft + '</strong>s';
-
-  // Set color based on initial time
-  if (timeLeft <= 10) {
-    timerDisplay.style.background = '#e53e3e';
-  } else if (timeLeft <= 30) {
-    timerDisplay.style.background = '#ed8936';
-  } else {
-    timerDisplay.style.background = '#48bb78';
-  }
-  timerDisplay.style.color = 'white';
-
-  // Enable voting controls at start
-  // If auto-advance is ON, always enable voting (no timer expiry)
-  if (voterAutoAdvanceOn) {
-    enableVotingControls();
-  } else if (timeLeft > 0) {
-    enableVotingControls();
-  } else {
-    disableVotingControls();
-    timerText.innerHTML = '⏱️ <strong>Voting Closed</strong> - Time expired';
-    timerDisplay.style.background = '#718096';
-    return; // Don't start interval if already expired
-  }
-
-  timerInterval = setInterval(async () => {
-    // Check for pause state and auto-advance changes
-    try {
-      const stateResponse = await fetch(`/api/session/${sessionId}/auto-advance-state`);
-      const stateData = await stateResponse.json();
-
-      // Handle pause
-      if (stateData.timerPaused) {
-        return; // Skip this tick if paused
-      }
-
-      // Handle auto-advance state changes
-      if (stateData.autoAdvanceOn !== voterAutoAdvanceOn) {
-        voterAutoAdvanceOn = stateData.autoAdvanceOn;
-        if (voterAutoAdvanceOn) {
-          // Auto-advance turned ON - hide timer, voting always allowed
-          timerDisplay.style.display = 'none';
-          voterSavedTimeLeft = timeLeft;
-          enableVotingControls();
-          return;
-        } else {
-          // Auto-advance turned OFF - show timer, resume countdown
-          timerDisplay.style.display = 'block';
-          if (voterSavedTimeLeft !== null) {
-            timeLeft = voterSavedTimeLeft;
-          }
-          timerText.innerHTML = 'Time remaining: <strong id="timerValue">' + timeLeft + '</strong>s';
-        }
-      }
-
-      // If auto-advance is ON, skip timer countdown (host manually advances)
-      if (voterAutoAdvanceOn) {
-        return;
-      }
-    } catch (error) {
-      console.error('Error checking state:', error);
-    }
-
-    timeLeft--;
-    voterSavedTimeLeft = timeLeft;
-    const currentTimerValue = document.getElementById('timerValue');
-    if (currentTimerValue) {
-      currentTimerValue.textContent = timeLeft;
-    }
-
-    // Change color as time runs out (only for normal mode)
-    if (!voterAutoAdvanceOn || !voterCountdownStarted) {
-      if (timeLeft <= 10) {
-        timerDisplay.style.background = '#e53e3e';
-      } else if (timeLeft <= 30) {
-        timerDisplay.style.background = '#ed8936';
-      }
-    }
-
-    if (timeLeft <= 0) {
-      clearInterval(timerInterval);
-      timerDisplay.style.background = '#718096';
-      if (currentTimerValue) {
-        currentTimerValue.textContent = '0';
-      }
-      timerText.innerHTML = '⏱️ <strong>Voting Closed</strong> - Time expired';
-
-      // Disable voting when timer expires
-      disableVotingControls();
-    }
-  }, 1000);
-}
 
 function disableVotingControls() {
   const ratingSlider = document.getElementById('ratingSlider');
@@ -929,14 +740,6 @@ function displayPollForViewing(poll, hasVoted, voterRating, results, pollIndex, 
 
   document.getElementById('pollTitle').textContent = `${poll.creator} - ${poll.company}`;
 
-  // Clear timer for past polls
-  if (timerInterval) {
-    clearInterval(timerInterval);
-    timerInterval = null;
-  }
-  const timerDisplay = document.getElementById('timerDisplay');
-  timerDisplay.style.display = 'none';
-
   // Render media
   const mediaContainer = document.getElementById('pollMedia');
   if (poll.mediaItems.length === 1) {
@@ -1084,43 +887,7 @@ async function fetchExposeStatus() {
   const pollIdForThisRequest = currentPoll.id;
 
   try {
-    // First get the auto-advance state from the server
-    const stateResponse = await fetch(`/api/session/${sessionId}/auto-advance-state`);
-    const stateData = await stateResponse.json();
-
-    // Update pause button and auto-advance toggle state for authorized voters
-    if (isAuthorizedVoter) {
-      const pauseBtn = document.getElementById('voterPauseBtn');
-      if (stateData.timerPaused !== isVoterTimerPaused) {
-        isVoterTimerPaused = stateData.timerPaused;
-        if (isVoterTimerPaused) {
-          pauseBtn.textContent = 'Resume';
-          pauseBtn.style.background = '#48bb78';
-        } else {
-          pauseBtn.textContent = 'Pause';
-          pauseBtn.style.background = '#ed8936';
-        }
-      }
-
-      // Sync auto-advance toggle state
-      const autoAdvanceToggle = document.getElementById('voterAutoAdvanceToggle');
-      if (autoAdvanceToggle && autoAdvanceToggle.checked !== stateData.autoAdvanceOn) {
-        autoAdvanceToggle.checked = stateData.autoAdvanceOn;
-      }
-    }
-
-    // Update timer display if paused
-    const timerText = document.getElementById('timerText');
-    const timerDisplay = document.getElementById('timerDisplay');
-    if (stateData.timerPaused && timerText && timerDisplay) {
-      if (!timerText.innerHTML.includes('PAUSED')) {
-        const currentTime = stateData.pausedTimeLeft || document.getElementById('timerValue')?.textContent || '0';
-        timerText.innerHTML = '⏸️ PAUSED - <strong id="timerValue">' + currentTime + '</strong>s';
-        timerDisplay.style.background = '#718096';
-      }
-    }
-
-    const response = await fetch(`/api/session/${sessionId}/expose-status/${pollIdForThisRequest}?voterId=${voterId}&autoAdvanceOn=${stateData.autoAdvanceOn}`);
+    const response = await fetch(`/api/session/${sessionId}/expose-status/${pollIdForThisRequest}?voterId=${voterId}`);
     const data = await response.json();
 
     // Ignore response if poll has changed since we made the request
@@ -1295,52 +1062,6 @@ async function sendHeartbeat() {
 // Start heartbeat when page loads
 startHeartbeat();
 
-// Voter pause/resume timer (for authorized voters)
-async function voterTogglePause() {
-  if (!isAuthorizedVoter) return;
-
-  const pauseBtn = document.getElementById('voterPauseBtn');
-
-  if (isVoterTimerPaused) {
-    // Resume timer
-    try {
-      const response = await fetch(`/api/session/${sessionId}/resume-timer`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ voterName })
-      });
-
-      if (response.ok) {
-        isVoterTimerPaused = false;
-        pauseBtn.textContent = 'Pause';
-        pauseBtn.style.background = '#ed8936';
-      }
-    } catch (error) {
-      console.error('Error resuming timer:', error);
-    }
-  } else {
-    // Pause timer - get current time from display
-    const timerValue = document.getElementById('timerValue');
-    const currentTime = timerValue ? parseInt(timerValue.textContent) : 0;
-
-    try {
-      const response = await fetch(`/api/session/${sessionId}/pause-timer`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ voterName, timeLeft: currentTime })
-      });
-
-      if (response.ok) {
-        isVoterTimerPaused = true;
-        pauseBtn.textContent = 'Resume';
-        pauseBtn.style.background = '#48bb78';
-      }
-    } catch (error) {
-      console.error('Error pausing timer:', error);
-    }
-  }
-}
-
 // Voter skip poll (for authorized voters)
 async function voterSkipPoll() {
   console.log('voterSkipPoll called, isAuthorizedVoter:', isAuthorizedVoter, 'voterName:', voterName);
@@ -1382,6 +1103,13 @@ async function voterSkipPoll() {
       pollCheckGeneration++;
       // Force immediate check for new poll
       lastPollId = null; // Reset so we detect the new poll
+
+      // Reset viewing state in case voter was viewing a past poll
+      if (viewingPollIndex !== null) {
+        restoreVotingUI();
+        viewingPollIndex = null;
+      }
+
       await checkForPoll();
     }
   } catch (error) {
@@ -1392,27 +1120,6 @@ async function voterSkipPoll() {
       skipBtn.disabled = false;
       skipBtn.textContent = 'Skip';
     }
-  }
-}
-
-// Voter toggle auto-advance (for authorized voters)
-// Note: This only syncs the state to server - carousel/video autoplay only happens on host
-async function voterToggleAutoAdvance() {
-  if (!isAuthorizedVoter) return;
-
-  const toggle = document.getElementById('voterAutoAdvanceToggle');
-  const isOn = toggle ? toggle.checked : false;
-
-  try {
-    await fetch(`/api/session/${sessionId}/auto-advance-state`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        autoAdvanceOn: isOn
-      })
-    });
-  } catch (error) {
-    console.error('Error toggling auto-advance:', error);
   }
 }
 

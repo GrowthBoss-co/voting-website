@@ -32,16 +32,6 @@
         background: linear-gradient(90deg, #667eea, #48bb78);
         transition: width 0.5s ease;
       }
-      .countdown {
-        font-size: 72px;
-        font-weight: bold;
-        color: #e53e3e;
-        animation: pulse 1s infinite;
-      }
-      @keyframes pulse {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.1); }
-      }
       .voter-list {
         margin-top: 20px;
         padding: 15px;
@@ -111,11 +101,6 @@
           </div>
 
           <p id="thresholdMessage" style="color: #666;">Waiting for 80% of voters to be ready...</p>
-
-          <div id="countdownContainer" class="hidden">
-            <p style="font-size: 18px; color: #667eea; font-weight: 600;">Starting in...</p>
-            <div class="countdown" id="countdownTimer">10</div>
-          </div>
 
           <div class="voter-list">
             <strong>Ready voters:</strong>

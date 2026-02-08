@@ -9,7 +9,6 @@ let pollingInterval = null;
 const completedPolls = []; // Store results of completed polls
 let creators = [];
 let companies = [];
-let autoAdvanceEnabled = false;
 let totalVotersInSession = 0;
 let hasReachedThreshold = false;
 let autoCarouselInterval = null;
@@ -18,13 +17,6 @@ let voterNames = [];
 let expectedAttendance = 0;
 let isActiveSession = false;
 let readyPollingInterval = null;
-
-// Timer state tracking
-let originalTimerDuration = 60;
-let savedTimeLeft = null;
-let isAutoAdvanceOn = false;
-let isTimerPaused = false;
-let currentTimeLeft = 0;
 
 // Stop all playing videos (iframes and YouTube API players)
 function stopAllVideos() {
@@ -578,12 +570,6 @@ async function fetchReadyStatus() {
 
     document.getElementById('readyVotersCount').textContent = data.readyCount;
     document.getElementById('expectedVotersCount').textContent = data.expectedAttendance;
-
-    // Check if threshold reached and countdown started
-    if (data.thresholdReached && !data.countdownStarted && data.sessionStatus !== 'presenting') {
-      // Auto-start countdown
-      await fetch(`/api/session/${sessionId}/start-countdown`, { method: 'POST' });
-    }
   } catch (error) {
     console.error('Error fetching ready status:', error);
   }
@@ -600,34 +586,6 @@ async function clearReadyVoters() {
     document.getElementById('readyVotersCount').textContent = '0';
   } catch (error) {
     console.error('Error clearing ready voters:', error);
-  }
-}
-
-// Sync auto-advance toggle from setup section
-async function syncSetupAutoAdvance() {
-  const setupToggle = document.getElementById('setupAutoAdvanceToggle');
-  const votingToggle = document.getElementById('autoAdvanceToggle');
-
-  if (setupToggle) {
-    const isOn = setupToggle.checked;
-
-    // Sync to voting section toggle
-    if (votingToggle) {
-      votingToggle.checked = isOn;
-    }
-
-    // Sync to server
-    try {
-      await fetch(`/api/session/${sessionId}/auto-advance-state`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          autoAdvanceOn: isOn
-        })
-      });
-    } catch (error) {
-      console.error('Error syncing auto-advance state:', error);
-    }
   }
 }
 
@@ -665,31 +623,8 @@ async function restartSessionFromSetup() {
   }
 }
 
-// Load auto-advance state on page load
-async function loadAutoAdvanceState() {
-  try {
-    const response = await fetch(`/api/session/${sessionId}/auto-advance-state`);
-    const data = await response.json();
-
-    const setupToggle = document.getElementById('setupAutoAdvanceToggle');
-    const votingToggle = document.getElementById('autoAdvanceToggle');
-
-    if (setupToggle) {
-      setupToggle.checked = data.autoAdvanceOn || false;
-    }
-    if (votingToggle) {
-      votingToggle.checked = data.autoAdvanceOn || false;
-    }
-  } catch (error) {
-    console.error('Error loading auto-advance state:', error);
-  }
-}
-
 // Host Waiting Room functions
 let hostWaitingPollingInterval = null;
-let hostCountdownInterval = null;
-let hostCountdownValue = 10;
-
 function showHostWaitingRoom() {
   document.getElementById('setupSection').classList.add('hidden');
   document.getElementById('hostWaitingRoom').classList.remove('hidden');
@@ -710,10 +645,6 @@ function exitHostWaitingRoom() {
   if (hostWaitingPollingInterval) {
     clearInterval(hostWaitingPollingInterval);
     hostWaitingPollingInterval = null;
-  }
-  if (hostCountdownInterval) {
-    clearInterval(hostCountdownInterval);
-    hostCountdownInterval = null;
   }
 }
 
@@ -744,41 +675,18 @@ async function updateHostWaitingStatus() {
     }
 
     // Check if threshold reached
-    if (data.thresholdReached || data.countdownStarted) {
+    if (data.thresholdReached) {
       document.getElementById('hostThresholdMessage').textContent = '80% threshold reached!';
       document.getElementById('hostThresholdMessage').style.color = '#48bb78';
-
-      // Start countdown if not already started
-      if (!hostCountdownInterval) {
-        startHostCountdown();
-      }
     }
 
-    // If session started (by voters countdown), go to presenting
+    // If session started, go to presenting
     if (data.sessionStatus === 'presenting') {
       forceStartSession();
     }
   } catch (error) {
     console.error('Error polling ready status:', error);
   }
-}
-
-function startHostCountdown() {
-  document.getElementById('hostCountdownContainer').classList.remove('hidden');
-  hostCountdownValue = 10;
-  document.getElementById('hostCountdownTimer').textContent = hostCountdownValue;
-
-  hostCountdownInterval = setInterval(() => {
-    hostCountdownValue--;
-    document.getElementById('hostCountdownTimer').textContent = hostCountdownValue;
-
-    if (hostCountdownValue <= 0) {
-      clearInterval(hostCountdownInterval);
-      hostCountdownInterval = null;
-      // Start the session
-      forceStartSession();
-    }
-  }, 1000);
 }
 
 async function forceStartSession() {
@@ -788,10 +696,6 @@ async function forceStartSession() {
   if (hostWaitingPollingInterval) {
     clearInterval(hostWaitingPollingInterval);
     hostWaitingPollingInterval = null;
-  }
-  if (hostCountdownInterval) {
-    clearInterval(hostCountdownInterval);
-    hostCountdownInterval = null;
   }
 
   // Hide waiting room and setup, show voting section
@@ -828,9 +732,6 @@ async function forceStartSession() {
   await startPoll(0);
   console.log('[forceStartSession] Done');
 }
-
-// Load auto-advance state on page load
-loadAutoAdvanceState();
 
 // Check active session on page load
 checkActiveSession();
@@ -955,7 +856,6 @@ document.getElementById('pollForm').addEventListener('submit', async e => {
     }
   }
 
-  const timer = parseInt(document.getElementById('pollTimer').value) || 60;
   const mediaUrlsText = document.getElementById('mediaUrls').value.trim();
   const submitBtn = e.target.querySelector('button[type="submit"]');
   const editingIndex = document.getElementById('editingPollIndex').value;
@@ -1095,7 +995,6 @@ document.getElementById('pollForm').addEventListener('submit', async e => {
           creator,
           company: formattedCompany,
           mediaItems,
-          timer,
           exposeThem: false
         })
       });
@@ -1126,7 +1025,6 @@ document.getElementById('pollForm').addEventListener('submit', async e => {
           creator,
           company: formattedCompany,
           mediaItems,
-          timer,
           exposeThem: false
         })
       });
@@ -1146,7 +1044,6 @@ document.getElementById('pollForm').addEventListener('submit', async e => {
 
       // Reset form
       document.getElementById('pollForm').reset();
-      document.getElementById('pollTimer').value = 60;
       document.getElementById('mediaUrls').value = '';
       document.getElementById('pollCompanyCustom').style.display = 'none';
       document.getElementById('pollCompanyCustom').value = '';
@@ -1277,8 +1174,7 @@ async function moveMediaItem(pollIndex, mediaIndex, direction) {
       body: JSON.stringify({
         creator: poll.creator,
         company: poll.company,
-        mediaItems: updatedMediaItems,
-        timer: poll.timer
+        mediaItems: updatedMediaItems
       })
     });
 
@@ -1319,8 +1215,7 @@ async function deleteMediaItem(pollIndex, mediaIndex) {
       body: JSON.stringify({
         creator: poll.creator,
         company: poll.company,
-        mediaItems: updatedMediaItems,
-        timer: poll.timer
+        mediaItems: updatedMediaItems
       })
     });
 
@@ -1466,7 +1361,7 @@ function updatePollsList() {
           <div class="poll-preview-card ${duplicates.has(index) ? 'duplicate-warning' : ''}" data-index="${index}">
             <div class="poll-preview-header">
               <h4>Poll ${index + 1}: ${poll.creator} - ${poll.company}</h4>
-              <span class="poll-meta">${poll.mediaItems.length} item${poll.mediaItems.length > 1 ? 's' : ''} · ${poll.timer}s</span>
+              <span class="poll-meta">${poll.mediaItems.length} item${poll.mediaItems.length > 1 ? 's' : ''}</span>
             </div>
             <div class="poll-preview-media">
               ${poll.mediaItems.map((item, itemIndex) => generateThumbnailHtml(item, index, itemIndex, showDeleteButtons)).join('')}
@@ -1539,7 +1434,7 @@ function updatePollsList() {
         </div>
         <div style="flex: 1;">
           <strong>Poll ${index + 1}:</strong> ${poll.creator} - ${poll.company}
-          <span style="margin-left: 10px; color: #666;">(${poll.mediaItems.length} media item${poll.mediaItems.length > 1 ? 's' : ''}, ${poll.timer}s timer)</span>
+          <span style="margin-left: 10px; color: #666;">(${poll.mediaItems.length} media item${poll.mediaItems.length > 1 ? 's' : ''})</span>
           ${duplicates.has(index) ? '<span style="margin-left: 10px; color: #e53e3e; font-weight: 600;">⚠️ Duplicate</span>' : ''}
         </div>
         <div style="display: flex; gap: 8px;">
@@ -1670,8 +1565,6 @@ document.getElementById('closeUpdateAttendanceBtn').addEventListener('click', ()
   document.getElementById('updateAttendanceModal').classList.add('hidden');
 });
 
-let timerInterval = null;
-
 // Check if a URL is a YouTube Short
 function isYouTubeShort(url) {
   if (!url) return false;
@@ -1690,16 +1583,20 @@ function getShortsEmbedUrl(url) {
   return url;
 }
 
-async function startPoll(pollIndex) {
+async function startPoll(pollIndex, { skipServerStart = false } = {}) {
   // Stop any playing videos from previous poll
   stopAllVideos();
 
   try {
-    const response = await fetch(`/api/session/${sessionId}/start/${pollIndex}`, {
-      method: 'POST'
-    });
+    // Skip the server POST when advancing from voter-skip detection
+    // (the skip-poll endpoint already started the poll on the server)
+    if (!skipServerStart) {
+      const response = await fetch(`/api/session/${sessionId}/start/${pollIndex}`, {
+        method: 'POST'
+      });
 
-    if (!response.ok) throw new Error('Failed to start poll');
+      if (!response.ok) throw new Error('Failed to start poll');
+    }
 
     currentPollIndex = pollIndex;
     currentPoll = polls[pollIndex];
@@ -1708,10 +1605,6 @@ async function startPoll(pollIndex) {
 
     // Render carousel for media items
     const mediaContainer = document.getElementById('currentPollMedia');
-
-    // Check if auto-advance is enabled for video autoplay
-    const autoAdvanceToggle = document.getElementById('autoAdvanceToggle');
-    const isAutoAdvanceEnabled = autoAdvanceToggle ? autoAdvanceToggle.checked : false;
 
     // Check if this is a YouTube Short
     const hasShorts = currentPoll.mediaItems.some(item =>
@@ -1722,7 +1615,6 @@ async function startPoll(pollIndex) {
     const currentPollSection = document.querySelector('.current-poll');
     const resultsPanel = currentPollSection.querySelector('.results-panel');
     const exposeStatusPanel = document.getElementById('exposeStatusPanel');
-    const autoAdvanceSection = currentPollSection.querySelector('[style*="background: #f0f8ff"]');
 
     // Handle shorts layout wrapper
     let shortsRightPanel = currentPollSection.querySelector('.shorts-right-panel');
@@ -1735,17 +1627,13 @@ async function startPoll(pollIndex) {
         shortsRightPanel = document.createElement('div');
         shortsRightPanel.className = 'shorts-right-panel';
 
-        // Move results panel, expose status, and auto-advance into the wrapper
+        // Move results panel and expose status into the wrapper
         if (resultsPanel) {
           resultsPanel.parentNode.insertBefore(shortsRightPanel, resultsPanel);
           shortsRightPanel.appendChild(resultsPanel);
         }
         if (exposeStatusPanel) {
           shortsRightPanel.appendChild(exposeStatusPanel);
-        }
-        if (autoAdvanceSection) {
-          autoAdvanceSection.classList.add('auto-advance-section');
-          shortsRightPanel.appendChild(autoAdvanceSection);
         }
       }
     } else {
@@ -1759,10 +1647,6 @@ async function startPoll(pollIndex) {
         }
         if (exposeStatusPanel && pollControls) {
           pollControls.parentNode.insertBefore(exposeStatusPanel, pollControls);
-        }
-        if (autoAdvanceSection && pollControls) {
-          autoAdvanceSection.classList.remove('auto-advance-section');
-          pollControls.parentNode.insertBefore(autoAdvanceSection, pollControls);
         }
         if (shortsRightPanel.parentNode) {
           shortsRightPanel.parentNode.removeChild(shortsRightPanel);
@@ -1781,53 +1665,24 @@ async function startPoll(pollIndex) {
           const embedMatch = item.url.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]+)/);
           const videoId = shortsMatch ? shortsMatch[1] : (embedMatch ? embedMatch[1] : '');
 
-          if (isAutoAdvanceEnabled && videoId) {
-            // Use YouTube API for looping shorts
-            mediaContainer.innerHTML = `
-              <div class="shorts-video-container">
-                <div id="ytLoopPlayer" style="width: 100%; height: 100%;"></div>
-              </div>
-            `;
-            initYouTubeLoopPlayer(videoId);
-          } else {
-            // Non-auto-advance - use regular iframe
-            let embedUrl = getShortsEmbedUrl(item.url);
-            mediaContainer.innerHTML = `
-              <div class="shorts-video-container">
-                <iframe src="${embedUrl}"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowfullscreen>
-                </iframe>
-              </div>
-            `;
-          }
+          let embedUrl = getShortsEmbedUrl(item.url);
+          mediaContainer.innerHTML = `
+            <div class="shorts-video-container">
+              <iframe src="${embedUrl}"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowfullscreen>
+              </iframe>
+            </div>
+          `;
         } else {
-          let videoUrl = item.url;
-          const isYouTubeVideo = videoUrl.includes('youtube.com/embed/');
-          const videoIdMatch = videoUrl.match(/youtube\.com\/embed\/([^?&\/]+)/);
-          const videoId = videoIdMatch ? videoIdMatch[1] : '';
-
-          if (isAutoAdvanceEnabled && isYouTubeVideo && videoId) {
-            // Use YouTube API for looping
-            mediaContainer.innerHTML = `
-              <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
-                <div id="ytLoopPlayer" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
-              </div>
-            `;
-            initYouTubeLoopPlayer(videoId);
-          } else {
-            // Non-auto-advance or non-YouTube - use regular iframe
-            if (isAutoAdvanceEnabled && isYouTubeVideo) {
-              videoUrl += (videoUrl.includes('?') ? '&' : '?') + 'autoplay=1';
-            }
-            mediaContainer.innerHTML = `
-              <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
-                <iframe src="${videoUrl}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen>
-                </iframe>
-              </div>
-            `;
-          }
+          const videoUrl = item.url;
+          mediaContainer.innerHTML = `
+            <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
+              <iframe src="${videoUrl}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen>
+              </iframe>
+            </div>
+          `;
         }
       } else {
         mediaContainer.innerHTML = `
@@ -1853,11 +1708,8 @@ async function startPoll(pollIndex) {
 
       renderHostCarouselItem(0);
 
-      // Start auto-carousel if enabled (check toggle state)
-      const autoAdvanceToggle = document.getElementById('autoAdvanceToggle');
-      if (autoAdvanceToggle && autoAdvanceToggle.checked) {
-        startAutoCarousel();
-      }
+      // Always start auto-carousel for multi-media polls
+      startAutoCarousel();
     }
 
     document.getElementById('totalVotes').textContent = '0';
@@ -1871,17 +1723,6 @@ async function startPoll(pollIndex) {
     document.getElementById('exposeVoteNeeded').textContent = Math.ceil(expectedAttendance * 0.5);
     document.getElementById('exposeStatus').textContent = 'Not triggered';
     document.getElementById('exposeStatus').style.background = '#e2e8f0';
-
-    // Add toggle listener to stop carousel/video timeouts when turned off
-    // (autoAdvanceToggle already declared above)
-    if (autoAdvanceToggle) {
-      // Remove any existing listener to avoid duplicates
-      autoAdvanceToggle.removeEventListener('change', handleToggleChange);
-      autoAdvanceToggle.addEventListener('change', handleToggleChange);
-    }
-
-    // Start timer countdown
-    startTimer(currentPoll.timer);
 
     startPolling();
 
@@ -1907,7 +1748,11 @@ async function startPoll(pollIndex) {
       };
     }
   } catch (error) {
-    alert('Error starting poll: ' + error.message);
+    console.error('Error starting poll:', error);
+    // Ensure polling restarts even on error so the host UI doesn't freeze
+    currentPollIndex = pollIndex;
+    currentPoll = polls[pollIndex];
+    startPolling();
   }
 }
 
@@ -1924,193 +1769,33 @@ function stopPolling() {
   }
 }
 
-function startTimer(duration) {
-  if (timerInterval) {
-    clearInterval(timerInterval);
-  }
-
-  // Store original duration for this poll
-  originalTimerDuration = duration;
-  let timeLeft = duration;
-  hasReachedThreshold = false;
-  savedTimeLeft = null;
-  isTimerPaused = false;
-  currentTimeLeft = duration;
-
-  // Reset pause button
-  const pauseBtn = document.getElementById('pauseTimerBtn');
-  if (pauseBtn) {
-    pauseBtn.textContent = 'Pause';
-    pauseBtn.style.background = '#ed8936';
-  }
-
-  const timerValue = document.getElementById('timerValue');
-  const timerDisplay = document.getElementById('timerDisplay');
-  const timerText = document.getElementById('timerText');
-
-  // Check if timer elements exist
-  if (!timerValue || !timerDisplay || !timerText) {
-    console.error('Timer elements not found in DOM');
-    return;
-  }
-
-  // Check initial state of auto-advance
-  const autoAdvanceToggle = document.getElementById('autoAdvanceToggle');
-  isAutoAdvanceOn = autoAdvanceToggle ? autoAdvanceToggle.checked : false;
-
-  // Update display based on initial auto-advance state
-  if (isAutoAdvanceOn) {
-    timerDisplay.style.display = 'none';
-  } else {
-    timerDisplay.style.display = 'block';
-    timerValue.textContent = timeLeft;
-    timerDisplay.style.background = '#48bb78';
-    timerDisplay.style.color = 'white';
-    timerText.innerHTML = 'Time remaining: <strong id="timerValue">' + timeLeft + '</strong>s';
-  }
-
-  // Sync initial state to server
-  syncAutoAdvanceState();
-
-  timerInterval = setInterval(() => {
-    // Check current state of auto-advance toggle
-    const autoAdvanceToggle = document.getElementById('autoAdvanceToggle');
-    const currentAutoAdvance = autoAdvanceToggle ? autoAdvanceToggle.checked : false;
-
-    // Handle auto-advance toggle changes
-    if (currentAutoAdvance !== isAutoAdvanceOn) {
-      if (currentAutoAdvance) {
-        // Auto-advance was turned ON - save current time and hide timer
-        savedTimeLeft = timeLeft;
-        timerDisplay.style.display = 'none';
-      } else {
-        // Auto-advance was turned OFF - restore timer display
-        if (savedTimeLeft !== null) {
-          timeLeft = savedTimeLeft;
-        }
-        timerDisplay.style.display = 'block';
-        hasReachedThreshold = false;
-        timerText.innerHTML = 'Time remaining: <strong id="timerValue">' + timeLeft + '</strong>s';
-        updateTimerColor(timerDisplay, timeLeft);
-      }
-      isAutoAdvanceOn = currentAutoAdvance;
-      syncAutoAdvanceState(); // Sync to server for voters
-    }
-
-    // Skip if timer is paused
-    if (isTimerPaused) {
-      return;
-    }
-
-    // Track current time for pause functionality
-    currentTimeLeft = timeLeft;
-
-    if (isAutoAdvanceOn) {
-      // Auto-advance mode: no timer countdown, host manually advances
-      // Timer stays hidden, carousels auto-scroll and videos auto-play
-      // Nothing to do here - just keep the interval running to check for pause state
-      return;
-    } else {
-      // Normal mode: countdown timer
-      timeLeft--;
-      currentTimeLeft = timeLeft;
-      savedTimeLeft = timeLeft; // Keep track for potential toggle
-      const timerValueEl = document.getElementById('timerValue');
-      if (timerValueEl) timerValueEl.textContent = timeLeft;
-
-      updateTimerColor(timerDisplay, timeLeft);
-
-      if (timeLeft <= 0) {
-        clearInterval(timerInterval);
-        timerDisplay.style.background = '#718096';
-        if (timerValueEl) timerValueEl.textContent = '0';
-        timerText.innerHTML = '⏱️ <strong>Voting Closed</strong> - Time expired';
-      }
-    }
-  }, 1000);
-}
-
-function updateTimerColor(timerDisplay, timeLeft) {
-  if (timeLeft <= 10) {
-    timerDisplay.style.background = '#e53e3e';
-  } else if (timeLeft <= 30) {
-    timerDisplay.style.background = '#ed8936';
-  } else {
-    timerDisplay.style.background = '#48bb78';
-  }
-}
-
-// Sync auto-advance state to server for voters to check
-async function syncAutoAdvanceState() {
-  try {
-    await fetch(`/api/session/${sessionId}/auto-advance-state`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        autoAdvanceOn: isAutoAdvanceOn
-      })
-    });
-  } catch (error) {
-    console.error('Error syncing auto-advance state:', error);
-  }
-}
-
-// Toggle pause/resume timer
-async function togglePauseTimer() {
-  const pauseBtn = document.getElementById('pauseTimerBtn');
-
-  if (isTimerPaused) {
-    // Resume timer
-    try {
-      const response = await fetch(`/api/session/${sessionId}/resume-timer`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
-      });
-
-      if (response.ok) {
-        isTimerPaused = false;
-        pauseBtn.textContent = 'Pause';
-        pauseBtn.style.background = '#ed8936';
-      }
-    } catch (error) {
-      console.error('Error resuming timer:', error);
-    }
-  } else {
-    // Pause timer
-    try {
-      const response = await fetch(`/api/session/${sessionId}/pause-timer`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ timeLeft: currentTimeLeft })
-      });
-
-      if (response.ok) {
-        isTimerPaused = true;
-        pauseBtn.textContent = 'Resume';
-        pauseBtn.style.background = '#48bb78';
-      }
-    } catch (error) {
-      console.error('Error pausing timer:', error);
-    }
-  }
-}
-
 // Skip to next poll
 async function skipToNextPoll() {
   if (!confirm('Skip to the next poll?')) return;
 
   try {
-    await fetch(`/api/session/${sessionId}/skip-poll`, {
+    const response = await fetch(`/api/session/${sessionId}/skip-poll`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({})
     });
 
-    // Trigger the next button click
-    const nextBtn = document.getElementById('nextPollBtn');
-    if (nextBtn) {
-      nextBtn.click();
+    const data = await response.json();
+    if (!response.ok) {
+      console.error('Error skipping poll:', data.error);
+      return;
+    }
+
+    // Stop current poll state
+    stopPolling();
+    stopTimer();
+    await saveCompletedPoll();
+
+    if (data.sessionCompleted) {
+      await showSessionResults();
+    } else {
+      // Start the new poll without re-posting to server (skip-poll already did it)
+      await startPoll(data.newPollIndex, { skipServerStart: true });
     }
   } catch (error) {
     console.error('Error skipping poll:', error);
@@ -2118,10 +1803,7 @@ async function skipToNextPoll() {
 }
 
 function stopTimer() {
-  if (timerInterval) {
-    clearInterval(timerInterval);
-    timerInterval = null;
-  }
+  // No-op: timers have been removed, polls stay open until host advances
 }
 
 function startAutoCarousel() {
@@ -2261,44 +1943,6 @@ function destroyYouTubeLoopPlayer() {
   }
 }
 
-function handleToggleChange(event) {
-  const isEnabled = event.target.checked;
-
-  // Sync with setup toggle
-  const setupToggle = document.getElementById('setupAutoAdvanceToggle');
-  if (setupToggle) {
-    setupToggle.checked = isEnabled;
-  }
-
-  if (!isEnabled) {
-    // Toggle turned off - stop all auto-advance features
-    stopAutoCarousel();
-    stopVideoEndTimeout();
-  } else {
-    // Toggle turned on - restart carousel if applicable
-    if (window.hostCarouselItems && window.hostCarouselItems.length > 1) {
-      const currentItem = window.hostCarouselItems[window.hostCarouselIndex];
-      // Only start carousel if current item is not a video
-      if (currentItem && currentItem.type !== 'video') {
-        startAutoCarousel();
-      }
-      // If current item is a video, set up video end timeout
-      if (currentItem && currentItem.type === 'video') {
-        stopVideoEndTimeout(); // Clear any existing
-        const estimatedVideoDuration = 60000;
-        const bufferAfterVideo = 5000;
-        videoEndTimeout = setTimeout(() => {
-          const autoAdvanceToggle = document.getElementById('autoAdvanceToggle');
-          const isStillEnabled = autoAdvanceToggle ? autoAdvanceToggle.checked : false;
-          if (isStillEnabled) {
-            hostCarouselNext();
-          }
-        }, estimatedVideoDuration + bufferAfterVideo);
-      }
-    }
-  }
-}
-
 async function updateResults() {
   if (!currentPoll) return;
 
@@ -2308,7 +1952,7 @@ async function updateResults() {
     const sessionData = await sessionResponse.json();
 
     // Detect if poll was skipped by voter (server's currentPollIndex doesn't match ours)
-    if (sessionData.currentPollIndex !== currentPollIndex) {
+    if (sessionData.currentPollIndex !== undefined && sessionData.currentPollIndex !== currentPollIndex) {
       console.log('Poll change detected! Server:', sessionData.currentPollIndex, 'Local:', currentPollIndex);
 
       if (sessionData.status === 'completed') {
@@ -2323,8 +1967,14 @@ async function updateResults() {
         stopPolling();
         stopTimer();
         await saveCompletedPoll();
+        // Update local poll data with server-side data (includes startTime from skip)
+        if (sessionData.polls && sessionData.polls[sessionData.currentPollIndex]) {
+          polls[sessionData.currentPollIndex] = sessionData.polls[sessionData.currentPollIndex];
+        }
         // Call startPoll which handles all the media rendering and setup
-        startPoll(sessionData.currentPollIndex);
+        // skipServerStart: true because skip-poll already started the poll on the server
+        // Await it to ensure polling restarts properly
+        await startPoll(sessionData.currentPollIndex, { skipServerStart: true });
         return; // Skip the rest of this update cycle
       }
     }
@@ -2340,7 +1990,7 @@ async function updateResults() {
     ratingsList.innerHTML = '';
 
     // Fetch and update expose status
-    const exposeResponse = await fetch(`/api/session/${sessionId}/expose-status/${currentPoll.id}?autoAdvanceOn=${isAutoAdvanceOn}`);
+    const exposeResponse = await fetch(`/api/session/${sessionId}/expose-status/${currentPoll.id}`);
     const exposeData = await exposeResponse.json();
 
     document.getElementById('exposeVoteCount').textContent = exposeData.exposeVoteCount;
@@ -2365,47 +2015,6 @@ async function updateResults() {
       exposeStatus.style.color = '#4a5568';
     }
 
-    // Check for timer pause/skip and auto-advance changes from authorized voters
-    const stateResponse = await fetch(`/api/session/${sessionId}/auto-advance-state`);
-    const stateData = await stateResponse.json();
-
-    // Update pause button state if changed by voter
-    const pauseBtn = document.getElementById('pauseTimerBtn');
-    if (stateData.timerPaused !== isTimerPaused) {
-      isTimerPaused = stateData.timerPaused;
-      if (isTimerPaused) {
-        pauseBtn.textContent = 'Resume';
-        pauseBtn.style.background = '#48bb78';
-        // Update timer display to show paused
-        const timerText = document.getElementById('timerText');
-        if (timerText && !timerText.innerHTML.includes('PAUSED')) {
-          timerText.innerHTML = '⏸️ PAUSED - <strong id="timerValue">' + currentTimeLeft + '</strong>s';
-        }
-      } else {
-        pauseBtn.textContent = 'Pause';
-        pauseBtn.style.background = '#ed8936';
-      }
-    }
-
-    // Check if auto-advance was changed by authorized voter
-    const autoAdvanceToggle = document.getElementById('autoAdvanceToggle');
-    if (autoAdvanceToggle && stateData.autoAdvanceOn !== autoAdvanceToggle.checked) {
-      autoAdvanceToggle.checked = stateData.autoAdvanceOn;
-      // Trigger the change handler to start/stop carousel
-      if (stateData.autoAdvanceOn) {
-        // Auto-advance turned ON by voter - start carousel for host
-        if (window.hostCarouselItems && window.hostCarouselItems.length > 1) {
-          const currentItem = window.hostCarouselItems[window.hostCarouselIndex];
-          if (currentItem && currentItem.type !== 'video') {
-            startAutoCarousel();
-          }
-        }
-      } else {
-        // Auto-advance turned OFF by voter - stop carousel
-        stopAutoCarousel();
-        stopVideoEndTimeout();
-      }
-    }
   } catch (error) {
     console.error('Error fetching results:', error);
   }
@@ -2823,95 +2432,32 @@ function renderHostCarouselItem(index) {
   stopVideoEndTimeout(); // Clear any existing timeout
   destroyYouTubeLoopPlayer(); // Clean up any existing YouTube player
 
-  // Check if auto-advance is currently enabled
-  const autoAdvanceToggle = document.getElementById('autoAdvanceToggle');
-  const isAutoAdvanceEnabled = autoAdvanceToggle ? autoAdvanceToggle.checked : false;
-
-  // Check if this is a real YouTube video (not Google Drive which uses 'video' type for everything)
-  const isYouTubeVideo = item.url.includes('youtube.com/embed/');
   const isGoogleDrive = item.url.includes('drive.google.com');
 
   if (item.type === 'video' && !isGoogleDrive) {
-    // Real video (YouTube) - handle with autoplay and video timeout
-    let videoUrl = item.url;
-
-    // Extract video ID for YouTube API
-    const videoIdMatch = item.url.match(/youtube\.com\/embed\/([^?&\/]+)/);
-    const videoId = videoIdMatch ? videoIdMatch[1] : '';
-
-    console.log('Video render debug:', {
-      isAutoAdvanceEnabled,
-      isYouTubeVideo,
-      videoId,
-      toggleElement: autoAdvanceToggle,
-      toggleChecked: autoAdvanceToggle ? autoAdvanceToggle.checked : 'no toggle'
-    });
-
-    if (isAutoAdvanceEnabled && isYouTubeVideo && videoId) {
-      // Use YouTube API for looping
-      content.innerHTML = `
-        <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
-          <div id="ytLoopPlayer" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
-        </div>
-      `;
-
-      // Initialize YouTube player with API
-      initYouTubeLoopPlayer(videoId);
-    } else {
-      // Non-auto-advance mode or no video ID - use regular iframe
-      content.innerHTML = `
-        <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
-          <iframe id="hostVideoFrame" src="${videoUrl}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen>
-          </iframe>
-        </div>
-      `;
-    }
-
-    // For YouTube videos in auto-advance mode, pause carousel and wait for video
-    if (isAutoAdvanceEnabled && isYouTubeVideo && window.hostCarouselItems.length > 1) {
-      stopAutoCarousel(); // Stop auto-rotation while video plays
-      const estimatedVideoDuration = 60000; // 60 seconds (1 minute)
-      const bufferAfterVideo = 5000; // 5 seconds after video ends
-
-      videoEndTimeout = setTimeout(() => {
-        const autoAdvanceToggle = document.getElementById('autoAdvanceToggle');
-        const isStillEnabled = autoAdvanceToggle ? autoAdvanceToggle.checked : false;
-
-        if (isStillEnabled) {
-          hostCarouselNext();
-        }
-      }, estimatedVideoDuration + bufferAfterVideo);
-    } else if (isAutoAdvanceEnabled && window.hostCarouselItems.length > 1) {
-      // Non-YouTube video (like Google Drive) - keep carousel rotating
-      if (!autoCarouselInterval) {
-        startAutoCarousel();
-      }
-    }
+    // Real video (YouTube) - use regular iframe
+    const videoUrl = item.url;
+    content.innerHTML = `
+      <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
+        <iframe id="hostVideoFrame" src="${videoUrl}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen>
+        </iframe>
+      </div>
+    `;
+  } else if (isGoogleDrive) {
+    // Google Drive - use iframe preview
+    content.innerHTML = `
+      <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
+        <iframe src="${item.url}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen>
+        </iframe>
+      </div>
+    `;
   } else {
-    // Image or Google Drive content - display as image/iframe and keep carousel rotating
-    if (isGoogleDrive) {
-      // Google Drive - use iframe preview
-      content.innerHTML = `
-        <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
-          <iframe src="${item.url}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen>
-          </iframe>
-        </div>
-      `;
-    } else {
-      // Regular image
-      content.innerHTML = `
-        <img src="${item.url}" alt="Poll media" style="max-width: 100%; max-height: 500px; display: block; margin: 0 auto; border-radius: 8px;">
-      `;
-    }
-
-    // For images/Google Drive in auto-advance mode, ensure carousel keeps running every 5 seconds
-    if (isAutoAdvanceEnabled && window.hostCarouselItems && window.hostCarouselItems.length > 1) {
-      if (!autoCarouselInterval) {
-        startAutoCarousel();
-      }
-    }
+    // Regular image
+    content.innerHTML = `
+      <img src="${item.url}" alt="Poll media" style="max-width: 100%; max-height: 500px; display: block; margin: 0 auto; border-radius: 8px;">
+    `;
   }
 
   // Update indicators
@@ -2969,8 +2515,6 @@ function editPoll(index) {
     document.getElementById('pollCompanyCustom').value = poll.company;
     document.getElementById('pollCompanyCustom').style.display = 'block';
   }
-
-  document.getElementById('pollTimer').value = poll.timer;
 
   // Convert mediaItems back to URLs (one per line)
   const urls = poll.mediaItems
@@ -3074,7 +2618,6 @@ function cancelEdit() {
   document.getElementById('submitPollBtn').textContent = 'Add Poll';
   document.getElementById('cancelEditBtn').classList.add('hidden');
   document.getElementById('pollForm').reset();
-  document.getElementById('pollTimer').value = 60;
   document.getElementById('mediaUrls').value = '';
   document.getElementById('pollCompanyCustom').style.display = 'none';
   document.getElementById('pollCompanyCustom').value = '';

@@ -818,7 +818,7 @@ h3 {
   padding: 20px;
 }
 
-/* Timer row spans full width */
+/* Controls row spans full width */
 .voting-screen.shorts-layout > div:first-child {
   grid-column: 1 / -1;
 }
@@ -888,7 +888,7 @@ h3 {
   margin: 0 auto;
 }
 
-/* Timer/controls row spans full width */
+/* Controls row spans full width */
 .current-poll.shorts-layout > div:first-child {
   grid-column: 1 / -1;
 }
@@ -1351,25 +1351,6 @@ h3 {
   white-space: nowrap;
 }
 
-/* Timer Display */
-.timer-display {
-  background: #48bb78;
-  color: white;
-  padding: 12px 20px;
-  border-radius: 8px;
-  text-align: center;
-  font-size: 18px;
-  font-weight: 600;
-  margin-bottom: 20px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transition: background 0.3s ease;
-}
-
-.timer-display strong {
-  font-size: 24px;
-  margin: 0 5px;
-}
-
 /* Media Item Input */
 .media-item-input {
   display: flex;
@@ -1640,11 +1621,6 @@ h3 {
 
   .poll-summary {
     flex-wrap: wrap;
-  }
-
-  .timer-display {
-    font-size: 14px;
-    padding: 8px 12px;
   }
 
   .media-item-input {

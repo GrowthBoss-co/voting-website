@@ -2,8 +2,6 @@ let activeSessionId = null;
 let voterId = null;
 let voterName = null;
 let pollingInterval = null;
-let countdownInterval = null;
-let countdownValue = 10;
 
 // Check for active session on page load
 async function checkActiveSession() {
@@ -197,14 +195,9 @@ function updateReadyStatus(data) {
   }
 
   // Check if threshold reached
-  if (data.thresholdReached || data.countdownStarted) {
-    document.getElementById('thresholdMessage').textContent = '80% threshold reached!';
+  if (data.thresholdReached) {
+    document.getElementById('thresholdMessage').textContent = '80% threshold reached! Waiting for host to start...';
     document.getElementById('thresholdMessage').style.color = '#48bb78';
-
-    // Start countdown if not already started
-    if (!countdownInterval) {
-      startCountdown();
-    }
   }
 
   // If session started, redirect
@@ -230,27 +223,6 @@ function startPolling() {
   }, 1000); // Poll every second
 }
 
-// Start the countdown
-function startCountdown() {
-  document.getElementById('countdownContainer').classList.remove('hidden');
-  countdownValue = 10;
-  document.getElementById('countdownTimer').textContent = countdownValue;
-
-  // Trigger countdown on server
-  fetch(`/api/session/${activeSessionId}/start-countdown`, { method: 'POST' });
-
-  countdownInterval = setInterval(() => {
-    countdownValue--;
-    document.getElementById('countdownTimer').textContent = countdownValue;
-
-    if (countdownValue <= 0) {
-      clearInterval(countdownInterval);
-      // Redirect to voting
-      window.location.href = `/vote/${activeSessionId}`;
-    }
-  }, 1000);
-}
-
 document.getElementById('backBtn').addEventListener('click', () => {
   window.location.href = '/';
 });
@@ -263,8 +235,5 @@ loadVoterNames();
 window.addEventListener('beforeunload', () => {
   if (pollingInterval) {
     clearInterval(pollingInterval);
-  }
-  if (countdownInterval) {
-    clearInterval(countdownInterval);
   }
 });

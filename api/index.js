@@ -257,7 +257,6 @@ app.post('/api/host/session/:sessionId/duplicate', checkHostAuth, async (req, re
       polls: originalSession.polls.map(poll => ({
         ...poll,
         id: require('uuid').v4(), // Generate new poll IDs
-        startTime: null,
         lastVoter: null,
         exposeThemV2: false
       })),
@@ -268,9 +267,6 @@ app.post('/api/host/session/:sessionId/duplicate', checkHostAuth, async (req, re
       exposeVotes: {},
       readyVoters: [],
       expectedAttendance: originalSession.expectedAttendance || 10,
-      autoAdvanceOn: false,
-      timerPaused: false,
-      countdownStarted: false,
       created: new Date().toISOString()
     };
 
@@ -335,7 +331,7 @@ app.post('/api/session/verify', async (req, res) => {
 app.post('/api/session/:sessionId/poll', async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const { creator, company, mediaItems, timer, exposeThem } = req.body;
+    const { creator, company, mediaItems, exposeThem } = req.body;
     const session = await getSession(sessionId);
 
     if (!session) {
@@ -360,8 +356,6 @@ app.post('/api/session/:sessionId/poll', async (req, res) => {
       creator,
       company,
       mediaItems, // Array of { url, type: 'image'|'video' }
-      timer: timer || 60, // Default 60 seconds
-      startTime: null, // Will be set when poll starts
       exposeThem: exposeThem || false, // Track if we should expose last voter
       lastVoter: null, // Will store { email, timestamp } of last voter if exposeThem is true
       exposeThemV2: false // Track if we should expose who didn't vote (set during live poll)
@@ -393,7 +387,7 @@ app.post('/api/automation/add-poll', async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized: Invalid API key' });
     }
 
-    let { sessionId, creator, company, driveLinks, timer, exposeThem } = req.body;
+    let { sessionId, creator, company, driveLinks, exposeThem } = req.body;
 
     if (!sessionId) {
       return res.status(400).json({ error: 'sessionId is required' });
@@ -522,8 +516,6 @@ app.post('/api/automation/add-poll', async (req, res) => {
       creator,
       company: formattedCompany,
       mediaItems,
-      timer: timer || 60,
-      startTime: null,
       exposeThem: exposeThem || false,
       lastVoter: null
     };
@@ -631,7 +623,7 @@ app.post('/api/automation/convert-to-shorts/:sessionId', async (req, res) => {
 app.put('/api/session/:sessionId/poll/:pollIndex', async (req, res) => {
   try {
     const { sessionId, pollIndex } = req.params;
-    const { creator, company, mediaItems, timer, exposeThem, exposeThemV2 } = req.body;
+    const { creator, company, mediaItems, exposeThem, exposeThemV2 } = req.body;
     const session = await getSession(sessionId);
 
     if (!session) {
@@ -665,8 +657,6 @@ app.put('/api/session/:sessionId/poll/:pollIndex', async (req, res) => {
       creator,
       company,
       mediaItems,
-      timer: timer || 60,
-      startTime: null,
       exposeThem: exposeThem || false,
       lastVoter: existingLastVoter || null,
       exposeThemV2: exposeThemV2 || false
@@ -884,7 +874,6 @@ app.post('/api/session/:sessionId/start/:pollIndex', async (req, res) => {
   }
 
   session.currentPollIndex = index;
-  session.polls[index].startTime = Date.now(); // Set start time for timer
 
   // Only initialize votes if this poll hasn't been voted on yet (preserve existing votes when resuming)
   if (!session.votes.has(session.polls[index].id)) {
@@ -971,9 +960,6 @@ app.post('/api/session/:sessionId/clear-votes', async (req, res) => {
   // Clear expose votes too
   session.exposeVotes = {};
 
-  // Reset countdown state
-  session.countdownStarted = false;
-
   await saveSession(sessionId, session);
 
   res.json({ success: true });
@@ -1009,25 +995,7 @@ app.post('/api/session/:sessionId/vote', async (req, res) => {
     return res.status(400).json({ error: 'Poll not active' });
   }
 
-  // Find the poll to check timer
   const poll = session.polls.find(p => p.id === pollId);
-  if (poll && poll.timer && poll.startTime) {
-    // Skip timer check if auto-advance is ON and countdown hasn't started
-    // In auto-advance mode, voting is open until the 10-second countdown finishes
-    const isAutoAdvanceOn = session.autoAdvanceOn || false;
-    const countdownStarted = session.countdownStarted || false;
-
-    if (!isAutoAdvanceOn || countdownStarted) {
-      // Normal mode or countdown has started - check timer
-      const elapsed = Math.floor((Date.now() - poll.startTime) / 1000);
-      const timeLeft = Math.max(0, poll.timer - elapsed);
-
-      if (timeLeft <= 0) {
-        return res.status(403).json({ error: 'Voting period has ended for this poll' });
-      }
-    }
-    // If auto-advance is ON and countdown hasn't started, allow voting
-  }
 
   const ratingValue = parseInt(rating);
   if (ratingValue < 0 || ratingValue > 10) {
@@ -1601,138 +1569,11 @@ app.get('/api/session/:sessionId/ready-status', async (req, res) => {
       expectedAttendance,
       thresholdReached,
       readyVoters,
-      sessionStatus: session.status,
-      countdownStarted: session.countdownStarted || false
+      sessionStatus: session.status
     });
   } catch (error) {
     console.error('Error getting ready status:', error);
     res.status(500).json({ error: 'Failed to get ready status' });
-  }
-});
-
-// Start countdown (called by host or auto when threshold reached)
-app.post('/api/session/:sessionId/start-countdown', async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const session = await getSession(sessionId);
-
-    if (!session) {
-      return res.status(404).json({ error: 'Session not found' });
-    }
-
-    session.countdownStarted = true;
-    session.countdownStartTime = Date.now();
-    await saveSession(sessionId, session);
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error starting countdown:', error);
-    res.status(500).json({ error: 'Failed to start countdown' });
-  }
-});
-
-// Update auto-advance state (called by host)
-app.post('/api/session/:sessionId/auto-advance-state', async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const { autoAdvanceOn, countdownStarted } = req.body;
-
-    const session = await getSession(sessionId);
-    if (!session) {
-      return res.status(404).json({ error: 'Session not found' });
-    }
-
-    session.autoAdvanceOn = autoAdvanceOn || false;
-    session.countdownStarted = countdownStarted || false;
-    await saveSession(sessionId, session);
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error updating auto-advance state:', error);
-    res.status(500).json({ error: 'Failed to update auto-advance state' });
-  }
-});
-
-// Get auto-advance state
-app.get('/api/session/:sessionId/auto-advance-state', async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const session = await getSession(sessionId);
-
-    if (!session) {
-      return res.status(404).json({ error: 'Session not found' });
-    }
-
-    res.json({
-      autoAdvanceOn: session.autoAdvanceOn || false,
-      countdownStarted: session.countdownStarted || false,
-      timerPaused: session.timerPaused || false,
-      pausedTimeLeft: session.pausedTimeLeft || null
-    });
-  } catch (error) {
-    console.error('Error getting auto-advance state:', error);
-    res.status(500).json({ error: 'Failed to get auto-advance state' });
-  }
-});
-
-// Pause timer (host or authorized voters)
-app.post('/api/session/:sessionId/pause-timer', async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const { voterName, timeLeft } = req.body;
-
-    // Check if voter is authorized (case-insensitive, host doesn't need voterName)
-    const authorizedVoters = ['Karol Trojanowski', 'Adrielle Silva', 'Henry Dutra'];
-    const isAuthorized = !voterName || authorizedVoters.some(
-      name => name.toLowerCase().trim() === (voterName || '').toLowerCase().trim()
-    );
-    if (!isAuthorized) {
-      return res.status(403).json({ error: 'Not authorized to pause timer' });
-    }
-
-    const session = await getSession(sessionId);
-    if (!session) {
-      return res.status(404).json({ error: 'Session not found' });
-    }
-
-    session.timerPaused = true;
-    session.pausedTimeLeft = timeLeft;
-    await saveSession(sessionId, session);
-
-    res.json({ success: true, timerPaused: true });
-  } catch (error) {
-    console.error('Error pausing timer:', error);
-    res.status(500).json({ error: 'Failed to pause timer' });
-  }
-});
-
-// Resume timer (host or authorized voters)
-app.post('/api/session/:sessionId/resume-timer', async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const { voterName } = req.body;
-
-    // Check if voter is authorized (case-insensitive)
-    const authorizedVoters = ['Karol Trojanowski', 'Adrielle Silva', 'Henry Dutra'];
-    const isAuthorized = !voterName || authorizedVoters.some(
-      name => name.toLowerCase().trim() === (voterName || '').toLowerCase().trim()
-    );
-    if (!isAuthorized) {
-      return res.status(403).json({ error: 'Not authorized to resume timer' });
-    }
-
-    const session = await getSession(sessionId);
-    if (!session) {
-      return res.status(404).json({ error: 'Session not found' });
-    }
-
-    session.timerPaused = false;
-    await saveSession(sessionId, session);
-
-    res.json({ success: true, timerPaused: false, timeLeft: session.pausedTimeLeft });
-  } catch (error) {
-    console.error('Error resuming timer:', error);
-    res.status(500).json({ error: 'Failed to resume timer' });
   }
 });
 
@@ -1766,7 +1607,6 @@ app.post('/api/session/:sessionId/skip-poll', async (req, res) => {
     } else {
       // Start the next poll
       session.currentPollIndex = nextIndex;
-      session.polls[nextIndex].startTime = Date.now();
 
       // Initialize votes for the new poll if not exists
       if (!session.votes.has(session.polls[nextIndex].id)) {
@@ -1776,10 +1616,6 @@ app.post('/api/session/:sessionId/skip-poll', async (req, res) => {
       session.status = 'presenting';
     }
 
-    // Reset timer pause and countdown state
-    session.timerPaused = false;
-    session.pausedTimeLeft = null;
-    session.countdownStarted = false;
     session.skipRequested = false;
 
     // Clear expose state for the new poll (ensure fresh countdown)
@@ -1842,8 +1678,6 @@ app.post('/api/session/:sessionId/clear-ready', async (req, res) => {
     }
 
     session.readyVoters = [];
-    session.countdownStarted = false;
-    session.countdownStartTime = null;
     await saveSession(sessionId, session);
 
     res.json({ success: true });
