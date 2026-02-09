@@ -1734,7 +1734,6 @@ async function startPoll(pollIndex, { skipServerStart = false } = {}) {
       nextBtn.textContent = 'Finish Session';
       nextBtn.onclick = async () => {
         stopPolling();
-        stopTimer();
         await saveCompletedPoll();
         await showSessionResults();
       };
@@ -1742,7 +1741,6 @@ async function startPoll(pollIndex, { skipServerStart = false } = {}) {
       nextBtn.textContent = 'Next Poll';
       nextBtn.onclick = async () => {
         stopPolling();
-        stopTimer();
         await saveCompletedPoll();
         startPoll(pollIndex + 1);
       };
@@ -1788,7 +1786,6 @@ async function skipToNextPoll() {
 
     // Stop current poll state
     stopPolling();
-    stopTimer();
     await saveCompletedPoll();
 
     if (data.sessionCompleted) {
@@ -1800,10 +1797,6 @@ async function skipToNextPoll() {
   } catch (error) {
     console.error('Error skipping poll:', error);
   }
-}
-
-function stopTimer() {
-  // No-op: timers have been removed, polls stay open until host advances
 }
 
 function startAutoCarousel() {
@@ -1958,14 +1951,12 @@ async function updateResults() {
       if (sessionData.status === 'completed') {
         // Session was ended by voter skip on last poll
         stopPolling();
-        stopTimer();
         await saveCompletedPoll();
         await showSessionResults();
         return;
       } else if (sessionData.currentPollIndex >= 0 && sessionData.currentPollIndex < polls.length) {
         // Voter skipped to a different poll - use startPoll to properly initialize
         stopPolling();
-        stopTimer();
         await saveCompletedPoll();
         // Update local poll data with server-side data (includes startTime from skip)
         if (sessionData.polls && sessionData.polls[sessionData.currentPollIndex]) {
@@ -2706,9 +2697,7 @@ async function restartSessionFromVoting() {
   }
 
   try {
-    // Stop current polling and timer
     stopPolling();
-    stopTimer();
     stopAutoCarousel();
     stopVideoEndTimeout();
 

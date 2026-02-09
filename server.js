@@ -114,7 +114,7 @@ app.post('/api/automation/add-poll', (req, res) => {
       return res.status(401).json({ error: 'Unauthorized: Invalid API key' });
     }
 
-    const { sessionId, creator, company, driveLinks, timer, exposeThem } = req.body;
+    const { sessionId, creator, company, driveLinks, exposeThem } = req.body;
 
     if (!sessionId) {
       return res.status(400).json({ error: 'sessionId is required' });
@@ -170,7 +170,6 @@ app.post('/api/automation/add-poll', (req, res) => {
       creator,
       company: formattedCompany,
       mediaItems,
-      timer: timer || 60,
       startTime: null,
       exposeThem: exposeThem || false,
       lastVoter: null

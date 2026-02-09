@@ -196,8 +196,6 @@ function displayPoll(poll, hasVoted = false, voterRating = null) {
     currentSlider.value = 5;
     currentInput.value = 5;
 
-    // Always enable voting controls initially - the timer will handle disabling if needed
-    // This prevents issues with auto-advance mode where timer shouldn't disable voting
     currentSlider.disabled = false;
     currentInput.disabled = false;
     document.getElementById('submitMessage').classList.add('hidden');

@@ -107,7 +107,6 @@ function buildPollContentText(poll, pollIndex) {
     '',
     `Creator: ${poll.creator}`,
     `Company: ${poll.company}`,
-    `Timer: ${poll.timer}s`,
     '',
     'Media:'
   ];
