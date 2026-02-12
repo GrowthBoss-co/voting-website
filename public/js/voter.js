@@ -202,8 +202,10 @@ function displayPoll(poll, hasVoted = false, voterRating = null) {
     document.getElementById('submitRatingBtn').disabled = false;
   }
 
-  // Reload notes if the notes panel is expanded
-  if (notesExpanded) {
+  // Auto-expand notes panel if collapsed, otherwise reload notes
+  if (!notesExpanded) {
+    toggleNotesPanel();
+  } else {
     loadNotes();
   }
 }
@@ -350,6 +352,15 @@ async function fetchTop10() {
     }
 
     renderTop10(data.top10, data.topCreators || (data.topCreator ? [data.topCreator] : null));
+
+    // Show overall session rating
+    if (data.overallAverage !== undefined) {
+      const ratingSection = document.getElementById('overallSessionRating');
+      document.getElementById('overallAvgDisplay').textContent = data.overallAverage;
+      document.getElementById('overallVotesDisplay').textContent = data.overallTotalVotes;
+      document.getElementById('overallPollsDisplay').textContent = data.totalPollsRated || data.totalPolls;
+      ratingSection.classList.remove('hidden');
+    }
   } catch (error) {
     console.error('Error fetching top 10:', error);
     const top10List = document.getElementById('top10List');
@@ -790,15 +801,20 @@ function displayPollForViewing(poll, hasVoted, voterRating, results, pollIndex, 
       ${hasVoted ? `<p style="color: #48bb78; margin: 0;">Your rating: <strong>${voterRating}/10</strong></p>` : '<p style="color: #666; margin: 0;">You did not vote on this poll</p>'}
     </div>`;
 
-  // Hide expose section for past polls
+  // Hide expose section and live results panel for past polls
   const exposeSection = document.getElementById('exposeSection');
   exposeSection.style.display = 'none';
+  const liveResultsPanel = document.getElementById('liveResultsPanel');
+  if (liveResultsPanel) liveResultsPanel.style.display = 'none';
+  stopResultsPolling();
 
   // Update navigation UI
   updatePollNavigationUI();
 
-  // Reload notes if the notes panel is expanded
-  if (notesExpanded) {
+  // Auto-expand notes panel if collapsed, otherwise reload notes
+  if (!notesExpanded) {
+    toggleNotesPanel();
+  } else {
     loadNotes();
   }
 }
@@ -868,9 +884,11 @@ function restoreVotingUI() {
 
   document.getElementById('submitRatingBtn').addEventListener('click', submitRating);
 
-  // Show expose section again
+  // Show expose section and live results panel again
   const exposeSection = document.getElementById('exposeSection');
   exposeSection.style.display = 'block';
+  const liveResultsPanel = document.getElementById('liveResultsPanel');
+  if (liveResultsPanel) liveResultsPanel.style.display = '';
 }
 
 // Expose voting functionality
@@ -1006,7 +1024,7 @@ function startExposePolling() {
   exposePollingInterval = setInterval(fetchExposeStatus, 2000);
 }
 
-// Modify displayPoll to stop videos and start expose polling
+// Modify displayPoll to stop videos, start expose polling, and start results polling
 const originalDisplayPoll = displayPoll;
 displayPoll = function(poll, hasVoted, voterRating) {
   // Stop any playing videos from previous poll
@@ -1014,6 +1032,11 @@ displayPoll = function(poll, hasVoted, voterRating) {
 
   originalDisplayPoll(poll, hasVoted, voterRating);
   startExposePolling();
+  startResultsPolling();
+
+  // Ensure live results panel is visible
+  const liveResultsPanel = document.getElementById('liveResultsPanel');
+  if (liveResultsPanel) liveResultsPanel.style.display = '';
 };
 
 // Clean up on page unload
@@ -1026,6 +1049,9 @@ window.addEventListener('beforeunload', () => {
   }
   if (notesPollingInterval) {
     clearInterval(notesPollingInterval);
+  }
+  if (resultsPollingInterval) {
+    clearInterval(resultsPollingInterval);
   }
 });
 
@@ -1059,6 +1085,41 @@ async function sendHeartbeat() {
 
 // Start heartbeat when page loads
 startHeartbeat();
+
+// ========================================
+// Live Results Polling
+// ========================================
+
+let resultsPollingInterval = null;
+
+async function fetchVoterResults() {
+  if (!currentPoll) return;
+
+  try {
+    const response = await fetch(`/api/session/${sessionId}/results/${currentPoll.id}`);
+    const data = await response.json();
+
+    const totalEl = document.getElementById('voterTotalVotes');
+    const avgEl = document.getElementById('voterAverageRating');
+    if (totalEl) totalEl.textContent = data.totalVotes;
+    if (avgEl) avgEl.textContent = data.average;
+  } catch (error) {
+    console.error('Error fetching voter results:', error);
+  }
+}
+
+function startResultsPolling() {
+  stopResultsPolling();
+  fetchVoterResults();
+  resultsPollingInterval = setInterval(fetchVoterResults, 2000);
+}
+
+function stopResultsPolling() {
+  if (resultsPollingInterval) {
+    clearInterval(resultsPollingInterval);
+    resultsPollingInterval = null;
+  }
+}
 
 // Voter skip poll (for authorized voters)
 async function voterSkipPoll() {

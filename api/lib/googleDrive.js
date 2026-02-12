@@ -201,6 +201,90 @@ async function syncNotesToDrive(redis, sessionId, pollId, pollIndex, poll, pollT
   console.log(`Drive sync complete for ${pollId}: folder=${folderId}`);
 }
 
+/**
+ * Build session summary text for Google Drive.
+ */
+function buildSessionSummaryText(sessionId, sessionName, completedDate, pollResults, overallAverage, overallTotalVotes, topCreators) {
+  const dateStr = new Date(completedDate).toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+
+  const lines = [
+    '========================================',
+    `  SESSION SUMMARY`,
+    '========================================',
+    '',
+    `Date: ${dateStr}`,
+    `Session: ${sessionName || sessionId}`,
+    `Session ID: ${sessionId}`,
+    '',
+    '--- OVERALL PERFORMANCE ---',
+    '',
+    `Overall Average Rating: ${overallAverage}/10`,
+    `Total Votes Cast: ${overallTotalVotes}`,
+    `Content Pieces Reviewed: ${pollResults.length}`,
+    ''
+  ];
+
+  if (topCreators && topCreators.length > 0) {
+    const names = topCreators.map(c => `${c.name} (${c.overallAverage}/10)`);
+    lines.push(`Top Creator(s): ${names.join(', ')}`);
+    lines.push('');
+  }
+
+  lines.push('--- PER-CONTENT BREAKDOWN ---');
+  lines.push('');
+
+  pollResults.forEach((poll, i) => {
+    lines.push(`${i + 1}. ${poll.creator} - ${poll.company}`);
+    lines.push(`   Average: ${poll.average}/10 | Votes: ${poll.totalVotes}`);
+  });
+
+  lines.push('');
+  lines.push('========================================');
+
+  return lines.join('\n');
+}
+
+/**
+ * Sync session summary to Google Drive when session completes.
+ * Creates a summary file in the parent folder for weekly tracking.
+ *
+ * @param {object} redis - Redis client instance
+ * @param {string} sessionId - The session ID
+ * @param {string} sessionName - The session name
+ * @param {Array} pollResults - Array of {creator, company, average, totalVotes}
+ * @param {number} overallAverage - Weighted average across all polls
+ * @param {number} overallTotalVotes - Total votes across all polls
+ * @param {Array|null} topCreators - Top creator(s) info
+ */
+async function syncSessionSummaryToDrive(redis, sessionId, sessionName, pollResults, overallAverage, overallTotalVotes, topCreators) {
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_REFRESH_TOKEN) {
+    console.log('Google Drive sync not configured, skipping session summary');
+    return;
+  }
+
+  const drive = getDriveService();
+  const completedDate = new Date().toISOString();
+
+  const summaryText = buildSessionSummaryText(
+    sessionId, sessionName, completedDate,
+    pollResults, overallAverage, overallTotalVotes, topCreators
+  );
+
+  // Create session summary file in the parent folder
+  const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const fileName = `Session Summary - ${dateStr}.txt`;
+
+  await createOrUpdateTextFile(drive, PARENT_FOLDER_ID, fileName, summaryText, null);
+
+  console.log(`Session summary synced to Drive: ${fileName}`);
+}
+
 module.exports = {
-  syncNotesToDrive
+  syncNotesToDrive,
+  syncSessionSummaryToDrive
 };

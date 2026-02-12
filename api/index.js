@@ -5,7 +5,7 @@ const { Redis } = require('@upstash/redis');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const fs = require('fs');
-const { syncNotesToDrive } = require('./lib/googleDrive');
+const { syncNotesToDrive, syncSessionSummaryToDrive } = require('./lib/googleDrive');
 
 const app = express();
 
@@ -975,7 +975,57 @@ app.post('/api/session/:sessionId/complete', async (req, res) => {
   }
 
   session.status = 'completed';
+  session.completedAt = new Date().toISOString();
+
+  // Compute and store session summary stats
+  const pollResults = session.polls.map(poll => {
+    const pollVotes = session.votes.get(poll.id);
+    let average = 0;
+    let totalVotes = 0;
+    if (pollVotes && pollVotes.size > 0) {
+      const ratings = Array.from(pollVotes.values());
+      totalVotes = ratings.length;
+      average = parseFloat((ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(2));
+    }
+    return { creator: poll.creator, company: poll.company, average, totalVotes };
+  }).filter(p => p.totalVotes > 0);
+
+  const overallTotalVotes = pollResults.reduce((sum, p) => sum + p.totalVotes, 0);
+  const overallAverage = overallTotalVotes > 0
+    ? parseFloat((pollResults.reduce((sum, p) => sum + p.average * p.totalVotes, 0) / overallTotalVotes).toFixed(2))
+    : 0;
+
+  session.sessionSummary = {
+    overallAverage,
+    overallTotalVotes,
+    totalPollsRated: pollResults.length,
+    completedAt: session.completedAt
+  };
+
   await saveSession(sessionId, session);
+
+  // Fire-and-forget: sync session summary to Google Drive
+  // Compute top creators for the summary
+  const creatorStats = {};
+  pollResults.forEach(p => {
+    if (!creatorStats[p.creator]) creatorStats[p.creator] = { totalRating: 0, count: 0 };
+    creatorStats[p.creator].totalRating += p.average;
+    creatorStats[p.creator].count += 1;
+  });
+  let topCreators = [];
+  let highestAvg = 0;
+  for (const [name, stats] of Object.entries(creatorStats)) {
+    const avg = parseFloat((stats.totalRating / stats.count).toFixed(2));
+    if (avg > highestAvg) {
+      highestAvg = avg;
+      topCreators = [{ name, overallAverage: avg, contentCount: stats.count }];
+    } else if (avg === highestAvg) {
+      topCreators.push({ name, overallAverage: avg, contentCount: stats.count });
+    }
+  }
+
+  syncSessionSummaryToDrive(redis, sessionId, session.name, pollResults, overallAverage, overallTotalVotes, topCreators)
+    .catch(err => console.error('Error syncing session summary to Drive:', err));
 
   res.json({ success: true });
 });
@@ -2304,6 +2354,13 @@ app.get('/api/session/:sessionId/top10', async (req, res) => {
       }
     }
 
+    // Calculate overall session average (weighted by vote count)
+    const ratedPolls = pollsWithRatings.filter(p => p.totalVotes > 0);
+    const overallTotalVotes = ratedPolls.reduce((sum, p) => sum + p.totalVotes, 0);
+    const overallAverage = overallTotalVotes > 0
+      ? parseFloat((ratedPolls.reduce((sum, p) => sum + p.average * p.totalVotes, 0) / overallTotalVotes).toFixed(2))
+      : 0;
+
     // Return topCreator for backwards compatibility, and topCreators for ties
     res.json({
       success: true,
@@ -2311,6 +2368,9 @@ app.get('/api/session/:sessionId/top10', async (req, res) => {
       topCreator: topCreators.length > 0 ? topCreators[0] : null,
       topCreators: topCreators.length > 0 ? topCreators : null,
       totalPolls: session.polls.length,
+      totalPollsRated: ratedPolls.length,
+      overallAverage,
+      overallTotalVotes,
       sessionName: session.name
     });
   } catch (error) {

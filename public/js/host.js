@@ -1729,6 +1729,13 @@ async function startPoll(pollIndex, { skipServerStart = false } = {}) {
     // Start voter status polling for the status panel
     startHostVoterStatusPolling();
 
+    // Auto-expand notes panel and start polling
+    if (!hostNotesExpanded) {
+      toggleHostNotesPanel();
+    } else {
+      loadHostNotes();
+    }
+
     const nextBtn = document.getElementById('nextPollBtn');
     if (pollIndex >= polls.length - 1) {
       nextBtn.textContent = 'Finish Session';
@@ -1765,6 +1772,7 @@ function stopPolling() {
     clearInterval(pollingInterval);
     pollingInterval = null;
   }
+  stopHostNotesPolling();
 }
 
 // Skip to next poll
@@ -2070,6 +2078,15 @@ async function fetchHostTop10() {
     }
 
     renderHostTop10(data.top10, data.topCreators || (data.topCreator ? [data.topCreator] : null));
+
+    // Show overall session rating
+    if (data.overallAverage !== undefined) {
+      const ratingSection = document.getElementById('hostOverallSessionRating');
+      document.getElementById('hostOverallAvgDisplay').textContent = data.overallAverage;
+      document.getElementById('hostOverallVotesDisplay').textContent = data.overallTotalVotes;
+      document.getElementById('hostOverallPollsDisplay').textContent = data.totalPollsRated || data.totalPolls;
+      ratingSection.classList.remove('hidden');
+    }
   } catch (error) {
     console.error('Error fetching top 10:', error);
     const top10List = document.getElementById('hostTop10List');
@@ -2305,10 +2322,32 @@ async function showFullSessionResults() {
     totalVotes: stats.votes
   })).sort((a, b) => b.average - a.average);
 
+  // Calculate overall session average
+  const ratedPolls = allPollResults.filter(p => p.totalVotes > 0);
+  const sessionTotalVotes = ratedPolls.reduce((sum, p) => sum + p.totalVotes, 0);
+  const sessionOverallAverage = sessionTotalVotes > 0
+    ? (ratedPolls.reduce((sum, p) => sum + p.average * p.totalVotes, 0) / sessionTotalVotes).toFixed(2)
+    : '0';
+
   const resultsSection = document.createElement('div');
   resultsSection.className = 'session-results';
   resultsSection.innerHTML = `
     <h2>Session Complete - Final Results</h2>
+
+    <div style="text-align: center; margin: 20px auto; padding: 20px 30px; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 12px; max-width: 500px;">
+      <p style="color: rgba(255,255,255,0.85); margin: 0 0 5px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Overall Session Rating</p>
+      <div style="display: flex; align-items: center; justify-content: center; gap: 30px;">
+        <div>
+          <span style="font-size: 48px; font-weight: bold; color: white;">${sessionOverallAverage}</span>
+          <span style="font-size: 20px; color: rgba(255,255,255,0.7);">/10</span>
+        </div>
+        <div style="border-left: 1px solid rgba(255,255,255,0.3); padding-left: 30px;">
+          <div style="color: rgba(255,255,255,0.85); font-size: 14px;">Total Votes</div>
+          <div style="font-size: 28px; font-weight: bold; color: white;">${sessionTotalVotes}</div>
+          <div style="color: rgba(255,255,255,0.85); font-size: 14px; margin-top: 4px;">${ratedPolls.length} pieces reviewed</div>
+        </div>
+      </div>
+    </div>
 
     <div class="aggregated-stats">
       <div class="stats-section">
@@ -2907,4 +2946,120 @@ function renderHostVoterList(readyVoters, voterStatuses) {
       </div>
     `;
   }).join('');
+}
+
+// ========================================
+// Host Notes Panel
+// ========================================
+
+let hostNotesExpanded = false;
+let hostCurrentPollNotes = [];
+let hostNotesPollingInterval = null;
+
+function toggleHostNotesPanel() {
+  const notesContent = document.getElementById('hostNotesContent');
+  const toggleIcon = document.getElementById('hostNotesToggleIcon');
+
+  hostNotesExpanded = !hostNotesExpanded;
+
+  if (hostNotesExpanded) {
+    notesContent.classList.remove('hidden');
+    toggleIcon.textContent = '▲';
+    loadHostNotes();
+    startHostNotesPolling();
+  } else {
+    notesContent.classList.add('hidden');
+    toggleIcon.textContent = '▼';
+    stopHostNotesPolling();
+  }
+}
+
+function startHostNotesPolling() {
+  stopHostNotesPolling();
+  hostNotesPollingInterval = setInterval(loadHostNotes, 3000);
+}
+
+function stopHostNotesPolling() {
+  if (hostNotesPollingInterval) {
+    clearInterval(hostNotesPollingInterval);
+    hostNotesPollingInterval = null;
+  }
+}
+
+async function loadHostNotes() {
+  if (currentPollIndex < 0) {
+    hostCurrentPollNotes = [];
+    renderHostNotes();
+    return;
+  }
+
+  const pollId = `poll-${currentPollIndex}`;
+
+  try {
+    const response = await fetch(`/api/session/${sessionId}/poll/${pollId}/notes`);
+    if (response.ok) {
+      const data = await response.json();
+      hostCurrentPollNotes = data.notes || [];
+      renderHostNotes();
+    }
+  } catch (error) {
+    console.error('Error loading host notes:', error);
+    hostCurrentPollNotes = [];
+    renderHostNotes();
+  }
+}
+
+function renderHostNotes() {
+  const notesList = document.getElementById('hostNotesList');
+  if (!notesList) return;
+
+  if (hostCurrentPollNotes.length === 0) {
+    notesList.innerHTML = '<p class="no-notes">No notes yet for this poll.</p>';
+    return;
+  }
+
+  const sortedNotes = [...hostCurrentPollNotes].sort((a, b) => b.timestamp - a.timestamp);
+
+  notesList.innerHTML = sortedNotes.map(note => {
+    const time = new Date(note.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return `
+      <div class="note-item">
+        <div class="note-time">${time}</div>
+        <div class="note-content">${escapeHtmlHost(note.content)}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function saveHostNote() {
+  const noteInput = document.getElementById('hostNoteInput');
+  const content = noteInput.value.trim();
+
+  if (!content || currentPollIndex < 0 || !currentPoll) return;
+
+  const pollId = `poll-${currentPollIndex}`;
+  const pollTitle = `${currentPoll.creator} - ${currentPoll.company || 'Unknown'}`;
+
+  try {
+    const response = await fetch(`/api/session/${sessionId}/poll/${pollId}/notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content, pollTitle })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      hostCurrentPollNotes.push(data.note);
+      renderHostNotes();
+      noteInput.value = '';
+    }
+  } catch (error) {
+    console.error('Error saving host note:', error);
+  }
+}
+
+function escapeHtmlHost(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }

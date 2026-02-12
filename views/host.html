@@ -295,6 +295,23 @@
               </div>
             </div>
 
+            <!-- Host Notes Panel -->
+            <div id="hostNotesSection" class="notes-section">
+              <div class="notes-header" onclick="toggleHostNotesPanel()">
+                <h4>Notes</h4>
+                <span id="hostNotesToggleIcon" class="notes-toggle-icon">▼</span>
+              </div>
+              <div id="hostNotesContent" class="notes-content hidden">
+                <div class="notes-input-area">
+                  <textarea id="hostNoteInput" placeholder="Add a note for this poll (anonymous)..." rows="3"></textarea>
+                  <button id="hostSaveNoteBtn" onclick="saveHostNote()" class="btn btn-primary btn-small">Save Note</button>
+                </div>
+                <div id="hostNotesList" class="notes-list">
+                  <!-- Notes will be inserted here -->
+                </div>
+              </div>
+            </div>
+
             <div class="poll-controls">
               <button id="nextPollBtn" class="btn btn-primary">Next Poll</button>
               <span id="pollProgress"></span>
@@ -307,6 +324,22 @@
           <div class="top10-header">
             <h2 style="font-size: 2em; margin-bottom: 10px;">Top 10 Content of the Session</h2>
             <p style="font-size: 1.1em; color: #666;">Based on average ratings from all voters</p>
+          </div>
+
+          <!-- Overall Session Rating -->
+          <div id="hostOverallSessionRating" class="hidden" style="text-align: center; margin: 20px auto; padding: 20px 30px; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 12px; max-width: 500px;">
+            <p style="color: rgba(255,255,255,0.85); margin: 0 0 5px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Overall Session Rating</p>
+            <div style="display: flex; align-items: center; justify-content: center; gap: 30px;">
+              <div>
+                <span id="hostOverallAvgDisplay" style="font-size: 48px; font-weight: bold; color: white;">-</span>
+                <span style="font-size: 20px; color: rgba(255,255,255,0.7);">/10</span>
+              </div>
+              <div style="border-left: 1px solid rgba(255,255,255,0.3); padding-left: 30px;">
+                <div style="color: rgba(255,255,255,0.85); font-size: 14px;">Total Votes</div>
+                <div id="hostOverallVotesDisplay" style="font-size: 28px; font-weight: bold; color: white;">0</div>
+                <div style="color: rgba(255,255,255,0.85); font-size: 14px; margin-top: 4px;"><span id="hostOverallPollsDisplay">0</span> pieces reviewed</div>
+              </div>
+            </div>
           </div>
 
           <!-- Congratulations for top creator -->
